@@ -49,7 +49,7 @@ const Availability = () => {
         <Card className="p-6 bg-card border-border/50">
           <h3 className="font-semibold mb-4">Select Media</h3>
           
-          {/* SEARCH & FILTERS Added Here */}
+          {/* SEARCH & FILTERS */}
           <div className="space-y-4 mb-6">
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">Search</Label>
@@ -114,11 +114,11 @@ const Availability = () => {
                     <div className="font-medium">{media.name}</div>
                     <div className="text-muted-foreground">{media.city}, {media.state}</div>
                     <Badge variant={
-                      media.status === 'Available' ? 'default' : // default maps to primary/green in your theme setup? 
+                      media.status === 'Available' ? 'default' : 
                       media.status === 'Booked' ? 'destructive' : 'secondary'
                     } className={
                        media.status === 'Available' ? 'bg-green-600 hover:bg-green-700' : 
-                       media.status === 'Under Maintenance' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''
+                       media.status === 'Coming Soon' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : ''
                     }>
                       {media.status}
                     </Badge>
@@ -141,7 +141,7 @@ const Availability = () => {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-yellow-500" />
-                <span className="text-sm">Under Maintenance</span>
+                <span className="text-sm">Coming Soon</span>
               </div>
             </div>
           </div>
@@ -197,13 +197,13 @@ const Availability = () => {
                     Booked
                   </Button>
                   <Button 
-                    variant={selectedStatus === 'Maintenance' ? 'default' : 'outline'}
+                    variant={selectedStatus === 'Coming Soon' ? 'default' : 'outline'}
                     size="sm"
-                    className={selectedStatus === 'Maintenance' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'hover:border-yellow-500 hover:text-yellow-600'}
-                    onClick={() => setSelectedStatus('Maintenance')}
+                    className={selectedStatus === 'Coming Soon' ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'hover:border-yellow-500 hover:text-yellow-600'}
+                    onClick={() => setSelectedStatus('Coming Soon')}
                   >
                     <Wrench className="h-4 w-4 mr-1" />
-                    Maintenance
+                    Coming Soon
                   </Button>
                 </div>
 
