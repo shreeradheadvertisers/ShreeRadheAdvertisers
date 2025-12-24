@@ -54,9 +54,10 @@ export function AboutSection() {
               <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-peacock/20 rounded-2xl blur-xl" />
               <div className="relative grid grid-cols-2 gap-4">
                 <div className="glass-card rounded-xl p-6 text-center">
-                  <div className="text-3xl font-bold text-primary mb-1">15+</div>
-                  <div className="text-sm text-muted-foreground">Years Experience</div>
+                  <div className="text-3xl font-bold text-primary mb-1">100%</div>
+                  <div className="text-sm text-muted-foreground">Client Satisfaction</div>
                 </div>
+
                 <div className="glass-card rounded-xl p-6 text-center">
                   <div className="text-3xl font-bold text-peacock mb-1">500+</div>
                   <div className="text-sm text-muted-foreground">Happy Clients</div>
@@ -66,7 +67,7 @@ export function AboutSection() {
                   <div className="text-sm text-muted-foreground">Media Locations</div>
                 </div>
                 <div className="glass-card rounded-xl p-6 text-center">
-                  <div className="text-3xl font-bold text-success mb-1">20+</div>
+                  <div className="text-3xl font-bold text-success mb-1">30+</div>
                   <div className="text-sm text-muted-foreground">Districts</div>
                 </div>
               </div>

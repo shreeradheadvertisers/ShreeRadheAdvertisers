@@ -33,7 +33,7 @@ export function Footer() {
               <li><Link to="/" className="hover:text-primary transition-colors">Home</Link></li>
               <li><Link to="/explore" className="hover:text-primary transition-colors">Explore Media</Link></li>
               <li><Link to="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
-              <li><Link to="/admin" className="hover:text-primary transition-colors">Admin Portal</Link></li>
+              {/* Admin Portal Link Removed */}
             </ul>
           </div>
 
@@ -42,7 +42,6 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>Unipoles</li>
               <li>Hoardings</li>
-              <li>Billboards</li>
               <li>Digital LED</li>
               <li>Gantries</li>
               <li>Kiosks</li>
@@ -54,15 +53,32 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
-                contact@shreeradheadvertisers.com
+                <a 
+                  href="mailto:contact@shreeradheadvertisers.com" 
+                  className="hover:text-primary transition-colors"
+                >
+                  contact@shreeradheadvertisers.com
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
-                +91 98765 43210
+                <a 
+                  href="tel:+919876543210" 
+                  className="hover:text-primary transition-colors"
+                >
+                  +91 98765 43210
+                </a>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary" />
-                <span>123 Business Park, Mumbai, Maharashtra 400050</span>
+                <a 
+                  href="https://www.google.com/maps/search/?api=1&query=123+Business+Park,+Mumbai,+Maharashtra+400050" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors text-left"
+                >
+                  123 Business Park, Mumbai, Maharashtra 400050
+                </a>
               </li>
             </ul>
           </div>

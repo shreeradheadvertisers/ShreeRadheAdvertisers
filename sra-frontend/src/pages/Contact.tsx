@@ -62,43 +62,56 @@ const Contact = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Contact Info */}
             <div className="space-y-6">
-              <Card className="p-6 bg-card border-border/50 hover-lift">
+              <Card className="p-6 bg-card border-border/50 hover-lift transition-colors hover:border-primary/50 group">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-lg bg-primary/10">
-                    <Mail className="h-5 w-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <Mail className="h-5 w-5 text-primary group-hover:text-inherit" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-semibold mb-1">Email Us</h3>
-                    <p className="text-sm text-muted-foreground">sales@adspaces.com</p>
-                    <p className="text-sm text-muted-foreground">support@adspaces.com</p>
+                    <a href="mailto:info@shreeradheadvertisers.com" className="text-sm text-muted-foreground hover:text-primary block transition-colors">
+                      info@shreeradheadvertisers.com
+                    </a>
+                    <a href="mailto:shreeradhecd@gmail.com" className="text-sm text-muted-foreground hover:text-primary block transition-colors">
+                      shreeradhecd@gmail.com
+                    </a>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-6 bg-card border-border/50 hover-lift">
+              <Card className="p-6 bg-card border-border/50 hover-lift transition-colors hover:border-success/50 group">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-lg bg-success/10">
-                    <Phone className="h-5 w-5 text-success" />
+                  <div className="p-3 rounded-lg bg-success/10 group-hover:bg-success group-hover:text-success-foreground transition-colors">
+                    <Phone className="h-5 w-5 text-success group-hover:text-inherit" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-semibold mb-1">Call Us</h3>
-                    <p className="text-sm text-muted-foreground">+91 98765 43210</p>
-                    <p className="text-sm text-muted-foreground">+91 98765 43211</p>
+                    <a href="tel:+919131034818" className="text-sm text-muted-foreground hover:text-success block transition-colors">
+                      +91 91310 34818
+                    </a>
+                    <a href="tel:+919329215205" className="text-sm text-muted-foreground hover:text-success block transition-colors">
+                      +91 93292 15205
+                    </a>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-6 bg-card border-border/50 hover-lift">
+              <Card className="p-6 bg-card border-border/50 hover-lift transition-colors hover:border-warning/50 group">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-lg bg-warning/10">
-                    <MapPin className="h-5 w-5 text-warning" />
+                  <div className="p-3 rounded-lg bg-warning/10 group-hover:bg-warning group-hover:text-warning-foreground transition-colors">
+                    <MapPin className="h-5 w-5 text-warning group-hover:text-inherit" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="font-semibold mb-1">Visit Us</h3>
-                    <p className="text-sm text-muted-foreground">
-                      123 Business Park, Bandra West,<br />
-                      Mumbai, Maharashtra 400050
-                    </p>
+                    <a 
+                      href="https://www.google.com/maps/search/?api=1&query=Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump,+Durg,+Chhattisgarh+491001" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground hover:text-warning block transition-colors"
+                    >
+                      Shree Radhe Advertisers, Station Road, Near Petrol Pump<br />
+                      Durg, Chhattisgarh 491001
+                    </a>
                   </div>
                 </div>
               </Card>
@@ -138,7 +151,7 @@ const Contact = () => {
                     <Input 
                       id="phone"
                       type="tel"
-                      placeholder="+91 98765 43210"
+                      placeholder="+91 99999 99999"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     />
@@ -166,7 +179,6 @@ const Contact = () => {
                     <SelectContent>
                       <SelectItem value="unipole">Unipole</SelectItem>
                       <SelectItem value="hoarding">Hoarding</SelectItem>
-                      <SelectItem value="billboard">Billboard</SelectItem>
                       <SelectItem value="digital-led">Digital LED</SelectItem>
                       <SelectItem value="gantry">Gantry</SelectItem>
                       <SelectItem value="kiosk">Kiosk</SelectItem>

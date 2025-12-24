@@ -13,11 +13,11 @@ export function PublicHeader() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            {/* mix-blend-multiply blends the white background of the logo with the header */}
+            {/* Added cursor-pointer to ensure the hand icon appears on hover */}
             <img 
               src={logo} 
               alt="Shree Radhe Advertisers" 
-              className="h-12 w-auto mix-blend-multiply" 
+              className="h-12 w-auto mix-blend-multiply cursor-pointer" 
             />
           </Link>
 
@@ -37,9 +37,7 @@ export function PublicHeader() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" onClick={() => navigate('/admin')}>
-              Admin Login
-            </Button>
+            {/* Admin Login Removed */}
             <Button variant="hero" onClick={() => navigate('/contact')}>
               Get a Quote
             </Button>
@@ -69,9 +67,7 @@ export function PublicHeader() {
                 Contact
               </Link>
               <div className="flex items-center gap-2 pt-2">
-                <Button variant="outline" className="flex-1" onClick={() => navigate('/admin')}>
-                  Admin Login
-                </Button>
+                {/* Admin Login Removed */}
                 <Button variant="hero" className="flex-1" onClick={() => navigate('/contact')}>
                   Get a Quote
                 </Button>

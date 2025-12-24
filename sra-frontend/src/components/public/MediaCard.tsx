@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { MapPin, ArrowRight, Maximize, Lightbulb } from "lucide-react";
 
 interface MediaCardProps {
-  // Updated type here as well
   media: MediaLocation; 
 }
 
@@ -18,8 +17,7 @@ export function MediaCard({ media }: MediaCardProps) {
         return "bg-green-600 hover:bg-green-700 text-white border-none";
       case "Booked":
         return "bg-red-600 hover:bg-red-700 text-white border-none";
-      case "Under Maintenance": // Updated to match exact string from data.ts
-      case "Maintenance":
+      case "Coming Soon": 
         return "bg-yellow-500 hover:bg-yellow-600 text-black border-none";
       default:
         return "bg-slate-800 text-white";
@@ -36,21 +34,21 @@ export function MediaCard({ media }: MediaCardProps) {
           className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
         />
         
-        {/* Top Left: Status Badge - SOLID COLOR for visibility */}
+        {/* Top Left: Status Badge */}
         <div className="absolute top-3 left-3 z-10">
           <Badge className={`px-3 py-1 text-xs font-semibold shadow-md ${getStatusColor(media.status)}`}>
             {media.status}
           </Badge>
         </div>
 
-        {/* Top Right: Media Type Badge - SOLID WHITE for visibility */}
+        {/* Top Right: Media Type Badge */}
         <div className="absolute top-3 right-3 z-10">
           <Badge variant="secondary" className="bg-white text-slate-900 border-none shadow-md px-3 py-1 font-bold hover:bg-white/90">
             {media.type}
           </Badge>
         </div>
         
-        {/* Gradient Overlay for bottom text visibility */}
+        {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       </div>
 

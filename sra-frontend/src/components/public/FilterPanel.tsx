@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { states, districts, mediaTypes, MediaStatus, MediaType } from "@/lib/data";
+import { states, districts, mediaTypes } from "@/lib/data";
 import { Search, X } from "lucide-react";
 
 interface FilterPanelProps {
@@ -122,7 +122,8 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="Available">Available</SelectItem>
               <SelectItem value="Booked">Booked</SelectItem>
-              <SelectItem value="Under Maintenance">Under Maintenance</SelectItem>
+              {/* CHANGED: Under Maintenance -> Coming Soon */}
+              <SelectItem value="Coming Soon">Coming Soon</SelectItem>
             </SelectContent>
           </Select>
         </div>

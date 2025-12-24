@@ -1,6 +1,5 @@
-// Removed 'Billboard' from the type definition
 export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED';
-export type MediaStatus = 'Available' | 'Booked' | 'Under Maintenance';
+export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon';
 
 export interface MediaLocation {
   id: string;
@@ -27,8 +26,8 @@ export interface DistrictStats {
   totalMedia: number;
   available: number;
   booked: number;
-  maintenance: number;
-  byType: Record<MediaType, { total: number; available: number; booked: number; maintenance: number }>;
+  comingSoon: number;
+  byType: Record<MediaType, { total: number; available: number; booked: number; comingSoon: number }>;
 }
 
 export const states = ['Maharashtra', 'Karnataka', 'Tamil Nadu', 'Gujarat', 'Rajasthan', 'Delhi NCR'];
@@ -78,7 +77,7 @@ const generateMediaLocations = (): MediaLocation[] => {
 
   const sizes = ['20x10 ft', '30x15 ft', '40x20 ft', '50x25 ft', '60x30 ft'];
   const lightings: ('Front Lit' | 'Back Lit' | 'Non-Lit' | 'Digital')[] = ['Front Lit', 'Back Lit', 'Non-Lit', 'Digital'];
-  const statuses: MediaStatus[] = ['Available', 'Booked', 'Under Maintenance'];
+  const statuses: MediaStatus[] = ['Available', 'Booked', 'Coming Soon'];
 
   states.forEach(state => {
     const stateDistricts = districts[state] || [];
@@ -129,9 +128,10 @@ export const getDistrictStats = (): DistrictStats[] => {
     const key = `${location.state}-${location.district}`;
     
     if (!statsMap.has(key)) {
-      const byType: Record<MediaType, { total: number; available: number; booked: number; maintenance: number }> = {} as any;
+      // CHANGED: maintenance -> comingSoon
+      const byType: Record<MediaType, { total: number; available: number; booked: number; comingSoon: number }> = {} as any;
       mediaTypes.forEach(type => {
-        byType[type] = { total: 0, available: 0, booked: 0, maintenance: 0 };
+        byType[type] = { total: 0, available: 0, booked: 0, comingSoon: 0 };
       });
 
       statsMap.set(key, {
@@ -140,7 +140,7 @@ export const getDistrictStats = (): DistrictStats[] => {
         totalMedia: 0,
         available: 0,
         booked: 0,
-        maintenance: 0,
+        comingSoon: 0,
         byType,
       });
     }
@@ -150,12 +150,12 @@ export const getDistrictStats = (): DistrictStats[] => {
     
     if (location.status === 'Available') stats.available++;
     else if (location.status === 'Booked') stats.booked++;
-    else stats.maintenance++;
+    else stats.comingSoon++; // CHANGED
 
     stats.byType[location.type].total++;
     if (location.status === 'Available') stats.byType[location.type].available++;
     else if (location.status === 'Booked') stats.byType[location.type].booked++;
-    else stats.byType[location.type].maintenance++;
+    else stats.byType[location.type].comingSoon++; // CHANGED
   });
 
   return Array.from(statsMap.values());
@@ -169,11 +169,11 @@ export const getDashboardStats = () => {
   const total = mediaLocations.length;
   const available = mediaLocations.filter(m => m.status === 'Available').length;
   const booked = mediaLocations.filter(m => m.status === 'Booked').length;
-  const maintenance = mediaLocations.filter(m => m.status === 'Under Maintenance').length;
+  const comingSoon = mediaLocations.filter(m => m.status === 'Coming Soon').length;
   const statesCount = new Set(mediaLocations.map(m => m.state)).size;
   const districtsCount = new Set(mediaLocations.map(m => m.district)).size;
 
-  return { total, available, booked, maintenance, statesCount, districtsCount };
+  return { total, available, booked, comingSoon, statesCount, districtsCount };
 };
 
 export const getChartData = () => {
@@ -191,7 +191,8 @@ export const getChartData = () => {
   const statusData = [
     { name: 'Available', value: stats.available, fill: 'hsl(var(--success))' },
     { name: 'Booked', value: stats.booked, fill: 'hsl(var(--destructive))' },
-    { name: 'Maintenance', value: stats.maintenance, fill: 'hsl(var(--warning))' },
+    // CHANGED: Maintenance -> Coming Soon
+    { name: 'Coming Soon', value: stats.comingSoon, fill: 'hsl(var(--warning))' },
   ];
 
   const monthlyData = [
@@ -297,7 +298,7 @@ export const getBookingsByCustomerId = (customerId: string) => {
     bookings.push({
       id: `BK-${customerId.split('-')[1]}-${String(i + 1).padStart(3, '0')}`,
       mediaId: randomMedia.id,
-      customerId: customerId, // Added customerId
+      customerId: customerId,
       media: randomMedia,
       status: status,
       startDate: status === 'Completed' ? '2023-01-01' : '2024-04-01',

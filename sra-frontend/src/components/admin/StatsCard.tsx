@@ -10,20 +10,22 @@ interface StatsCardProps {
   variant?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
 }
 
+// Updated colors to match new system
 const variantStyles = {
-  default: 'bg-secondary/50',
-  primary: 'bg-primary/10',
-  success: 'bg-success/10',
-  warning: 'bg-warning/10',
-  danger: 'bg-destructive/10',
+  default: 'bg-secondary/50 text-foreground',
+  primary: 'bg-primary/10 text-primary',
+  success: 'bg-green-500/10 text-green-600',
+  warning: 'bg-yellow-500/10 text-yellow-600', // Fixed warning color
+  danger: 'bg-red-500/10 text-red-600',
 };
 
+// Updated icon colors
 const iconStyles = {
   default: 'text-foreground',
   primary: 'text-primary',
-  success: 'text-success',
-  warning: 'text-warning',
-  danger: 'text-destructive',
+  success: 'text-green-600',
+  warning: 'text-yellow-600', // Fixed icon color
+  danger: 'text-red-600',
 };
 
 export function StatsCard({ title, value, icon: Icon, trend, variant = 'default' }: StatsCardProps) {
@@ -36,7 +38,7 @@ export function StatsCard({ title, value, icon: Icon, trend, variant = 'default'
           {trend && (
             <div className={cn(
               "flex items-center gap-1 text-sm",
-              trend.isPositive ? "text-success" : "text-destructive"
+              trend.isPositive ? "text-green-600" : "text-red-600"
             )}>
               {trend.isPositive ? (
                 <TrendingUp className="h-4 w-4" />

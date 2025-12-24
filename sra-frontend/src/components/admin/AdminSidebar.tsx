@@ -6,7 +6,7 @@ import {
   PlusCircle, 
   Calendar, 
   BarChart3, 
-  Wrench, 
+  Clock, // Updated Icon import
   Users,
   ChevronLeft,
   ChevronRight,
@@ -23,7 +23,7 @@ const navItems = [
   { icon: Users, label: 'Customer Bookings', path: '/admin/bookings' },
   { icon: Calendar, label: 'Availability', path: '/admin/availability' },
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
-  { icon: Wrench, label: 'Maintenance', path: '/admin/maintenance' },
+  { icon: Clock, label: 'Coming Soon', path: '/admin/maintenance' }, // Renamed Label & Icon
 ];
 
 export function AdminSidebar() {

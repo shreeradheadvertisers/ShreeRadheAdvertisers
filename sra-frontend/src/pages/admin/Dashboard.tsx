@@ -4,9 +4,10 @@ import { ExpiringBookings } from "@/components/admin/ExpiringBookings";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { Card } from "@/components/ui/card";
 import { getDashboardStats, getChartData, recentBookings } from "@/lib/data";
-import { MapPin, CheckCircle, XCircle, Wrench, Building2, TrendingUp } from "lucide-react";
+import { MapPin, CheckCircle, XCircle, Clock, Building2, TrendingUp } from "lucide-react"; // Switched Wrench to Clock
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import { Badge } from "@/components/ui/badge";
+
 const Dashboard = () => {
   const stats = getDashboardStats();
   const { cityData, statusData, monthlyData } = getChartData();
@@ -43,11 +44,12 @@ const Dashboard = () => {
           trend={{ value: 15, isPositive: true }}
           variant="danger"
         />
+        {/* CHANGED: Maintenance -> Coming Soon */}
         <StatsCard 
-          title="Maintenance" 
-          value={stats.maintenance} 
-          icon={Wrench}
-          trend={{ value: 3, isPositive: false }}
+          title="Coming Soon" 
+          value={stats.comingSoon} 
+          icon={Clock}
+          trend={{ value: 3, isPositive: true }}
           variant="warning"
         />
         <StatsCard 

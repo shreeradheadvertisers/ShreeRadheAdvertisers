@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MediaLocation, mediaLocations, states, districts, mediaTypes } from "@/lib/data";
+import { mediaLocations, states, districts, mediaTypes } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,10 +40,11 @@ export function MediaTable() {
     currentPage * itemsPerPage
   );
 
+  // UPDATED: Map statuses to the new Badge variants
   const statusVariant = (status: string) => {
-    if (status === 'Available') return 'available';
-    if (status === 'Booked') return 'booked';
-    return 'maintenance';
+    if (status === 'Available') return 'success';
+    if (status === 'Booked') return 'destructive';
+    return 'warning'; // Maps "Coming Soon" to the yellow warning variant
   };
 
   return (
@@ -98,7 +99,7 @@ export function MediaTable() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="Available">Available</SelectItem>
             <SelectItem value="Booked">Booked</SelectItem>
-            <SelectItem value="Under Maintenance">Maintenance</SelectItem>
+            <SelectItem value="Coming Soon">Coming Soon</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -128,6 +129,7 @@ export function MediaTable() {
                   <Badge variant="secondary">{media.type}</Badge>
                 </TableCell>
                 <TableCell>
+                  {/* Uses the new mapping function */}
                   <Badge variant={statusVariant(media.status)}>{media.status}</Badge>
                 </TableCell>
                 <TableCell>
