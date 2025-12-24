@@ -1,0 +1,203 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Mail, Phone, MapPin, Send, CheckCircle } from "lucide-react";
+
+const Contact = () => {
+  const { toast } = useToast();
+  const [submitted, setSubmitted] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    mediaType: '',
+    message: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+    toast({
+      title: "Inquiry Submitted!",
+      description: "We'll get back to you within 24 hours.",
+    });
+  };
+
+  if (submitted) {
+    return (
+      <div className="pt-24 pb-16 min-h-screen flex items-center">
+        <div className="container mx-auto px-4">
+          <Card className="max-w-lg mx-auto p-8 text-center bg-card border-border/50">
+            <div className="p-4 rounded-full bg-success/10 w-fit mx-auto mb-6">
+              <CheckCircle className="h-12 w-12 text-success" />
+            </div>
+            <h1 className="text-2xl font-bold mb-3">Thank You!</h1>
+            <p className="text-muted-foreground mb-6">
+              Your inquiry has been submitted successfully. Our team will contact you within 24 hours.
+            </p>
+            <Button onClick={() => setSubmitted(false)}>Submit Another Inquiry</Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-24 pb-16">
+      <div className="container mx-auto px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">Get in Touch</h1>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Ready to elevate your brand visibility? Contact us for personalized advertising solutions.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Contact Info */}
+            <div className="space-y-6">
+              <Card className="p-6 bg-card border-border/50 hover-lift">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-primary/10">
+                    <Mail className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-1">Email Us</h3>
+                    <p className="text-sm text-muted-foreground">sales@adspaces.com</p>
+                    <p className="text-sm text-muted-foreground">support@adspaces.com</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-card border-border/50 hover-lift">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-success/10">
+                    <Phone className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-1">Call Us</h3>
+                    <p className="text-sm text-muted-foreground">+91 98765 43210</p>
+                    <p className="text-sm text-muted-foreground">+91 98765 43211</p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-6 bg-card border-border/50 hover-lift">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-lg bg-warning/10">
+                    <MapPin className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-1">Visit Us</h3>
+                    <p className="text-sm text-muted-foreground">
+                      123 Business Park, Bandra West,<br />
+                      Mumbai, Maharashtra 400050
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Contact Form */}
+            <Card className="lg:col-span-2 p-8 bg-card border-border/50">
+              <h2 className="text-xl font-semibold mb-6">Send us a Message</h2>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input 
+                      id="name"
+                      placeholder="John Doe"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input 
+                      id="email"
+                      type="email"
+                      placeholder="john@company.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input 
+                      id="phone"
+                      type="tel"
+                      placeholder="+91 98765 43210"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Business Name</Label>
+                    <Input 
+                      id="company"
+                      placeholder="ABC Corporation"
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="mediaType">Interested Media Type</Label>
+                  <Select 
+                    value={formData.mediaType}
+                    onValueChange={(v) => setFormData({ ...formData, mediaType: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select media type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unipole">Unipole</SelectItem>
+                      <SelectItem value="hoarding">Hoarding</SelectItem>
+                      <SelectItem value="billboard">Billboard</SelectItem>
+                      <SelectItem value="digital-led">Digital LED</SelectItem>
+                      <SelectItem value="gantry">Gantry</SelectItem>
+                      <SelectItem value="kiosk">Kiosk</SelectItem>
+                      <SelectItem value="multiple">Multiple Types</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="message">Your Message *</Label>
+                  <Textarea 
+                    id="message"
+                    placeholder="Tell us about your advertising requirements..."
+                    rows={5}
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <Button type="submit" size="lg" variant="hero" className="w-full">
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Message
+                </Button>
+              </form>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Contact;
