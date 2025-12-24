@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { mediaLocations, states, districts, mediaTypes } from "@/lib/data";
+import { MediaLocation, states, districts, mediaTypes } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Eye, Edit, Calendar, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export function MediaTable() {
+interface MediaTableProps {
+  data: MediaLocation[];
+  onDelete: (id: string) => void;
+}
+
+export function MediaTable({ data, onDelete }: MediaTableProps) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState('all');
@@ -20,7 +25,7 @@ export function MediaTable() {
 
   const availableDistricts = stateFilter && stateFilter !== 'all' ? districts[stateFilter] || [] : [];
 
-  const filteredMedia = mediaLocations.filter(media => {
+  const filteredMedia = data.filter(media => {
     const matchesSearch = search === '' || 
       media.name.toLowerCase().includes(search.toLowerCase()) ||
       media.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -40,11 +45,10 @@ export function MediaTable() {
     currentPage * itemsPerPage
   );
 
-  // UPDATED: Map statuses to the new Badge variants
   const statusVariant = (status: string) => {
     if (status === 'Available') return 'success';
     if (status === 'Booked') return 'destructive';
-    return 'warning'; // Maps "Coming Soon" to the yellow warning variant
+    return 'warning';
   };
 
   return (
@@ -129,7 +133,6 @@ export function MediaTable() {
                   <Badge variant="secondary">{media.type}</Badge>
                 </TableCell>
                 <TableCell>
-                  {/* Uses the new mapping function */}
                   <Badge variant={statusVariant(media.status)}>{media.status}</Badge>
                 </TableCell>
                 <TableCell>
@@ -143,19 +146,34 @@ export function MediaTable() {
                     <Button variant="ghost" size="icon">
                       <Calendar className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(media.id);
+                      }}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
+            {paginatedMedia.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  No media found matching your filters.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-2">
         <p className="text-sm text-muted-foreground">
           Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredMedia.length)} of {filteredMedia.length} results
         </p>
@@ -172,7 +190,7 @@ export function MediaTable() {
           <Button 
             variant="outline" 
             size="icon"
-            disabled={currentPage === totalPages}
+            disabled={currentPage === totalPages || totalPages === 0}
             onClick={() => setCurrentPage(p => p + 1)}
           >
             <ChevronRight className="h-4 w-4" />

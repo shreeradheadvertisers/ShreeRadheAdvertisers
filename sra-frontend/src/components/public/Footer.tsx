@@ -54,30 +54,31 @@ export function Footer() {
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
                 <a 
-                  href="mailto:contact@shreeradheadvertisers.com" 
+                  href="mailto:info@shreeradheadvertisers.com" 
                   className="hover:text-primary transition-colors"
                 >
-                  contact@shreeradheadvertisers.com
+                  info@shreeradheadvertisers.com
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
                 <a 
-                  href="tel:+919876543210" 
+                  href="tel:+919131034818" 
                   className="hover:text-primary transition-colors"
                 >
-                  +91 98765 43210
+                  +91 91310 34818
                 </a>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary" />
                 <a 
-                  href="https://www.google.com/maps/search/?api=1&query=123+Business+Park,+Mumbai,+Maharashtra+400050" 
+                  href="https://www.google.com/maps/search/?api=1&query=Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump,+Durg,+Chhattisgarh+491001" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors text-left"
                 >
-                  123 Business Park, Mumbai, Maharashtra 400050
+                  Shree Radhe Advertisers, Station Road, Near Petrol Pump<br />
+                  Durg, Chhattisgarh 491001
                 </a>
               </li>
             </ul>

@@ -1,5 +1,7 @@
 export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED';
 export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon';
+export type PaymentStatus = 'Paid' | 'Pending';
+export type PaymentMode = 'Cash' | 'Cheque' | 'Online';
 
 export interface MediaLocation {
   id: string;
@@ -18,6 +20,21 @@ export interface MediaLocation {
   bookedDates?: { start: string; end: string }[];
   occupancyRate: number;
   totalDaysBooked: number;
+  deleted?: boolean;
+  deletedAt?: string;
+}
+
+export interface Booking {
+  id: string;
+  mediaId: string;
+  customerId: string;
+  media?: MediaLocation;
+  status: string;
+  startDate: string;
+  endDate: string;
+  amount: number;
+  paymentStatus: PaymentStatus;
+  paymentMode?: PaymentMode;
 }
 
 export interface DistrictStats {
@@ -52,6 +69,7 @@ export const cities: Record<string, string[]> = {
 };
 
 export const mediaTypes: MediaType[] = ['Unipole', 'Hoarding', 'Gantry', 'Kiosk', 'Digital LED'];
+export const customerGroups = ['Corporate', 'Government', 'Agency', 'Startup', 'Non-Profit'];
 
 const generateMediaLocations = (): MediaLocation[] => {
   const locations: MediaLocation[] = [];
@@ -128,7 +146,6 @@ export const getDistrictStats = (): DistrictStats[] => {
     const key = `${location.state}-${location.district}`;
     
     if (!statsMap.has(key)) {
-      // CHANGED: maintenance -> comingSoon
       const byType: Record<MediaType, { total: number; available: number; booked: number; comingSoon: number }> = {} as any;
       mediaTypes.forEach(type => {
         byType[type] = { total: 0, available: 0, booked: 0, comingSoon: 0 };
@@ -150,12 +167,12 @@ export const getDistrictStats = (): DistrictStats[] => {
     
     if (location.status === 'Available') stats.available++;
     else if (location.status === 'Booked') stats.booked++;
-    else stats.comingSoon++; // CHANGED
+    else stats.comingSoon++; 
 
     stats.byType[location.type].total++;
     if (location.status === 'Available') stats.byType[location.type].available++;
     else if (location.status === 'Booked') stats.byType[location.type].booked++;
-    else stats.byType[location.type].comingSoon++; // CHANGED
+    else stats.byType[location.type].comingSoon++;
   });
 
   return Array.from(statsMap.values());
@@ -191,7 +208,6 @@ export const getChartData = () => {
   const statusData = [
     { name: 'Available', value: stats.available, fill: 'hsl(var(--success))' },
     { name: 'Booked', value: stats.booked, fill: 'hsl(var(--destructive))' },
-    // CHANGED: Maintenance -> Coming Soon
     { name: 'Coming Soon', value: stats.comingSoon, fill: 'hsl(var(--warning))' },
   ];
 
@@ -213,6 +229,7 @@ export const getChartData = () => {
   return { cityData, statusData, monthlyData };
 };
 
+// No longer used directly, but kept for legacy or potential direct usage
 export const recentBookings = [
   { id: 'BK-001', mediaId: 'OAM-00001', client: 'ABC Corp', startDate: '2024-01-15', endDate: '2024-03-15', amount: 450000 },
   { id: 'BK-002', mediaId: 'OAM-00015', client: 'XYZ Ltd', startDate: '2024-02-01', endDate: '2024-04-30', amount: 520000 },
@@ -228,6 +245,7 @@ export interface Customer {
   email: string;
   phone: string;
   address: string;
+  group: string;
   totalBookings: number;
   totalSpent: number;
 }
@@ -240,6 +258,7 @@ export const customers: Customer[] = [
     email: 'rajesh@techsolutions.com',
     phone: '+91 98765 43210',
     address: '123, Tech Park, Electronic City, Bangalore',
+    group: 'Corporate',
     totalBookings: 8,
     totalSpent: 4500000
   },
@@ -250,6 +269,7 @@ export const customers: Customer[] = [
     email: 'priya@greenearth.com',
     phone: '+91 98989 89898',
     address: '45, Green Avenue, Pune',
+    group: 'Startup',
     totalBookings: 5,
     totalSpent: 2800000
   },
@@ -260,6 +280,7 @@ export const customers: Customer[] = [
     email: 'amit@gtextiles.com',
     phone: '+91 76543 21098',
     address: 'GIDC, Surat, Gujarat',
+    group: 'Corporate',
     totalBookings: 12,
     totalSpent: 8500000
   },
@@ -270,6 +291,7 @@ export const customers: Customer[] = [
     email: 'sneha@urbanstyles.com',
     phone: '+91 91234 56789',
     address: 'Banjara Hills, Hyderabad',
+    group: 'Agency',
     totalBookings: 3,
     totalSpent: 1200000
   },
@@ -280,21 +302,27 @@ export const customers: Customer[] = [
     email: 'vikram@royalheritage.com',
     phone: '+91 99887 76655',
     address: 'Civil Lines, Jaipur',
+    group: 'Government',
     totalBookings: 15,
     totalSpent: 9200000
   }
 ];
 
-export const getBookingsByCustomerId = (customerId: string) => {
+export const getBookingsByCustomerId = (customerId: string): Booking[] => {
   const customer = customers.find(c => c.id === customerId);
   if (!customer) return [];
 
-  const bookings = [];
+  const bookings: Booking[] = [];
   
   for (let i = 0; i < customer.totalBookings; i++) {
     const randomMedia = mediaLocations[Math.floor(Math.random() * mediaLocations.length)];
     const status = i === 0 ? 'Active' : (i < 3 ? 'Upcoming' : 'Completed');
     
+    // Assign Paid/Pending & Payment Mode
+    const isPaid = status === 'Completed' || Math.random() > 0.4;
+    const modes: PaymentMode[] = ['Cash', 'Cheque', 'Online'];
+    const paymentMode = isPaid ? modes[0] : undefined;
+
     bookings.push({
       id: `BK-${customerId.split('-')[1]}-${String(i + 1).padStart(3, '0')}`,
       mediaId: randomMedia.id,
@@ -303,7 +331,9 @@ export const getBookingsByCustomerId = (customerId: string) => {
       status: status,
       startDate: status === 'Completed' ? '2023-01-01' : '2024-04-01',
       endDate: status === 'Completed' ? '2023-03-01' : '2024-06-01',
-      amount: randomMedia.pricePerMonth * 3
+      amount: randomMedia.pricePerMonth * 3,
+      paymentStatus: isPaid ? 'Paid' : 'Pending',
+      paymentMode: paymentMode,
     });
   }
   

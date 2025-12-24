@@ -33,7 +33,13 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      {/* ADDED: future flags to fix v7 warnings */}
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Routes>
           {/* Public Routes */}
           <Route element={<PublicLayout />}>
@@ -53,7 +59,7 @@ const App = () => (
             <Route path="bookings" element={<CustomerBookings />} />
             <Route path="availability" element={<Availability />} />
             <Route path="analytics" element={<Analytics />} />
-            <Route path="reports" element={<Reports />} /> {/* ROUTE ADDED */}
+            <Route path="reports" element={<Reports />} />
             <Route path="maintenance" element={<Maintenance />} />
           </Route>
 

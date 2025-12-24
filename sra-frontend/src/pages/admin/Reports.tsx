@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mediaLocations, bookings, states, districts, mediaTypes, customers } from "@/lib/data";
-import { FileDown, Printer, Filter, User, Check, ChevronsUpDown } from "lucide-react";
+import { mediaLocations, bookings, states, districts, mediaTypes, customers, customerGroups } from "@/lib/data";
+import { FileDown, Printer, Filter, User, Check, ChevronsUpDown, Briefcase, IndianRupee, Users } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -40,13 +40,16 @@ export default function Reports() {
   
   // Customer Specific Filters
   const [customerFilter, setCustomerFilter] = useState("all");
+
+  // Group Specific Filters
+  const [groupFilter, setGroupFilter] = useState("all");
   
   // Date Filters
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
   const availableDistricts = stateFilter !== "all" ? districts[stateFilter] || [] : [];
 
-  // --- Filtering Logic ---
+  // Filter
 
   // 1. Inventory Report Data
   const getInventoryData = () => {
@@ -83,9 +86,31 @@ export default function Reports() {
     });
   };
 
+  // 4. Group Report Data
+  const getGroupReportData = () => {
+    // First find all customers belonging to the selected group(s)
+    const targetCustomers = customers.filter(c => {
+      if (groupFilter !== "all" && (c.group || "Uncategorized") !== groupFilter) return false;
+      return true;
+    });
+    
+    const targetCustomerIds = targetCustomers.map(c => c.id);
+
+    // Filter bookings belonging to these customers
+    return bookings.filter(item => {
+      if (!targetCustomerIds.includes(item.customerId)) return false;
+      if (typeFilter !== "all" && item.media.type !== typeFilter) return false;
+      if (statusFilter !== "all" && item.status !== statusFilter) return false;
+      if (dateRange.start && new Date(item.startDate) < new Date(dateRange.start)) return false;
+      if (dateRange.end && new Date(item.endDate) > new Date(dateRange.end)) return false;
+      return true;
+    });
+  };
+
   const inventoryData = getInventoryData();
   const bookingData = getBookingData();
   const customerData = getCustomerReportData();
+  const groupData = getGroupReportData();
 
   // --- Export Functions ---
 
@@ -128,6 +153,19 @@ export default function Reports() {
         };
       });
       downloadCSV(cleanData, customerFilter !== "all" ? `Customer_Report_${customerFilter}` : "All_Customers_Report");
+    } else if (activeTab === "groups") {
+      const cleanData = groupData.map(b => {
+        const customer = customers.find(c => c.id === b.customerId);
+        return {
+          Group: customer?.group || "Uncategorized",
+          Company: customer?.company || "Unknown",
+          BookingID: b.id,
+          MediaType: b.media.type,
+          Status: b.status,
+          Amount: b.amount
+        };
+      });
+      downloadCSV(cleanData, groupFilter !== "all" ? `Group_Report_${groupFilter}` : "All_Groups_Report");
     }
   };
 
@@ -154,6 +192,8 @@ export default function Reports() {
             <TabsTrigger value="inventory">Media Inventory</TabsTrigger>
             <TabsTrigger value="bookings">Booking History</TabsTrigger>
             <TabsTrigger value="customers">Customer Reports</TabsTrigger>
+            {/* NEW TAB TRIGGER */}
+            <TabsTrigger value="groups">Group Reports</TabsTrigger>
           </TabsList>
         </div>
 
@@ -166,6 +206,24 @@ export default function Reports() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               
+              {/* Group Selector (Only on Groups Tab) */}
+              {activeTab === "groups" && (
+                <div className="space-y-2">
+                  <Label>Customer Group</Label>
+                  <Select value={groupFilter} onValueChange={setGroupFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Groups" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Groups</SelectItem>
+                      {customerGroups.map(g => (
+                        <SelectItem key={g} value={g}>{g}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {/* Customer Search (Only on Customers Tab) */}
               {activeTab === "customers" && (
                 <div className="space-y-2 flex flex-col">
@@ -199,8 +257,8 @@ export default function Reports() {
                 </div>
               )}
 
-              {/* State Search (Not on Customers Tab) */}
-              {activeTab !== "customers" && (
+              {/* State Search (Not on Customers or Groups Tab) */}
+              {activeTab !== "customers" && activeTab !== "groups" && (
                 <div className="space-y-2 flex flex-col">
                   <Label>State</Label>
                   <Popover open={stateOpen} onOpenChange={setStateOpen}>
@@ -232,8 +290,8 @@ export default function Reports() {
                 </div>
               )}
 
-              {/* District Search (Not on Customers Tab) */}
-              {activeTab !== "customers" && (
+              {/* District Search (Not on Customers or Groups Tab) */}
+              {activeTab !== "customers" && activeTab !== "groups" && (
                 <div className="space-y-2 flex flex-col">
                   <Label>District</Label>
                   <Popover open={districtOpen} onOpenChange={setDistrictOpen}>
@@ -272,7 +330,7 @@ export default function Reports() {
               )}
 
               {/* Media Type */}
-              {(activeTab === "inventory" || activeTab === "customers") && (
+              {(activeTab === "inventory" || activeTab === "customers" || activeTab === "groups") && (
                 <div className="space-y-2">
                   <Label>Media Type</Label>
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -311,7 +369,7 @@ export default function Reports() {
             </div>
 
             {/* Date Filters */}
-            {(activeTab === "bookings" || activeTab === "customers") && (
+            {(activeTab === "bookings" || activeTab === "customers" || activeTab === "groups") && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-border/50">
                 <div className="space-y-2">
                   <Label>Start Date (From)</Label>
@@ -326,7 +384,7 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        {/* Tab Contents... (Same as before) */}
+        {/* Tab Contents */}
         <TabsContent value="inventory" className="space-y-4">
           <Card>
             <CardHeader>
@@ -458,6 +516,72 @@ export default function Reports() {
                             <TableCell>{booking.media.type}</TableCell>
                             <TableCell className="text-sm">{booking.media.city}</TableCell>
                             <TableCell className="text-sm">{booking.startDate} to {booking.endDate}</TableCell>
+                            <TableCell><Badge variant={booking.status === 'Active' ? 'success' : booking.status === 'Completed' ? 'secondary' : 'outline'}>{booking.status}</Badge></TableCell>
+                            <TableCell className="text-right">₹{booking.amount.toLocaleString()}</TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="groups" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Customer Group Analysis</CardTitle>
+                  <CardDescription>
+                    {groupFilter === 'all' ? "Showing booking data across all sectors." : `Showing data for the ${groupFilter} sector.`}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-4 text-right">
+                   <div>
+                     <p className="text-xs text-muted-foreground">Total Bookings</p>
+                     <p className="text-lg font-bold flex items-center justify-end"><Briefcase className="h-4 w-4 mr-1 text-primary" />{groupData.length}</p>
+                   </div>
+                   <div>
+                     <p className="text-xs text-muted-foreground">Total Revenue</p>
+                     <p className="text-lg font-bold flex items-center justify-end"><IndianRupee className="h-4 w-4 mr-1 text-success" />{(groupData.reduce((sum, b) => sum + b.amount, 0) / 100000).toFixed(1)}L</p>
+                   </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Group</TableHead>
+                      <TableHead>Media Type</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groupData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No bookings found for the selected group.</TableCell>
+                      </TableRow>
+                    ) : (
+                      groupData.slice(0, 50).map((booking) => {
+                         const customer = customers.find(c => c.id === booking.customerId);
+                         return (
+                          <TableRow key={booking.id}>
+                            <TableCell className="font-medium">{customer?.company || "Unknown"}</TableCell>
+                            <TableCell>
+                                <Badge variant="outline" className="font-normal">{customer?.group || "N/A"}</Badge>
+                            </TableCell>
+                            <TableCell>{booking.media.type}</TableCell>
+                            <TableCell className="text-sm">{booking.startDate}</TableCell>
+                            <TableCell className="text-sm">{booking.endDate}</TableCell>
                             <TableCell><Badge variant={booking.status === 'Active' ? 'success' : booking.status === 'Completed' ? 'secondary' : 'outline'}>{booking.status}</Badge></TableCell>
                             <TableCell className="text-right">₹{booking.amount.toLocaleString()}</TableCell>
                           </TableRow>

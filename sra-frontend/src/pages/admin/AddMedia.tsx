@@ -175,7 +175,6 @@ const AddMedia = () => {
                   </Select>
                 </div>
                 
-                {/* CHANGED: Facing Direction is now an Input field */}
                 <div className="space-y-2">
                   <Label htmlFor="facing">Facing Direction</Label>
                   <Input 
@@ -184,23 +183,6 @@ const AddMedia = () => {
                     value={formData.facing}
                     onChange={(e) => setFormData({ ...formData, facing: e.target.value })}
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Traffic</Label>
-                  <Select 
-                    value={formData.traffic}
-                    onValueChange={(v) => setFormData({ ...formData, traffic: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select traffic level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
             </Card>

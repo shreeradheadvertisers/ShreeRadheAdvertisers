@@ -54,10 +54,6 @@ export function AdminSidebar() {
       {/* Navigation Items */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin">
         {navItems.map((item) => {
-          // MODIFIED LOGIC:
-          // 1. Exact match for Dashboard
-          // 2. For Media Management: Match prefix but EXCLUDE 'Add Media' path
-          // 3. For others: Standard prefix match
           const isActive = 
             item.path === '/admin' 
               ? location.pathname === '/admin'
@@ -97,7 +93,7 @@ export function AdminSidebar() {
           
           {!collapsed && (
             <>
-              <span className="font-medium relative z-10">Exit to Website</span>
+              <span className="font-medium relative z-10">Logout</span>
               <div className="absolute inset-0 translate-y-full group-hover:translate-y-0 bg-white/10 transition-transform duration-300 ease-in-out" />
             </>
           )}
