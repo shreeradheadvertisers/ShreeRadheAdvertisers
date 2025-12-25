@@ -1,26 +1,60 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"; 
 import { StatsCard } from "@/components/admin/StatsCard";
 import { DistrictBreakdown } from "@/components/admin/DistrictBreakdown";
 import { ExpiringBookings } from "@/components/admin/ExpiringBookings";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { PaymentListDialog } from "@/components/admin/PaymentManagement";
 import { Card } from "@/components/ui/card";
-import { getDashboardStats, getChartData, recentBookings, getPaymentStats, bookings as initialBookings, Booking } from "@/lib/data";
-import { MapPin, CheckCircle, XCircle, Clock, Building2, TrendingUp, IndianRupee, AlertCircle, Wallet } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+import { 
+  getDashboardStats, 
+  getChartData, 
+  recentBookings, 
+  getPaymentStats, 
+  bookings as initialBookings, 
+  Booking,
+  getComplianceStats,
+  taxRecords
+} from "@/lib/data";
+import { 
+  MapPin, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  Building2, 
+  TrendingUp, 
+  IndianRupee, 
+  AlertCircle, 
+  Wallet,
+  ShieldAlert,
+  FileText
+} from "lucide-react";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, LineChart, Line, Legend 
+} from 'recharts';
 import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
+  const navigate = useNavigate(); 
   const stats = getDashboardStats();
   const paymentStats = getPaymentStats();
+  const complianceStats = getComplianceStats();
   const { cityData, statusData, monthlyData } = getChartData();
   
-  // State for Managing Bookings/Payments
   const [allBookings, setAllBookings] = useState<Booking[]>(initialBookings);
-  
-  // State for Payment Dialog
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paymentFilter, setPaymentFilter] = useState<'All' | 'Pending' | 'Partially Paid' | 'Paid'>('All');
+
+  // Logic for Taxes Due in 10 Days
+  const today = new Date();
+  const tenDaysFromNow = new Date();
+  tenDaysFromNow.setDate(today.getDate() + 10);
+
+  const upcomingTaxesCount = taxRecords.filter(record => {
+    const dueDate = new Date(record.dueDate);
+    return record.status === 'Pending' && dueDate <= tenDaysFromNow && dueDate >= today;
+  }).length;
 
   const handleUpdateBooking = (updated: Booking) => {
     setAllBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
@@ -41,52 +75,77 @@ const Dashboard = () => {
         <CreateBookingDialog />
       </div>
 
+      {/* --- Compliance Alerts Row --- */}
+      <h2 className="text-sm font-semibold text-destructive uppercase tracking-wider flex items-center gap-2">
+        <ShieldAlert className="h-4 w-4" /> Compliance Alerts
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatsCard 
+          title="Agreements Expiring (30 Days)" 
+          value={complianceStats.expiringTenders} 
+          icon={FileText}
+          variant="danger"
+          onClick={() => navigate('/admin/documents?tab=agreements&status=Expiring Soon')}
+          className="cursor-pointer hover:shadow-md transition-all border-red-100"
+        />
+        <StatsCard 
+          title="Taxes Due (10 Days)" 
+          value={upcomingTaxesCount} 
+          icon={Clock}
+          variant="warning"
+          onClick={() => navigate('/admin/documents?tab=taxes&taxStatus=Pending')}
+          className="cursor-pointer hover:shadow-md transition-all border-amber-100"
+        />
+        <StatsCard 
+          title="Overdue Taxes" 
+          value={complianceStats.overdueTaxes} 
+          icon={AlertCircle}
+          variant="danger"
+          onClick={() => navigate('/admin/documents?tab=taxes&taxStatus=Overdue')}
+          className="cursor-pointer hover:shadow-md transition-all border-red-200"
+        />
+      </div>
+
       {/* --- Media Stats Row --- */}
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Inventory Overview</h2>
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-2">Inventory Overview</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatsCard 
           title="Total Media" 
           value={stats.total} 
           icon={MapPin}
-          trend={{ value: 12, isPositive: true }}
           variant="primary"
+          onClick={() => navigate('/admin/media')}
+          className="cursor-pointer hover:shadow-md transition-all"
         />
         <StatsCard 
           title="Available" 
           value={stats.available} 
           icon={CheckCircle}
-          trend={{ value: 8, isPositive: true }}
           variant="success"
+          onClick={() => navigate('/admin/media?status=Available')}
+          className="cursor-pointer hover:shadow-md transition-all"
         />
         <StatsCard 
           title="Booked" 
           value={stats.booked} 
           icon={XCircle}
-          trend={{ value: 15, isPositive: true }}
           variant="danger"
+          onClick={() => navigate('/admin/media?status=Booked')}
+          className="cursor-pointer hover:shadow-md transition-all"
         />
         <StatsCard 
           title="Coming Soon" 
           value={stats.comingSoon} 
           icon={Clock}
-          trend={{ value: 3, isPositive: true }}
           variant="warning"
+          onClick={() => navigate('/admin/media?status=Coming Soon')}
+          className="cursor-pointer hover:shadow-md transition-all"
         />
-        <StatsCard 
-          title="States" 
-          value={stats.statesCount} 
-          icon={Building2}
-          variant="default"
-        />
-        <StatsCard 
-          title="Districts" 
-          value={stats.districtsCount} 
-          icon={TrendingUp}
-          variant="default"
-        />
+        <StatsCard title="States" value={stats.statesCount} icon={Building2} variant="default" onClick={() => navigate('/admin/media')} className="cursor-pointer hover:shadow-md transition-all" />
+        <StatsCard title="Districts" value={stats.districtsCount} icon={TrendingUp} variant="default" onClick={() => navigate('/admin/media')} className="cursor-pointer hover:shadow-md transition-all" />
       </div>
 
-      {/* --- Payment Stats Row (New Feature) --- */}
+      {/* --- Financial Insights Row --- */}
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-4">Financial Insights</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatsCard 
@@ -95,13 +154,14 @@ const Dashboard = () => {
           icon={Wallet}
           variant="success"
           onClick={() => openPaymentDetails('Paid')}
+          className="cursor-pointer hover:shadow-md transition-all"
         />
         <StatsCard 
           title="Pending Dues" 
           value={`₹${(paymentStats.pendingDues / 100000).toFixed(1)} L`}
           icon={AlertCircle}
           variant="danger"
-          className="border-red-200 dark:border-red-900/50"
+          className="border-red-200 dark:border-red-900/50 cursor-pointer hover:shadow-md transition-all"
           onClick={() => openPaymentDetails('Pending')}
         />
         <StatsCard 
@@ -110,15 +170,13 @@ const Dashboard = () => {
           icon={IndianRupee}
           variant="warning"
           onClick={() => openPaymentDetails('Partially Paid')}
+          className="cursor-pointer hover:shadow-md transition-all"
         />
       </div>
 
-      {/* Expiring Bookings Section */}
       <ExpiringBookings />
 
-      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Bar Chart */}
         <Card className="lg:col-span-2 p-6 bg-card border-border/50">
           <h3 className="text-lg font-semibold mb-4">Media by City</h3>
           <div className="h-[300px]">
@@ -133,14 +191,20 @@ const Dashboard = () => {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px'
                   }}
+                  cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
                 />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar 
+                  dataKey="count" 
+                  fill="hsl(var(--primary))" 
+                  radius={[4, 4, 0, 0]} 
+                  className="cursor-pointer"
+                  onClick={(data) => navigate(`/admin/media?city=${data.name}`)}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        {/* Pie Chart */}
         <Card className="p-6 bg-card border-border/50">
           <h3 className="text-lg font-semibold mb-4">Status Distribution</h3>
           <div className="h-[300px]">
@@ -154,6 +218,8 @@ const Dashboard = () => {
                   outerRadius={100}
                   paddingAngle={4}
                   dataKey="value"
+                  className="cursor-pointer"
+                  onClick={(data) => navigate(`/admin/media?status=${data.name}`)}
                 >
                   {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -173,7 +239,6 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Line Chart */}
       <Card className="p-6 bg-card border-border/50">
         <h3 className="text-lg font-semibold mb-4">Booking Trends (2024)</h3>
         <div className="h-[300px]">
@@ -191,31 +256,15 @@ const Dashboard = () => {
                 }}
               />
               <Legend />
-              <Line 
-                yAxisId="left"
-                type="monotone" 
-                dataKey="bookings" 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--primary))' }}
-              />
-              <Line 
-                yAxisId="right"
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="hsl(var(--success))" 
-                strokeWidth={2}
-                dot={{ fill: 'hsl(var(--success))' }}
-              />
+              <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))' }} />
+              <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="hsl(var(--success))" strokeWidth={2} dot={{ fill: 'hsl(var(--success))' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
-      {/* District Breakdown */}
       <DistrictBreakdown />
 
-      {/* Recent Bookings */}
       <Card className="p-6 bg-card border-border/50">
         <h3 className="text-lg font-semibold mb-4">Recent Bookings</h3>
         <div className="overflow-x-auto">
@@ -231,18 +280,16 @@ const Dashboard = () => {
             </thead>
             <tbody>
               {recentBookings.map((booking) => (
-                <tr key={booking.id} className="border-b border-border/50 hover:bg-muted/30">
+                <tr 
+                  key={booking.id} 
+                  className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/admin/media/${booking.mediaId}`)}
+                >
                   <td className="py-3 px-4 font-mono">{booking.id}</td>
-                  <td className="py-3 px-4">
-                    <Badge variant="secondary">{booking.mediaId}</Badge>
-                  </td>
+                  <td className="py-3 px-4"><Badge variant="secondary">{booking.mediaId}</Badge></td>
                   <td className="py-3 px-4">{booking.client}</td>
-                  <td className="py-3 px-4">
-                     <span className="text-muted-foreground">Completed</span>
-                  </td>
-                  <td className="py-3 px-4 text-right font-medium">
-                    ₹{booking.amount.toLocaleString()}
-                  </td>
+                  <td className="py-3 px-4"><span className="text-muted-foreground">Completed</span></td>
+                  <td className="py-3 px-4 text-right font-medium">₹{booking.amount.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -250,7 +297,6 @@ const Dashboard = () => {
         </div>
       </Card>
 
-      {/* Payment Details Dialog */}
       <PaymentListDialog 
         open={isPaymentOpen}
         onOpenChange={setIsPaymentOpen}

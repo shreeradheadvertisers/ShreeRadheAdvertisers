@@ -25,10 +25,11 @@ import {
   Clock,
   Trash2,
   MoreVertical,
-  ArchiveRestore
+  ArchiveRestore,
+  Filter // Added icon
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { tenders as initialTenders, taxRecords as initialTaxes } from "@/lib/data";
+import { tenders as initialTenders, taxRecords as initialTaxes, states, districts } from "@/lib/data"; // Added states/districts
 import { TenderAgreement, TaxStatus, TenderStatus, TaxRecord, TaxFrequency, ComplianceStats, CentralBinItem } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { RecycleBinDialog } from "@/components/admin/RecycleBinDialog";
@@ -53,6 +54,13 @@ const Documents = () => {
   const [taxStatusFilter, setTaxStatusFilter] = useState<TaxStatus | "All">("All");
   const [agreementStatusFilter, setAgreementStatusFilter] = useState<TenderStatus | "All">("All");
   const [generalStatusFilter, setGeneralStatusFilter] = useState<string | null>(null);
+
+  // --- NEW AGREEMENT SPECIFIC FILTERS ---
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [districtFilter, setDistrictFilter] = useState<string>("all");
+  const [frequencyFilter, setFrequencyFilter] = useState<string>("all");
+
+  const availableDistricts = stateFilter !== "all" ? districts[stateFilter] || [] : [];
 
   // --- DIALOG STATE ---
   const [isAgreementDialogOpen, setIsAgreementDialogOpen] = useState(false);
@@ -287,7 +295,16 @@ const Documents = () => {
   const handleActiveAgreementsClick = () => { setActiveTab("agreements"); setGeneralStatusFilter("Active"); setSearchTerm(""); };
   const handlePendingLiabilityClick = () => { setActiveTab("taxes"); setTaxStatusFilter("Pending"); setAgreementStatusFilter("Active"); setSearchTerm(""); };
   const handleTotalPaidClick = () => { setActiveTab("taxes"); setTaxStatusFilter("Paid"); setAgreementStatusFilter("All"); setSearchTerm(""); };
-  const clearFilters = () => { setSearchTerm(""); setGeneralStatusFilter(null); setTaxStatusFilter("All"); setAgreementStatusFilter("All"); };
+  
+  const clearFilters = () => { 
+    setSearchTerm(""); 
+    setGeneralStatusFilter(null); 
+    setTaxStatusFilter("All"); 
+    setAgreementStatusFilter("All"); 
+    setStateFilter("all"); // Reset new filters
+    setDistrictFilter("all");
+    setFrequencyFilter("all");
+  };
   
   const handleDownload = (e: React.MouseEvent, fileName: string) => { 
     e.stopPropagation(); 
@@ -299,8 +316,12 @@ const Documents = () => {
                           t.area.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           t.tenderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           t.tenderName?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = generalStatusFilter ? t.status === generalStatusFilter : true;
-    return matchesSearch && matchesStatus;
+    
+    const matchesStatus = generalStatusFilter ? t.status === generalStatusFilter : (agreementStatusFilter === "All" ? true : t.status === agreementStatusFilter);
+    const matchesDistrict = districtFilter === "all" ? true : t.district === districtFilter;
+    const matchesFrequency = frequencyFilter === "all" ? true : t.taxFrequency === frequencyFilter;
+
+    return matchesSearch && matchesStatus && matchesDistrict && matchesFrequency;
   });
 
   const filteredTaxes = taxes.filter(t => !t.deleted).filter(t => {
@@ -455,7 +476,7 @@ const Documents = () => {
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search district, ref #, name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-8" />
             </div>
-            {(generalStatusFilter || taxStatusFilter !== "All" || searchTerm) && (
+            {(generalStatusFilter || taxStatusFilter !== "All" || searchTerm || agreementStatusFilter !== "All" || stateFilter !== "all" || frequencyFilter !== "all") && (
               <Button variant="ghost" size="icon" onClick={clearFilters} title="Clear Filters">
                 <FilterX className="h-4 w-4 text-destructive" />
               </Button>
@@ -463,12 +484,59 @@ const Documents = () => {
           </div>
         </div>
 
-        <TabsContent value="agreements">
+        <TabsContent value="agreements" className="space-y-4">
+          {/* --- NEW FILTERS ROW --- */}
+          <Card className="p-4 bg-muted/20 border-border/50">
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mr-2">
+                <Filter className="h-4 w-4" /> Filters:
+              </div>
+              
+              <Select value={agreementStatusFilter} onValueChange={(v: any) => setAgreementStatusFilter(v)}>
+                <SelectTrigger className="w-[140px] bg-background"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Status</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Expiring Soon">Expiring Soon</SelectItem>
+                  <SelectItem value="Expired">Expired</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={stateFilter} onValueChange={(v) => { setStateFilter(v); setDistrictFilter("all"); }}>
+                <SelectTrigger className="w-[150px] bg-background"><SelectValue placeholder="State" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
+              <Select value={districtFilter} onValueChange={setDistrictFilter} disabled={stateFilter === "all"}>
+                <SelectTrigger className="w-[150px] bg-background"><SelectValue placeholder="District" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Districts</SelectItem>
+                  {availableDistricts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
+              <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
+                <SelectTrigger className="w-[150px] bg-background"><SelectValue placeholder="Frequency" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Frequencies</SelectItem>
+                  <SelectItem value="Monthly">Monthly</SelectItem>
+                  <SelectItem value="Quarterly">Quarterly</SelectItem>
+                  <SelectItem value="Half-Yearly">Half-Yearly</SelectItem>
+                  <SelectItem value="Yearly">Yearly</SelectItem>
+                  <SelectItem value="One-Time">One-Time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </Card>
+
           <Card>
             <div className="p-4 border-b bg-muted/30 flex justify-between items-center">
               <h3 className="font-semibold flex items-center gap-2">
                 All Agreements
-                {generalStatusFilter && <Badge variant="secondary">{generalStatusFilter}</Badge>}
+                {(generalStatusFilter || agreementStatusFilter !== "All") && <Badge variant="secondary">{generalStatusFilter || agreementStatusFilter}</Badge>}
               </h3>
             </div>
             <Table>
@@ -498,7 +566,11 @@ const Documents = () => {
                     <TableCell className={cn(Math.ceil((new Date(tender.endDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24)) <= 30 && "text-red-600 font-bold")}>
                       {tender.endDate}
                     </TableCell>
-                    <TableCell><Badge variant={tender.status === 'Active' ? 'success' : 'destructive'}>{tender.status}</Badge></TableCell>
+                    <TableCell>
+                      <Badge variant={tender.status === 'Active' ? 'success' : (tender.status === 'Expiring Soon' ? 'warning' : 'destructive')}>
+                        {tender.status}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                        <div className="flex justify-end gap-2">
                          <Button variant="outline" size="sm" className="gap-2" onClick={(e) => handleDownload(e, `${tender.tenderNumber}.pdf`)}>
