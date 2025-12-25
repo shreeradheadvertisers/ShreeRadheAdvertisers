@@ -89,7 +89,15 @@ const MediaManagement = () => {
   });
 
   // Get Deleted Items for Bin
-  const deletedMedia = allMedia.filter(m => m.deleted === true);
+  const deletedMedia = allMedia
+  .filter(m => m.deleted === true)
+  .map(m => ({
+    id: m.id,
+    type: 'media' as const, // explicitly set type for central bin
+    displayName: m.name,
+    subText: `${m.city}, ${m.state}`,
+    deletedAt: m.deletedAt || new Date().toISOString()
+  }));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -172,7 +180,7 @@ const MediaManagement = () => {
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="bg-background/50"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="Available">Available</SelectItem>
                 <SelectItem value="Booked">Booked</SelectItem>
                 <SelectItem value="Coming Soon">Coming Soon</SelectItem>
@@ -215,9 +223,9 @@ const MediaManagement = () => {
       <RecycleBinDialog 
         open={recycleBinOpen} 
         onOpenChange={setRecycleBinOpen}
-        deletedItems={deletedMedia}
-        onRestore={handleRestore}
-        onPermanentDelete={handlePermanentDelete}
+        deletedItems={deletedMedia} // Now passing formatted central items
+        onRestore={(id) => handleRestore(id)} // Adapted to ignore the 'type' argument for now
+        onPermanentDelete={(id) => handlePermanentDelete(id)}
       />
     </div>
   );

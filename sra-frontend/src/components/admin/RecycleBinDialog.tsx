@@ -20,17 +20,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, RefreshCw, X, AlertTriangle, Clock } from "lucide-react";
-import { MediaLocation } from "@/lib/data";
-import { toast } from "@/hooks/use-toast";
+import { Trash2, RefreshCw, X, Clock } from "lucide-react";
+import { CentralBinItem } from "@/lib/api/types";
 import { Badge } from "@/components/ui/badge";
 
 interface RecycleBinDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  deletedItems: MediaLocation[];
-  onRestore: (id: string) => void;
-  onPermanentDelete: (id: string) => void;
+  deletedItems: CentralBinItem[];
+  onRestore: (id: string, type: CentralBinItem['type']) => void;
+  onPermanentDelete: (id: string, type: CentralBinItem['type']) => void;
 }
 
 export function RecycleBinDialog({
@@ -40,38 +39,12 @@ export function RecycleBinDialog({
   onRestore,
   onPermanentDelete,
 }: RecycleBinDialogProps) {
-  const [restoreId, setRestoreId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ id: string; type: CentralBinItem['type']; mode: 'restore' | 'delete' } | null>(null);
 
-  // Helper: Calculate Days Remaining (30 Day Policy)
-  const getDaysRemaining = (deletedAt?: string) => {
-    if (!deletedAt) return 30; // Default if no date
-    const deletedDate = new Date(deletedAt);
-    const today = new Date();
-    
-    // Calculate difference in milliseconds
-    const diffTime = today.getTime() - deletedDate.getTime();
-    // Convert to days elapsed
-    const daysElapsed = Math.floor(diffTime / (1000 * 3600 * 24)); 
-    
-    const daysLeft = 30 - daysElapsed;
+  const getDaysRemaining = (deletedAt: string) => {
+    const diff = new Date().getTime() - new Date(deletedAt).getTime();
+    const daysLeft = 30 - Math.floor(diff / (1000 * 3600 * 24));
     return daysLeft > 0 ? daysLeft : 0;
-  };
-
-  const confirmRestore = () => {
-    if (restoreId) {
-      onRestore(restoreId);
-      setRestoreId(null);
-      toast({ title: "Restored", description: "Media moved back to active inventory." });
-    }
-  };
-
-  const confirmPermanentDelete = () => {
-    if (deleteId) {
-      onPermanentDelete(deleteId);
-      setDeleteId(null);
-      toast({ variant: "destructive", title: "Deleted Forever", description: "Item permanently removed." });
-    }
   };
 
   return (
@@ -80,118 +53,76 @@ export function RecycleBinDialog({
         <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <div className="flex items-center justify-between mr-6">
-                <DialogTitle className="flex items-center gap-2">
-                <Trash2 className="h-5 w-5 text-destructive" />
-                Recycle Bin
-                </DialogTitle>
-                <Badge variant="outline" className="text-muted-foreground font-normal border-dashed">
-                    Items kept for 30 days
-                </Badge>
+              <DialogTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-destructive" /> Central Recycle Bin
+              </DialogTitle>
+              <Badge variant="outline">Stored for 30 days</Badge>
             </div>
-            <DialogDescription>
-              Restore items or delete them permanently. Expired items are removed automatically.
-            </DialogDescription>
+            <DialogDescription>Restore items or delete them permanently across all modules.</DialogDescription>
           </DialogHeader>
 
           <ScrollArea className="flex-1 border rounded-md mt-4">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Media Name</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Deleted Date</TableHead>
-                  <TableHead>Auto-Delete In</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Item Name</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead>Auto-Delete</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {deletedItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground flex flex-col items-center justify-center gap-2">
-                      <p>Recycle bin is empty.</p>
-                    </TableCell>
+                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">Bin is empty.</TableCell>
                   </TableRow>
                 ) : (
-                  deletedItems.map((item) => {
-                    const daysLeft = getDaysRemaining(item.deletedAt);
-                    // Determine row styling based on urgency
-                    const urgencyClass = daysLeft <= 5 ? "text-destructive font-bold" : "text-muted-foreground";
-
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell className="text-muted-foreground text-xs">
-                          {item.city}, {item.district}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {item.deletedAt ? new Date(item.deletedAt).toLocaleDateString() : "Unknown"}
-                        </TableCell>
-                        <TableCell>
-                            <div className={`flex items-center gap-1.5 text-xs ${urgencyClass}`}>
-                                <Clock className="h-3 w-3" />
-                                {daysLeft} Days
-                            </div>
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="h-7 gap-1 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                            onClick={() => setRestoreId(item.id)}
-                          >
-                            <RefreshCw className="h-3 w-3" /> Restore
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                            onClick={() => setDeleteId(item.id)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                  deletedItems.map((item) => (
+                    <TableRow key={`${item.type}-${item.id}`}>
+                      <TableCell><Badge variant="secondary" className="capitalize">{item.type}</Badge></TableCell>
+                      <TableCell className="font-medium">{item.displayName}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{item.subText}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-xs">
+                          <Clock className="h-3 w-3" /> {getDaysRemaining(item.deletedAt)} Days
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button size="sm" variant="outline" className="h-7 text-green-600" onClick={() => setConfirmAction({ id: item.id, type: item.type, mode: 'restore' })}>
+                          <RefreshCw className="h-3 w-3 mr-1" /> Restore
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => setConfirmAction({ id: item.id, type: item.type, mode: 'delete' })}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
           </ScrollArea>
-
-          <DialogFooter className="mt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* RESTORE CONFIRMATION */}
-      <AlertDialog open={!!restoreId} onOpenChange={(open) => !open && setRestoreId(null)}>
+      <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restore Media?</AlertDialogTitle>
+            <AlertDialogTitle>{confirmAction?.mode === 'restore' ? "Restore Item?" : "Permanently Delete?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will move the media item back to the active list.
+              {confirmAction?.mode === 'restore' 
+                ? "This will move the item back to its active list." 
+                : "This action cannot be undone. Data will be lost forever."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRestore} className="bg-green-600 hover:bg-green-700">Confirm Restore</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* PERMANENT DELETE CONFIRMATION */}
-      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">Permanently Delete?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This cannot be undone. The data will be lost forever.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmPermanentDelete} className="bg-destructive hover:bg-destructive/90">Delete Forever</AlertDialogAction>
+            <AlertDialogAction 
+              onClick={() => confirmAction && (confirmAction.mode === 'restore' ? onRestore(confirmAction.id, confirmAction.type) : onPermanentDelete(confirmAction.id, confirmAction.type))}
+              className={confirmAction?.mode === 'delete' ? "bg-destructive" : "bg-primary"}
+            >
+              Confirm
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext"; // 1. Import the AuthProvider
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
 
@@ -23,53 +24,56 @@ import Analytics from "./pages/admin/Analytics";
 import Maintenance from "./pages/admin/Maintenance";
 import CustomerBookings from "./pages/admin/CustomerBookings";
 import Reports from "./pages/admin/Reports";
-import Payments from "./pages/admin/Payments"; // Added Import
-
+import Payments from "./pages/admin/Payments";
 import NotFound from "./pages/NotFound";
+import Documents from "./pages/admin/Documents";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      {/* ADDED: future flags to fix v7 warnings */}
-      <BrowserRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
-        <Routes>
-          {/* Public Routes */}
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/media/:id" element={<MediaDetail />} />
-            <Route path="/contact" element={<Contact />} />
-          </Route>
+    {/* 2. Wrap the tree with AuthProvider so context is available to all routes */}
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
+          <Routes>
+            {/* Public Routes */}
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/explore" element={<Explore />} />
+              <Route path="/media/:id" element={<MediaDetail />} />
+              <Route path="/contact" element={<Contact />} />
+            </Route>
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="media" element={<MediaManagement />} />
-            <Route path="media/new" element={<AddMedia />} />
-            <Route path="media/:id" element={<AdminMediaDetail />} />
-            <Route path="bookings" element={<CustomerBookings />} />
-            <Route path="payments" element={<Payments />} /> {/* Added Route */}
-            <Route path="availability" element={<Availability />} />
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="maintenance" element={<Maintenance />} />
-          </Route>
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="media" element={<MediaManagement />} />
+              <Route path="media/new" element={<AddMedia />} />
+              <Route path="media/:id" element={<AdminMediaDetail />} />
+              <Route path="bookings" element={<CustomerBookings />} />
+              <Route path="payments" element={<Payments />} />
+              <Route path="availability" element={<Availability />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="documents" element={<Documents />} />
+              <Route path="maintenance" element={<Maintenance />} />
+            </Route>
 
-          {/* 404 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

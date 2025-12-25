@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking, PaymentMode, PaymentStatus, customers } from "@/lib/data";
-import { IndianRupee, CreditCard, Search, AlertCircle, CheckCircle2, Clock, Pencil, Calculator, Plus, ChevronsUpDown, Check } from "lucide-react";
+import { IndianRupee, CreditCard, Search, AlertCircle, CheckCircle2, Clock, Pencil, Calculator, Plus, ChevronsUpDown, Check, Trash2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
@@ -46,7 +46,6 @@ export function RecordPaymentDialog({ booking, open, onOpenChange, onPaymentReco
   const [amountToPay, setAmountToPay] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
   
-  // Calculate potential new state
   const currentPaid = booking?.amountPaid || 0;
   const totalAmount = booking?.amount || 0;
   const balance = totalAmount - currentPaid;
@@ -167,14 +166,11 @@ interface NewPaymentDialogProps {
 export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecorded }: NewPaymentDialogProps) {
   const [selectedBookingId, setSelectedBookingId] = useState<string>("");
   const [openCombobox, setOpenCombobox] = useState(false);
-  
-  // Payment Form States
   const [amountToPay, setAmountToPay] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
 
   const selectedBooking = bookings.find(b => b.id === selectedBookingId);
 
-  // Reset when dialog opens/closes
   useEffect(() => {
     if (!open) {
       setSelectedBookingId("");
@@ -223,7 +219,6 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          {/* Booking Selector */}
           <div className="space-y-2 flex flex-col">
             <Label>Select Booking</Label>
             <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
@@ -284,7 +279,6 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
 
           {selectedBooking && (
             <>
-              {/* Info Card */}
               <div className="bg-muted/40 p-3 rounded-md text-sm space-y-2 border">
                  <div className="flex justify-between">
                    <span className="text-muted-foreground">Booking:</span>
@@ -298,7 +292,6 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
                  </div>
               </div>
 
-              {/* Amount */}
               <div className="space-y-2">
                 <Label>Payment Amount (₹)</Label>
                 <Input 
@@ -314,7 +307,6 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
                 </p>
               </div>
 
-               {/* Mode */}
               <div className="space-y-2">
                 <Label>Payment Method</Label>
                 <Select value={paymentMode} onValueChange={(val) => setPaymentMode(val as PaymentMode)}>
@@ -413,7 +405,6 @@ export function EditPaymentDialog({ booking, open, onOpenChange, onSave }: EditP
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-2">
-          
           <div className="grid grid-cols-2 gap-4">
              <div className="space-y-1">
                <Label className="text-xs text-muted-foreground">Contract Value</Label>
@@ -503,13 +494,15 @@ interface PaymentListDialogProps {
   bookings: Booking[];
   initialFilter?: PaymentStatus | 'All';
   onUpdateBooking: (updatedBooking: Booking) => void;
+  onDeleteBooking: (id: string) => void; // Added for administrative deletion
 }
 
-export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter = 'All', onUpdateBooking }: PaymentListDialogProps) {
+export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter = 'All', onUpdateBooking, onDeleteBooking }: PaymentListDialogProps) {
   const [filter, setFilter] = useState<PaymentStatus | 'All'>(initialFilter);
   const [search, setSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isRecordOpen, setIsRecordOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   useEffect(() => {
     if (open) setFilter(initialFilter);
@@ -524,11 +517,10 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
     return matchesFilter && matchesSearch;
   });
 
-  const handlePaymentUpdate = (id: string, newAmountPaid: number, status: PaymentStatus, mode: PaymentMode) => {
+  const handleUpdate = (id: string, newAmountPaid: number, status: PaymentStatus, mode: PaymentMode) => {
      const booking = bookings.find(b => b.id === id);
      if (booking) {
-       const updated = { ...booking, amountPaid: newAmountPaid, paymentStatus: status, paymentMode: mode };
-       onUpdateBooking(updated);
+       onUpdateBooking({ ...booking, amountPaid: newAmountPaid, paymentStatus: status, paymentMode: mode });
      }
   };
 
@@ -539,14 +531,13 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-primary" />
-              Payment Overview
+              Payment Management Overview
             </DialogTitle>
             <DialogDescription>
-              Manage payments, view outstanding dues, and record transactions.
+              Detailed view of all transactions. You can record new payments, edit historical records, or remove invalid entries.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Filters & Search */}
           <div className="flex flex-col sm:flex-row gap-4 py-4 justify-between items-end sm:items-center">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative w-full sm:w-64">
@@ -582,16 +573,15 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                   <TableHead>Booking Info</TableHead>
                   <TableHead>Total Amount</TableHead>
                   <TableHead>Paid / Balance</TableHead>
-                  <TableHead>Progress</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead className="text-right">Admin Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredBookings.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                      No bookings match your filter.
+                      No matching records found.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -601,17 +591,13 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                     const isFullyPaid = booking.paymentStatus === 'Paid';
 
                     return (
-                      <TableRow key={booking.id} className="group">
+                      <TableRow key={booking.id} className="group hover:bg-muted/30">
                         <TableCell>
                           <div className="font-mono text-xs font-bold text-primary">{booking.id}</div>
                           <div className="text-sm font-medium">{customer?.company}</div>
                           <div className="text-xs text-muted-foreground truncate max-w-[150px]">{booking.media?.name}</div>
                         </TableCell>
-                        
-                        <TableCell className="font-medium">
-                          ₹{booking.amount.toLocaleString()}
-                        </TableCell>
-                        
+                        <TableCell className="font-medium">₹{booking.amount.toLocaleString()}</TableCell>
                         <TableCell>
                           <div className="flex flex-col text-xs">
                              <span className="text-success font-medium">Paid: ₹{booking.amountPaid.toLocaleString()}</span>
@@ -620,45 +606,49 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                              )}
                           </div>
                         </TableCell>
-
-                        <TableCell className="w-[150px]">
-                           <div className="flex items-center gap-2">
-                             <Progress value={progress} className="h-2" />
-                             <span className="text-xs text-muted-foreground w-8 text-right">{Math.round(progress)}%</span>
-                           </div>
-                        </TableCell>
-
                         <TableCell>
-                          <Badge 
-                            variant={
-                              booking.paymentStatus === 'Paid' ? 'success' : 
-                              booking.paymentStatus === 'Partially Paid' ? 'warning' : 'destructive'
-                            } 
-                            className="whitespace-nowrap"
-                          >
-                             {booking.paymentStatus === 'Paid' && <CheckCircle2 className="mr-1 h-3 w-3" />}
-                             {booking.paymentStatus === 'Pending' && <AlertCircle className="mr-1 h-3 w-3" />}
-                             {booking.paymentStatus === 'Partially Paid' && <Clock className="mr-1 h-3 w-3" />}
+                          <Badge variant={booking.paymentStatus === 'Paid' ? 'success' : booking.paymentStatus === 'Partially Paid' ? 'warning' : 'destructive'}>
                              {booking.paymentStatus}
                           </Badge>
-                          {booking.paymentMode && (
-                             <div className="text-[10px] text-muted-foreground mt-1">via {booking.paymentMode}</div>
-                          )}
                         </TableCell>
-
                         <TableCell className="text-right">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="h-8"
-                            disabled={isFullyPaid}
-                            onClick={() => {
-                              setSelectedBooking(booking);
-                              setIsRecordOpen(true);
-                            }}
-                          >
-                            {isFullyPaid ? "Paid" : "Record Pay"}
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="h-8"
+                              disabled={isFullyPaid}
+                              onClick={() => {
+                                setSelectedBooking(booking);
+                                setIsRecordOpen(true);
+                              }}
+                            >
+                              Record Pay
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-8 w-8 text-primary"
+                              onClick={() => {
+                                setSelectedBooking(booking);
+                                setIsEditOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => {
+                                if(confirm(`Permanently delete payment record for ${booking.id}?`)) {
+                                  onDeleteBooking(booking.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -674,12 +664,18 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
         </DialogContent>
       </Dialog>
 
-      {/* Nested Record Payment Dialog */}
       <RecordPaymentDialog 
         booking={selectedBooking}
         open={isRecordOpen}
         onOpenChange={setIsRecordOpen}
-        onPaymentRecorded={handlePaymentUpdate}
+        onPaymentRecorded={handleUpdate}
+      />
+
+      <EditPaymentDialog 
+        booking={selectedBooking}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        onSave={handleUpdate}
       />
     </>
   );

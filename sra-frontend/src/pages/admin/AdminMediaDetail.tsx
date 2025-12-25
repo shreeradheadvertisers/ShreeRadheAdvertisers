@@ -81,7 +81,6 @@ const AdminMediaDetail = () => {
               { icon: Maximize, label: 'Size', value: media.size, color: 'primary' },
               { icon: Lightbulb, label: 'Lighting', value: media.lighting, color: 'warning' },
               { icon: Compass, label: 'Facing', value: media.facing, color: 'success' },
-              // FIX: Replaced invalid 'traffic' property with 'District'
               { icon: MapPin, label: 'District', value: media.district, color: 'destructive' },
             ].map((spec) => (
               <Card key={spec.label} className="p-4 bg-card border-border/50">

@@ -100,7 +100,7 @@ export function MediaTable({ data, onDelete }: MediaTableProps) {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="Available">Available</SelectItem>
             <SelectItem value="Booked">Booked</SelectItem>
             <SelectItem value="Coming Soon">Coming Soon</SelectItem>

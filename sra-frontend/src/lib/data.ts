@@ -1,3 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { 
+  TenderAgreement, 
+  TaxRecord, 
+  ComplianceStats, 
+  TaxFrequency, 
+  TenderStatus, 
+  TaxStatus 
+} from './api/types';
+
 export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED';
 export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon';
 export type PaymentStatus = 'Paid' | 'Pending' | 'Partially Paid';
@@ -147,7 +157,6 @@ export const getDistrictStats = (): DistrictStats[] => {
     const key = `${location.state}-${location.district}`;
     
     if (!statsMap.has(key)) {
-      // FIX: Use reduce to initialize the object with proper typing instead of 'as any'
       const byType = mediaTypes.reduce((acc, type) => {
         acc[type] = { total: 0, available: 0, booked: 0, comingSoon: 0 };
         return acc;
@@ -397,5 +406,132 @@ export const getPaymentStats = () => {
     partialCount,
     pendingCount,
     paidCount
+  };
+};
+
+// --- COMPLIANCE DATA GENERATOR ---
+
+// Helper to manipulate dates
+const addDays = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+};
+
+const generateTenders = (): TenderAgreement[] => {
+  const tenders: TenderAgreement[] = [];
+  let idCounter = 1;
+  const frequencies: TaxFrequency[] = ['Quarterly', 'Half-Yearly', 'Yearly'];
+  const specificAreas = ['Market Yard', 'Civil Lines', 'Highway Junction', 'City Center', 'Industrial Estate'];
+
+  // Generate a tender for each district
+  Object.keys(districts).forEach(state => {
+    districts[state].forEach(district => {
+      // Create 1-2 tenders per district for different areas
+      const numTenders = Math.random() > 0.5 ? 2 : 1;
+      
+      for(let i=0; i<numTenders; i++) {
+        const isExpiring = Math.random() > 0.85; // 15% chance of expiring soon
+        
+        let endDate = addDays(365); 
+        let status: 'Active' | 'Expiring Soon' | 'Expired' = 'Active';
+
+        if (isExpiring) {
+          endDate = addDays(20); // ALERT: Expiring in < 30 days
+          status = 'Expiring Soon';
+        }
+
+        tenders.push({
+        id: `TND-${String(idCounter++).padStart(3, '0')}`,
+        // Added tenderName to satisfy the interface requirements
+        tenderName: `${district} ${specificAreas[Math.floor(Math.random() * specificAreas.length)]} Agreement`,
+        tenderNumber: `TN-${district.substring(0, 3).toUpperCase()}-${new Date().getFullYear()}-${String(i + 1).padStart(3, '0')}`,
+        district: district,
+        area: specificAreas[Math.floor(Math.random() * specificAreas.length)],
+        mediaIds: [],
+        startDate: addDays(-200),
+        endDate: endDate,
+        taxFrequency: frequencies[Math.floor(Math.random() * frequencies.length)],
+        licenseFee: Math.floor(Math.random() * 500000) + 100000,
+        status: status as any, // Cast to 'any' or 'TenderStatus' to avoid string literal mismatch
+        documentUrl: '#', // Changed from empty string to a standard mock anchor
+        deleted: false // Crucial for central recycle bin compatibility
+      });
+      }
+    });
+  });
+  return tenders;
+};
+
+export const tenders = generateTenders();
+
+const generateTaxRecords = (): TaxRecord[] => {
+  const records: TaxRecord[] = [];
+  let idCounter = 1;
+
+  tenders.forEach(tender => {
+    // Generate 1-2 tax records per tender
+    const numRecords = 2;
+    
+    for(let i=0; i<numRecords; i++) {
+      const rand = Math.random();
+      let status: 'Paid' | 'Pending' | 'Overdue';
+      let dueDate: string;
+
+      if (rand > 0.6) {
+        status = 'Paid';
+        dueDate = addDays(-30 - (i * 90)); // Past date
+      } else if (rand > 0.3) {
+        status = 'Pending';
+        dueDate = addDays(15); // Future date
+      } else {
+        status = 'Overdue';
+        dueDate = addDays(-5); // Past date but not paid
+      }
+
+      records.push({
+        id: `TX-${String(idCounter++).padStart(4, '0')}`,
+        tenderId: tender.id,
+        tenderNumber: tender.tenderNumber,
+        district: tender.district,
+        area: tender.area,
+        agreementStatus: tender.status, // Link to parent status
+        dueDate: dueDate,
+        amount: Math.floor(tender.licenseFee / 4),
+        status: status,
+        paymentDate: status === 'Paid' ? addDays(-35) : undefined,
+        receiptUrl: status === 'Paid' ? '#' : undefined
+      });
+    }
+  });
+
+  return records;
+};
+
+export const taxRecords = generateTaxRecords();
+
+export const getComplianceStats = (): ComplianceStats => {
+  const today = new Date();
+  
+  // 1. Check Tenders Expiring in <= 30 Days
+  const expiringTenders = tenders.filter(t => {
+    if (t.status === 'Expired') return false;
+    const endDate = new Date(t.endDate);
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 30;
+  }).length;
+
+  // 2. Count Taxes
+  const pendingTaxes = taxRecords.filter(t => t.status === 'Pending').length;
+  const overdueTaxes = taxRecords.filter(t => t.status === 'Overdue').length;
+
+  return {
+    expiringTenders,
+    pendingTaxes,
+    overdueTaxes,
+    totalActiveTenders: tenders.filter(t => t.status === 'Active').length,
+    totalTaxLiability: taxRecords.filter(t => t.status !== 'Paid').reduce((sum, t) => sum + t.amount, 0),
+    totalTaxPaid: taxRecords.filter(t => t.status === 'Paid').reduce((sum, t) => sum + t.amount, 0) // New Calculation
   };
 };
