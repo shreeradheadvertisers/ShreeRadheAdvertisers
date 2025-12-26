@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const ContactSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
-  phone: { type: String, required: false },
+  phone: { type: String, required: true },
   company: String,
   mediaType: String,
   message: { type: String, required: true },
