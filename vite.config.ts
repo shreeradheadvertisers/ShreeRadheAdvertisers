@@ -1,14 +1,13 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react-swc';
+// vite.config.ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react-swc' // Essential partner for JSX
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  // Define the 'sra-frontend' folder as the source of your public assets
-  publicDir: 'sra-frontend/public', 
   resolve: {
     alias: {
-      // Create a shortcut for easier imports
-      "@": "/sra-frontend/src",
+      "@": path.resolve(__dirname, "./sra-frontend/src"),
     },
   },
-});
+})
