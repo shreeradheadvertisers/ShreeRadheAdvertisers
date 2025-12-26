@@ -52,7 +52,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Update contact status (protected)
-router.put('/:id/status', authMiddleware, async (req, res) => {
+router.patch('/:id/status', authMiddleware, async (req, res) => {
   try {
     const { status, notes } = req.body;
     const contact = await Contact.findByIdAndUpdate(
@@ -70,19 +70,5 @@ router.put('/:id/status', authMiddleware, async (req, res) => {
 });
 
 
-router.post('/', async (req, res) => {
-  try {
-    console.log("Form Data Received:", req.body); // Log the data
-    const contact = new Contact(req.body);
-    await contact.save();
-    res.status(201).json(contact);
-  } catch (error) {
-    console.error("DETAILED ERROR:", error); // <--- ADD THIS LINE
-    res.status(500).json({ 
-      message: 'Failed to submit contact form', 
-      error: error.message // <--- AND THIS ONE
-    });
-  }
-});
 
 module.exports = router;
