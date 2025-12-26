@@ -29,7 +29,7 @@ const Contact = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.message || formData.phone) {
+    if (!formData.name || !formData.email || !formData.message || !formData.phone) {
       toast({
         title: "Missing Fields",
         description: "Please fill all required fields.",
