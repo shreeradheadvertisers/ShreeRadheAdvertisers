@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, MapPin } from "lucide-react"; 
+import { Search, Filter, MapPin, PlusCircle, Download, Loader2 } from "lucide-react"; 
 import { useNavigate } from "react-router-dom"; 
 import { MediaTable } from "@/components/admin/MediaTable";
-import { mediaLocations, mediaTypes, type MediaLocation } from "@/lib/data";
+import { mediaTypes } from "@/lib/data"; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -18,74 +19,70 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { PlusCircle, Download } from "lucide-react"; 
-import { useRecycleBin } from "@/contexts/RecycleBinContext";
 import { useLocationData } from "@/contexts/LocationDataContext";
 import { LocationManagementDialog } from "@/components/admin/LocationManagement";
 
+// Live API Hooks and Types
+import { useMedia, useDeleteMedia, useUpdateMedia } from "@/hooks/api/useMedia";
+import { MediaLocation, MediaType, MediaStatus } from "@/lib/api/types";
+
 const MediaManagement = () => {
   const navigate = useNavigate();
-  const { addToRecycleBin, getItemsByType } = useRecycleBin();
   const { activeState, districts } = useLocationData();
   
+  // State for Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [districtFilter, setDistrictFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   
-  // State for all media items
-  const [allMedia, setAllMedia] = useState<MediaLocation[]>(mediaLocations);
-
   // State for Soft Delete Confirmation
   const [itemToDelete, setItemToDelete] = useState<MediaLocation | null>(null);
 
-  // Get deleted media IDs from centralized bin
-  const deletedMediaIds = new Set(getItemsByType('media').map(item => item.id));
-
-  // Soft Delete - Move to centralized bin
-  const handleSoftDelete = () => {
-    if (!itemToDelete) return;
-    
-    addToRecycleBin({
-      id: itemToDelete.id,
-      type: 'media',
-      displayName: itemToDelete.name,
-      subText: `${itemToDelete.city}, ${itemToDelete.district}`,
-      originalData: itemToDelete,
-    });
-    
-    setAllMedia(prev => prev.filter(item => item.id !== itemToDelete.id));
-    
-    toast({ 
-      title: "Moved to Recycle Bin", 
-      description: "Item will be permanently deleted in 30 days." 
-    });
-    setItemToDelete(null);
-  };
-
-  // Filter Logic: Exclude items in recycle bin
-  const filteredMedia = allMedia.filter((media) => {
-    if (deletedMediaIds.has(media.id)) return false;
-
-    const matchesSearch = 
-      media.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      media.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      media.id.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesDistrict = districtFilter === "all" || media.district === districtFilter;
-    const matchesType = typeFilter === "all" || media.type === typeFilter;
-    const matchesStatus = statusFilter === "all" || media.status === statusFilter;
-
-    return matchesSearch && matchesDistrict && matchesType && matchesStatus;
+  // 1. Fetch Live Data from Backend
+  const { data: mediaResponse, isLoading, isError } = useMedia({
+    state: activeState,
+    district: districtFilter === "all" ? undefined : districtFilter,
+    // Cast string filter to MediaType union type to avoid TS errors
+    type: typeFilter === "all" ? undefined : (typeFilter as MediaType),
+    status: statusFilter === "all" ? undefined : (statusFilter as MediaStatus),
+    search: searchQuery || undefined
   });
 
-  // Handle delete button click - find the media item first
-  const handleDeleteClick = (id: string) => {
-    const media = allMedia.find(m => m.id === id);
-    if (media) {
-      setItemToDelete(media);
+  // 2. Mutations
+  const deleteMedia = useDeleteMedia();
+  const updateMedia = useUpdateMedia();
+
+  // Soft Delete - Move to live recycle bin on backend
+  const handleSoftDelete = async () => {
+    if (!itemToDelete) return;
+    
+    try {
+      // Use _id from backend model
+      await deleteMedia.mutateAsync(itemToDelete._id);
+      toast({ 
+        title: "Moved to Recycle Bin", 
+        description: "The media location has been deactivated and moved to the bin." 
+      });
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to delete the media item.",
+        variant: "destructive"
+      });
+    } finally {
+      setItemToDelete(null);
     }
+  };
+
+  const handleStatusToggle = (id: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'Available' ? 'Maintenance' : 'Available';
+    updateMedia.mutate({ id, data: { status: nextStatus as MediaStatus } });
+  };
+
+  const handleEdit = (id: string) => {
+    navigate(`/admin/media/edit/${id}`);
   };
 
   return (
@@ -117,14 +114,14 @@ const MediaManagement = () => {
           <CardTitle className="text-lg font-medium flex items-center gap-2">
             <Filter className="h-4 w-4" /> Filters
           </CardTitle>
-          <CardDescription>Refine your media search</CardDescription>
+          <CardDescription>Refine your live media search</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, city, ID..."
+                placeholder="Search by name, city..."
                 className="pl-9 bg-background/50 border-gray-200 focus:border-primary/50 transition-colors"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -150,22 +147,41 @@ const MediaManagement = () => {
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="bg-background/50"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="Available">Available</SelectItem>
                 <SelectItem value="Booked">Booked</SelectItem>
                 <SelectItem value="Coming Soon">Coming Soon</SelectItem>
+                <SelectItem value="Maintenance">Maintenance</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="border-border/50 shadow-sm overflow-hidden">
+      <Card className="border-border/50 shadow-sm overflow-hidden min-h-[400px]">
         <CardContent className="p-0">
-          <MediaTable 
-            data={filteredMedia} 
-            onDelete={handleDeleteClick} 
-          />
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground animate-pulse font-medium">Fetching live billboards...</p>
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center justify-center py-20 text-destructive">
+              <p>Failed to load media from backend.</p>
+              <Button variant="link" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+          ) : (
+            <MediaTable 
+              // Cast to any to bridge potential internal MediaTable prop definition gaps
+              data={(mediaResponse?.data || []) as any} 
+              onDelete={(id) => {
+                const item = mediaResponse?.data.find(m => m._id === id);
+                if (item) setItemToDelete(item);
+              }}
+              onEdit={handleEdit}
+              onToggleStatus={handleStatusToggle}
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -176,13 +192,17 @@ const MediaManagement = () => {
             <AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle>
             <AlertDialogDescription>
               This will remove "{itemToDelete?.name}" from the active list. 
-              You can restore it within 30 days from the Recycle Bin (accessible from the header).
+              The backend will store it in the recycle bin for 30 days.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSoftDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Move to Bin
+            <AlertDialogAction 
+              onClick={handleSoftDelete} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMedia.isPending}
+            >
+              {deleteMedia.isPending ? "Moving..." : "Move to Bin"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

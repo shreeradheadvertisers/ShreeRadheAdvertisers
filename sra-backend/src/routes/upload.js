@@ -1,55 +1,81 @@
 /**
- * Upload Routes - FTP to Hostinger
+ * Upload Routes - FTP Bridge to Hostinger 100GB SSD
  */
 
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
+const path = require('path');
 const { upload } = require('../middleware/upload');
-const { uploadToFTP } = require('../config/ftp');
+const { uploadToHostinger } = require('../services/ftpService');
 const { authMiddleware } = require('../middleware/auth');
 
-// Upload file to FTP (protected)
+/**
+ * General File Upload
+ * Bridges any file from Render temp storage to Hostinger public_html/uploads
+ */
 router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file provided' });
+      return res.status(400).json({ success: false, message: 'No file provided' });
     }
 
     const localPath = req.file.path;
-    const remotePath = `/uploads/${req.body.folder || 'media'}/${req.file.filename}`;
+    const folder = req.body.folder || 'documents';
+    // Create a unique filename to prevent overwriting on Hostinger
+    const fileName = `${folder}-${Date.now()}${path.extname(req.file.originalname)}`;
     
-    const fileUrl = await uploadToFTP(localPath, remotePath);
+    // Bridge to Hostinger
+    const fileUrl = await uploadToHostinger(localPath, fileName);
     
-    // Clean up temp file
-    fs.unlinkSync(localPath);
+    // Clean up temp file on Render
+    if (fs.existsSync(localPath)) {
+      fs.unlinkSync(localPath);
+    }
     
-    res.json({ url: fileUrl, filename: req.file.filename });
+    res.json({ 
+      success: true, 
+      url: fileUrl, 
+      filename: fileName,
+      message: 'File bridged to Hostinger successfully' 
+    });
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ message: 'File upload failed' });
+    console.error('Upload bridge error:', error);
+    res.status(500).json({ success: false, message: 'File upload failed during FTP transfer' });
   }
 });
 
-// Upload image to FTP (protected)
+/**
+ * Specialized Image Upload
+ * Specifically for Media/Billboard images
+ */
 router.post('/image', authMiddleware, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ message: 'No file provided' });
+      return res.status(400).json({ success: false, message: 'No image provided' });
     }
 
     const localPath = req.file.path;
-    const remotePath = `/uploads/images/${req.file.filename}`;
+    // Standardized naming for media assets
+    const fileName = `media-${Date.now()}${path.extname(req.file.originalname)}`;
     
-    const fileUrl = await uploadToFTP(localPath, remotePath);
+    // Bridge to Hostinger
+    const fileUrl = await uploadToHostinger(localPath, fileName);
     
-    // Clean up temp file
-    fs.unlinkSync(localPath);
+    // Clean up temp file on Render
+    if (fs.existsSync(localPath)) {
+      fs.unlinkSync(localPath);
+    }
     
-    res.json({ url: fileUrl, filename: req.file.filename });
+    res.json({ 
+      success: true, 
+      url: fileUrl, 
+      filename: fileName,
+      message: 'Image successfully deployed to permanent storage'
+    });
   } catch (error) {
-    console.error('Image upload error:', error);
-    res.status(500).json({ message: 'Image upload failed' });
+    console.error('Image upload bridge error:', error);
+    res.status(500).json({ success: false, message: 'Image deployment failed' });
   }
 });
 

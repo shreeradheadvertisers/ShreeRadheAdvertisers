@@ -254,7 +254,7 @@ export interface OccupancyData {
 
 // ============= REQUEST TYPES =============
 export interface CreateMediaRequest {
-  id?: string; // Optional custom ID - if not provided, system generates one
+  id?: string;
   name: string;
   type: MediaType;
   state: string;
@@ -269,6 +269,7 @@ export interface CreateMediaRequest {
   latitude?: number;
   longitude?: number;
   landmark?: string;
+  image?: string;
 }
 
 export interface UpdateMediaRequest extends Partial<CreateMediaRequest> {
