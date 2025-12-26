@@ -92,22 +92,25 @@ const AddMedia = () => {
       }
 
       if (isBackendConfigured()) {
-        await createMedia.mutateAsync({
-          id: formData.id, 
-          name: formData.name,
-          type: formData.type as any,
-          state: formData.state,
-          district: formData.district,
-          city: formData.city,
-          address: formData.address,
-          size: formData.size,
-          lighting: formData.lighting as any,
-          facing: formData.facing,
-          pricePerMonth: Number(formData.pricePerMonth),
-          status: 'Available',
-          image: permanentImageUrl,
-        });
-      }
+      await createMedia.mutateAsync({
+        // CRITICAL FIX: Send the custom ID as 'id' to match MongoDB index
+        id: formData.id, 
+        name: formData.name,
+        type: formData.type as any,
+        state: formData.state,
+        district: formData.district,
+        city: formData.city,
+        address: formData.address,
+        size: formData.size,
+        lighting: formData.lighting as any,
+        facing: formData.facing,
+        pricePerMonth: Number(formData.pricePerMonth),
+        status: 'Available',
+        image: permanentImageUrl, 
+        // You can keep it in landmark as well if you use it elsewhere
+        landmark: formData.id 
+      });
+    }
 
       toast({
         title: "Media Added Successfully!",

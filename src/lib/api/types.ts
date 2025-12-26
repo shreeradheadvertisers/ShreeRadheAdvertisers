@@ -254,22 +254,20 @@ export interface OccupancyData {
 
 // ============= REQUEST TYPES =============
 export interface CreateMediaRequest {
-  id?: string;
+  id: string; // Add this line
   name: string;
   type: MediaType;
   state: string;
   district: string;
   city: string;
-  address: string;
-  status: MediaStatus;
-  size: string;
-  lighting: LightingType;
-  facing: string;
+  address?: string;
+  size?: string;
+  lighting?: LightingType;
+  facing?: string;
   pricePerMonth: number;
-  latitude?: number;
-  longitude?: number;
-  landmark?: string;
+  status: MediaStatus;
   image?: string;
+  landmark?: string;
 }
 
 export interface UpdateMediaRequest extends Partial<CreateMediaRequest> {
