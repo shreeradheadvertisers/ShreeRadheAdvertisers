@@ -1,31 +1,19 @@
-const ftp = require("basic-ftp");
-const fs = require("fs");
+const { uploadToFTP } = require('../config/ftp');
 
 /**
- * Bridges files from the Render backend to Hostinger Storage
+ * Bridges files from the Render backend to Hostinger Storage via SFTP
  */
 exports.uploadToHostinger = async (localPath, fileName) => {
-  const client = new ftp.Client();
   try {
-    await client.access({
-      host: process.env.FTP_HOST,
-      user: process.env.FTP_USER,
-      password: process.env.FTP_PASSWORD,
-      secure: process.env.FTP_SECURE === 'true'
-    });
-
-    // Ensure directory exists on Hostinger
-    await client.ensureDir("/public_html/uploads/media");
+    // Try relative pathing: Hostinger SFTP often starts inside the user root or public_html
+    // Change from '/public_html/uploads/media/' to 'public_html/uploads/media/'
+    const remotePath = `public_html/uploads/media/${fileName}`;
     
-    // Upload file
-    await client.uploadFrom(localPath, `/public_html/uploads/media/${fileName}`);
+    const fileUrl = await uploadToFTP(localPath, remotePath);
     
-    // Return the final public URL for MongoDB storage
-    return `${process.env.CDN_BASE_URL}/media/${fileName}`;
+    return fileUrl;
   } catch (err) {
-    console.error("FTP Upload Bridge Error:", err);
-    throw err;
-  } finally {
-    client.close();
+    console.error("SFTP Upload Bridge Error:", err.message);
+    throw new Error("Failed to transfer image to permanent storage.");
   }
 };

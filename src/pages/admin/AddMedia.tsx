@@ -25,13 +25,19 @@ const AddMedia = () => {
   
   const createMedia = useCreateMedia();
   const uploadImage = useUploadMediaImage();
-  const { activeState, states, districts, getCitiesForDistrict, getDistrictsForState } = useLocationData();
+  
+  const { 
+    activeState, 
+    states, 
+    getCitiesForDistrict, 
+    getDistrictsForState 
+  } = useLocationData();
   
   const [formData, setFormData] = useState({
-    id: '', // Custom media ID
+    id: '', 
     name: '',
     type: '',
-    state: activeState, // Default to active state
+    state: activeState, 
     district: '',
     city: '',
     address: '',
@@ -41,11 +47,15 @@ const AddMedia = () => {
     pricePerMonth: '',
   });
 
-  const availableDistricts = formData.state ? getDistrictsForState(formData.state) : districts;
-  const availableCities = formData.district ? getCitiesForDistrict(formData.district) : [];
+  const availableDistricts = getDistrictsForState(formData.state);
+  const availableCities = getCitiesForDistrict(formData.district);
 
   const handleStateChange = (state: string) => {
     setFormData({ ...formData, state, district: '', city: '' });
+  };
+
+  const handleDistrictChange = (district: string) => {
+    setFormData({ ...formData, district, city: '' });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,18 +81,19 @@ const AddMedia = () => {
     setIsSubmitting(true);
 
     try {
-      // Upload image to Hostinger FTP if file selected and backend configured
+      let permanentImageUrl = '';
+
       if (selectedFile && isBackendConfigured()) {
-        await uploadImage.mutateAsync({ 
+        const uploadResponse: any = await uploadImage.mutateAsync({ 
           file: selectedFile, 
           folder: 'media' 
         });
+        permanentImageUrl = uploadResponse.url; 
       }
 
-      // Create media in MongoDB via backend
       if (isBackendConfigured()) {
         await createMedia.mutateAsync({
-          id: formData.id, // Custom ID
+          id: formData.id, 
           name: formData.name,
           type: formData.type as any,
           state: formData.state,
@@ -94,6 +105,7 @@ const AddMedia = () => {
           facing: formData.facing,
           pricePerMonth: Number(formData.pricePerMonth),
           status: 'Available',
+          image: permanentImageUrl,
         });
       }
 
@@ -105,7 +117,7 @@ const AddMedia = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add media. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to add media.",
         variant: "destructive",
       });
     } finally {
@@ -134,7 +146,6 @@ const AddMedia = () => {
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Basic Info */}
             <Card className="p-6 bg-card border-border/50">
               <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -178,22 +189,13 @@ const AddMedia = () => {
               </div>
             </Card>
 
-            {/* Location */}
             <Card className="p-6 bg-card border-border/50">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Location Details</h3>
-              </div>
-
+              <h3 className="text-lg font-semibold mb-4">Location Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label>State *</Label>
-                  <Select 
-                    value={formData.state}
-                    onValueChange={handleStateChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
+                  <Select value={formData.state} onValueChange={handleStateChange}>
+                    <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
                     <SelectContent>
                       {states.map(state => (
                         <SelectItem key={state} value={state}>{state}</SelectItem>
@@ -205,11 +207,11 @@ const AddMedia = () => {
                   <Label>District *</Label>
                   <Select 
                     value={formData.district}
-                    onValueChange={(v) => setFormData({ ...formData, district: v, city: '' })}
+                    onValueChange={handleDistrictChange}
                     disabled={!formData.state}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={!formData.state ? "Select state first" : "Select district"} />
+                      <SelectValue placeholder="Select district" />
                     </SelectTrigger>
                     <SelectContent>
                       {availableDistricts.map(district => (
@@ -224,11 +226,8 @@ const AddMedia = () => {
                     <Select 
                       value={formData.city}
                       onValueChange={(v) => setFormData({ ...formData, city: v })}
-                      disabled={!formData.district}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder={!formData.district ? "Select district first" : "Select city"} />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
                       <SelectContent>
                         {availableCities.map(city => (
                           <SelectItem key={city} value={city}>{city}</SelectItem>
@@ -237,14 +236,15 @@ const AddMedia = () => {
                     </Select>
                   ) : (
                     <Input 
-                      placeholder={!formData.district ? "Select district first" : "Enter city/town name"}
+                      placeholder={!formData.district ? "Select district first" : "Enter city name"}
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                       disabled={!formData.district}
                     />
                   )}
+                  {/* Restored manual management prompt */}
                   {formData.district && availableCities.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground mt-1">
                       No cities added. Type manually or <button type="button" className="text-primary underline" onClick={() => setLocationDialogOpen(true)}>add cities</button>.
                     </p>
                   )}
@@ -254,14 +254,13 @@ const AddMedia = () => {
                 <Label htmlFor="address">Full Address *</Label>
                 <Textarea 
                   id="address"
-                  placeholder="Enter complete address with landmarks"
+                  placeholder="Enter complete address"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
               </div>
             </Card>
 
-            {/* Specifications */}
             <Card className="p-6 bg-card border-border/50">
               <h3 className="text-lg font-semibold mb-4">Specifications</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -280,9 +279,7 @@ const AddMedia = () => {
                     value={formData.lighting}
                     onValueChange={(v) => setFormData({ ...formData, lighting: v })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select lighting" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select lighting" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Front Lit">Front Lit</SelectItem>
                       <SelectItem value="Back Lit">Back Lit</SelectItem>
@@ -291,7 +288,7 @@ const AddMedia = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                
+                {/* Restored Facing Direction field */}
                 <div className="space-y-2">
                   <Label htmlFor="facing">Facing Direction</Label>
                   <Input 
@@ -305,32 +302,22 @@ const AddMedia = () => {
             </Card>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Image Upload */}
             <Card className="p-6 bg-card border-border/50">
               <h3 className="font-semibold mb-4">Media Image</h3>
-              <input 
-                type="file" 
-                id="media-image" 
-                accept="image/*" 
-                onChange={handleFileChange}
-                className="hidden"
-              />
+              <input type="file" id="media-image" accept="image/*" onChange={handleFileChange} className="hidden" />
               <label htmlFor="media-image">
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
+                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 cursor-pointer">
                   {previewUrl ? (
                     <img src={previewUrl} alt="Preview" className="w-full h-32 object-cover rounded mb-2" />
                   ) : (
                     <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                   )}
                   <p className="text-sm font-medium">{selectedFile ? selectedFile.name : 'Click to upload'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 5MB</p>
                 </div>
               </label>
             </Card>
 
-            {/* Pricing */}
             <Card className="p-6 bg-card border-border/50">
               <h3 className="font-semibold mb-4">Pricing</h3>
               <div className="space-y-2">
@@ -345,35 +332,19 @@ const AddMedia = () => {
               </div>
             </Card>
 
-            {/* Actions */}
             <Card className="p-6 bg-card border-border/50">
               <div className="space-y-3">
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save Media
-                    </>
-                  )}
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : <><Save className="h-4 w-4 mr-2" /> Save Media</>}
                 </Button>
-                <Button type="button" variant="outline" className="w-full" onClick={() => navigate(-1)}>
-                  Cancel
-                </Button>
+                <Button type="button" variant="outline" className="w-full" onClick={() => navigate(-1)}>Cancel</Button>
               </div>
             </Card>
           </div>
         </div>
       </form>
 
-      <LocationManagementDialog 
-        open={locationDialogOpen} 
-        onOpenChange={setLocationDialogOpen} 
-      />
+      <LocationManagementDialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen} />
     </div>
   );
 };

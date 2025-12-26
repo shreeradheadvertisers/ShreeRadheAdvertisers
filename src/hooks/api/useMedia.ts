@@ -117,14 +117,17 @@ export function useMediaById(id: string) {
     queryFn: async () => {
       if (!isBackendConfigured()) {
         const media = staticMedia.find(m => m.id === id);
-        if (!media) throw new Error('Media not found');
+        // Fix: Return null or throw error instead of undefined
+        if (!media) return null; 
         return media as unknown as MediaLocation;
       }
 
       const response = await apiClient.get<ApiResponse<MediaLocation>>(
         API_ENDPOINTS.MEDIA.GET(id)
       );
-      return response.data;
+      
+      // Fix: Ensure we return the data property or null
+      return response?.data || null;
     },
     enabled: !!id,
     staleTime: 5 * 60 * 1000,

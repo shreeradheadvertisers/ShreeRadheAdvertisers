@@ -15,7 +15,8 @@ import Index from "./pages/Index";
 import Explore from "./pages/Explore";
 import MediaDetail from "./pages/MediaDetail";
 import Contact from "./pages/Contact";
-import About from "./pages/About"; 
+import About from "./pages/About";
+import EditMedia from "./pages/admin/EditMedia";
 
 // Admin Pages
 import Login from "./pages/admin/Login";
@@ -74,6 +75,7 @@ const App = () => (
               <Route path="inquiries" element={<Inquiries />} />
               <Route path="media" element={<MediaManagement />} />
               <Route path="media/new" element={<AddMedia />} />
+              <Route path="media/edit/:id" element={<EditMedia />} />
               <Route path="media/:id" element={<AdminMediaDetail />} />
               <Route path="bookings" element={<CustomerBookings />} />
               <Route path="payments" element={<Payments />} />
