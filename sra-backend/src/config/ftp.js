@@ -1,74 +1,52 @@
 /**
- * Updated FTP Configuration for Hostinger 
- * Optimized for Render -> Hostinger connectivity
+ * SFTP Configuration for Hostinger (Port 22)
+ * This is more reliable for Render connections.
  */
-
-const ftp = require('basic-ftp');
+const Client = require('ssh2-sftp-client');
 const path = require('path');
 
-const ftpConfig = {
+const sftpConfig = {
   host: process.env.FTP_HOST,
-  user: process.env.FTP_USER,
-  password: process.env.FTP_PASSWORD,
-  port: parseInt(process.env.FTP_PORT) || 21,
-  // Hostinger usually requires 'true' for Explicit TLS on port 21
-  secure: process.env.FTP_SECURE === 'true',
-  // Required for many firewalls to allow the data connection
-  secureOptions: {
-    rejectUnauthorized: false // Often needed for shared hosting SSL certificates
-  }
+  port: 22, // SFTP always uses port 22
+  username: process.env.FTP_USER,
+  password: process.env.FTP_PASSWORD
 };
 
-/**
- * Upload a file to Hostinger FTP storage
- */
 const uploadToFTP = async (localPath, remotePath) => {
-  const client = new ftp.Client();
-  // Standard timeout is often too short for cross-platform FTP
-  client.ftp.timeout = 60000; 
-  client.ftp.verbose = process.env.NODE_ENV === 'development';
-
+  const sftp = new Client();
   try {
-    // We pass the config directly into access
-    await client.access(ftpConfig);
+    await sftp.connect(sftpConfig);
     
-    // Explicitly ensure we are in Passive Mode to bypass firewall blocks
-    // basic-ftp uses passive mode by default, but this ensures it
-    
+    // Ensure the remote directory exists
     const remoteDir = path.dirname(remotePath);
-    await client.ensureDir(remoteDir);
-    await client.uploadFrom(localPath, remotePath);
+    await sftp.mkdir(remoteDir, true);
     
-    console.log(`File uploaded to FTP: ${remotePath}`);
+    // Upload the file
+    await sftp.put(localPath, remotePath);
     
-    // Ensure the URL is correctly formatted
+    console.log(`File uploaded via SFTP: ${remotePath}`);
     const baseUrl = process.env.CDN_BASE_URL || 'https://shreeradheadvertisers.com';
     return `${baseUrl.replace(/\/$/, '')}${remotePath}`;
   } catch (error) {
-    console.error('FTP upload error details:', error);
+    console.error('SFTP upload error:', error);
     throw error;
   } finally {
-    client.close();
+    await sftp.end();
   }
 };
 
-/**
- * Delete a file from Hostinger FTP storage
- */
 const deleteFromFTP = async (remotePath) => {
-  const client = new ftp.Client();
-  client.ftp.timeout = 60000;
-
+  const sftp = new Client();
   try {
-    await client.access(ftpConfig);
-    await client.remove(remotePath);
-    console.log(`File deleted from FTP: ${remotePath}`);
+    await sftp.connect(sftpConfig);
+    await sftp.delete(remotePath);
+    console.log(`File deleted via SFTP: ${remotePath}`);
   } catch (error) {
-    console.error('FTP delete error:', error);
+    console.error('SFTP delete error:', error);
     throw error;
   } finally {
-    client.close();
+    await sftp.end();
   }
 };
 
-module.exports = { ftpConfig, uploadToFTP, deleteFromFTP };
+module.exports = { uploadToFTP, deleteFromFTP };
