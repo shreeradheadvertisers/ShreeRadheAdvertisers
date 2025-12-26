@@ -56,8 +56,6 @@ AdminUserSchema.methods.validatePassword = function(password) {
 };
 
 // Indexes
-AdminUserSchema.index({ username: 1 });
-AdminUserSchema.index({ email: 1 });
 AdminUserSchema.index({ active: 1 });
 
 module.exports = mongoose.model('AdminUser', AdminUserSchema);
