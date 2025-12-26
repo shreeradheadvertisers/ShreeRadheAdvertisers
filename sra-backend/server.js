@@ -90,4 +90,6 @@ const startServer = async () => {
   });
 };
 
+app.get('/', (req, res) => res.send('SRA Backend API is running. Use /api/health for status.'));
+
 startServer();
