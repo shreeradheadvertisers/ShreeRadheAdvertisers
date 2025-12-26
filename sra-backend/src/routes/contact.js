@@ -74,6 +74,41 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
+// Get inquiries separated by status
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    // Get New (Unattended) Inquiries
+    const pending = await Contact.find({ attended: false }).sort({ createdAt: -1 });
+
+    // Get 10 most recent Attended Inquiries
+    const recentAttended = await Contact.find({ attended: true })
+      .sort({ attendedAt: -1 })
+      .limit(10);
+
+    res.json({ pending, recentAttended });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch contacts' });
+  }
+});
+
+// Mark as Attended
+router.patch('/:id/attend', authMiddleware, async (req, res) => {
+  try {
+    const contact = await Contact.findByIdAndUpdate(
+      req.params.id, 
+      { 
+        attended: true, 
+        attendedAt: new Date(),
+        status: 'Contacted' 
+      }, 
+      { new: true }
+    );
+    res.json(contact);
+  } catch (error) {
+    res.status(500).json({ message: 'Update failed' });
+  }
+});
+
 
 
 module.exports = router;
