@@ -38,7 +38,7 @@ const AdminMediaDetail = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/media/edit/${id}`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="space-y-2">
@@ -92,7 +92,7 @@ const AdminMediaDetail = () => {
             <Calendar className="h-4 w-4 mr-2" />
             Manage Availability
           </Button>
-          <Button>
+          <Button onClick={() => navigate(`/admin/media/edit/${media.id}`)}>
             <Edit className="h-4 w-4 mr-2" />
             Edit Media
           </Button>

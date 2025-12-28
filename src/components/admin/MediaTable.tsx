@@ -111,11 +111,12 @@ export function MediaTable({ data, onDelete, onEdit, onToggleStatus }: MediaTabl
           </TableHeader>
           <TableBody>
             {paginatedMedia.map((media) => {
-              const itemId = media._id || media.id;
+              const itemId = media._id;
               return (
                 <TableRow key={itemId} className="hover:bg-muted/10 group">
                   <TableCell className="font-mono text-[10px] pl-6 text-muted-foreground">
-                    #{itemId.substring(0, 8)}
+                    {/* #{itemId.substring(0, 8)} */}
+                    {media._id}
                   </TableCell>
                   <TableCell className="font-semibold text-sm">{media.name}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">

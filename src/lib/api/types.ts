@@ -254,6 +254,7 @@ export interface OccupancyData {
 
 // ============= REQUEST TYPES =============
 export interface CreateMediaRequest {
+  _id: string;
   id: string; // Add this line
   name: string;
   type: MediaType;

@@ -21,6 +21,7 @@ export const isBackendConfigured = (): boolean => {
 
 // Type adapter: Convert API types to frontend types
 export const adaptMediaLocation = (apiMedia: ApiMediaLocation) => ({
+  _id: apiMedia._id,
   id: apiMedia.id || apiMedia._id,
   name: apiMedia.name,
   type: apiMedia.type,
