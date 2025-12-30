@@ -7,7 +7,7 @@ const path = require('path');
 
 const sftpConfig = {
   host: process.env.FTP_HOST,
-  port: 22, // SFTP always uses port 22, not FTPS port 65002
+  port: 65002, // SFTP always uses port 22, not FTPS port 65002
   username: process.env.FTP_USER,
   password: process.env.FTP_PASSWORD,
   readyTimeout: 30000, // 30 seconds for slower connections
