@@ -12,9 +12,10 @@ exports.uploadToHostinger = async (localPath, fileName, folder = 'documents') =>
     console.log('Source file:', localPath);
     console.log('Target folder:', folder);
     
-    // UPDATED: Dynamically construct the path based on the folder parameter
-    // This allows the bridge to support both images and general documents
-    const remotePath = `public_html/uploads/${folder}/${fileName}`;
+    // Standardizing folder names for organization
+    const targetSubFolder = folder === 'media' ? 'media' : 'documents';
+    const remotePath = `public_html/uploads/${targetSubFolder}/${fileName}`;
+    
     console.log('Full remote path:', remotePath);
     
     const fileUrl = await uploadToFTP(localPath, remotePath);

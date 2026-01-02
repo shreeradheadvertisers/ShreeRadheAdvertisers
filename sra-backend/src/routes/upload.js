@@ -1,9 +1,8 @@
 /**
  * Upload Routes - FTP Bridge to Hostinger 100GB SSD
  */
-
 const express = require('express');
-const router = require('express').Router();
+const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { upload } = require('../middleware/upload');
@@ -12,7 +11,7 @@ const { authMiddleware } = require('../middleware/auth');
 
 /**
  * General File Upload
- * Bridges any file from Render temp storage to Hostinger public_html/uploads
+ * Bridges any file from Render temp storage to Hostinger public_html/uploads/documents
  */
 router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
   try {
@@ -21,11 +20,10 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
     }
 
     const localPath = req.file.path;
-    const folder = req.body.folder || 'documents'; // Default to documents if not provided
+    const folder = req.body.folder || 'documents';
     
     const fileName = `${folder}-${Date.now()}${path.extname(req.file.originalname)}`;
     
-    // UPDATED: Now passing 'folder' to the service
     const fileUrl = await uploadToHostinger(localPath, fileName, folder);
     
     if (fs.existsSync(localPath)) {
@@ -60,7 +58,6 @@ router.post('/image', authMiddleware, upload.single('file'), async (req, res) =>
     const localPath = req.file.path;
     const fileName = `media-${Date.now()}${path.extname(req.file.originalname)}`;
     
-    // UPDATED: Explicitly using 'media' as the folder
     const fileUrl = await uploadToHostinger(localPath, fileName, 'media');
     
     if (fs.existsSync(localPath)) {
@@ -77,7 +74,7 @@ router.post('/image', authMiddleware, upload.single('file'), async (req, res) =>
     console.error('Image deployment bridge error:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Image deployment failed' 
+      message: error.message || 'Image deployment failed' 
     });
   }
 });

@@ -1,7 +1,6 @@
 /**
  * Tender/Agreement Schema - Compliance Management
  */
-
 const mongoose = require('mongoose');
 
 const TenderSchema = new mongoose.Schema({
@@ -22,12 +21,15 @@ const TenderSchema = new mongoose.Schema({
     enum: ['Active', 'Expiring Soon', 'Expired'], 
     default: 'Active' 
   },
-  documentUrl: String,
+
+  // documentUrl: Stores the public link to the Tender PDF on Hostinger SSD.
+  // This is populated from the response of /api/upload.
+  documentUrl: { type: String },
   deleted: { type: Boolean, default: false },
   deletedAt: Date
 }, { timestamps: true });
 
-// Indexes
+// Indexes for optimized searching
 TenderSchema.index({ district: 1 });
 TenderSchema.index({ status: 1 });
 TenderSchema.index({ endDate: 1 });

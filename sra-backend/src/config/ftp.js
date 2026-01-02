@@ -40,8 +40,11 @@ const uploadToFTP = async (localPath, remotePath) => {
 
         // Build public URL - remove 'public_html/' for web access
         const baseUrl = process.env.CDN_BASE_URL || 'https://shreeradheadvertisers.com';
-        const webPath = remotePath.replace('public_html/', '/');
-        const finalUrl = `${baseUrl.replace(/\/$/, '')}${webPath}`;
+        
+        // FIX: Ensure we strip public_html and handle slashes correctly for the URL
+        const webPath = remotePath.replace('public_html/', '');
+        const finalUrl = `${baseUrl.replace(/\/$/, '')}/${webPath.replace(/^\//, '')}`;
+        
         console.log('Generated URL:', finalUrl);
 
         return finalUrl;

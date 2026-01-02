@@ -1,7 +1,6 @@
 /**
  * Tax Record Schema - Tax Payment Tracking
  */
-
 const mongoose = require('mongoose');
 
 const TaxRecordSchema = new mongoose.Schema({
@@ -10,7 +9,7 @@ const TaxRecordSchema = new mongoose.Schema({
     ref: 'Tender', 
     required: true 
   },
-  tenderNumber: String,
+  tenderNumber: String, // Denormalized for quick reference
   district: String,
   area: String,
   dueDate: { type: Date, required: true },
@@ -21,7 +20,10 @@ const TaxRecordSchema = new mongoose.Schema({
     enum: ['Paid', 'Pending', 'Overdue'], 
     default: 'Pending' 
   },
-  receiptUrl: String,
+
+  // receiptUrl: Stores the link to the proof of payment on Hostinger SSD.
+  // Important for audit trails since MongoDB only holds the metadata.
+  receiptUrl: { type: String },
   deleted: { type: Boolean, default: false },
   deletedAt: Date
 }, { timestamps: true });
