@@ -1,6 +1,23 @@
 const ftp = require("basic-ftp");
 const path = require("path");
 
+// Increased timeout to 90 seconds for production stability
+const ftpConfig = {
+    host: process.env.FTP_HOST,
+    user: process.env.FTP_USER,
+    password: process.env.FTP_PASSWORD,
+    port: 21,
+    secure: false, 
+    timeout: 90000, //
+    settings: {
+        retries: 5, // Increased retries for transient network issues
+        retryDelay: 5000
+    }
+};
+
+/**
+ * Uploads a file using standard FTP
+ */
 const uploadToFTP = async (localPath, remotePath) => {
     // 1. Pass a 0 timeout to disable control socket timeouts during transfer
     const client = new ftp.Client(0); 
@@ -37,3 +54,22 @@ const uploadToFTP = async (localPath, remotePath) => {
         client.close();
     }
 };
+
+/**
+ * Deletes a file using standard FTP
+ */
+const deleteFromFTP = async (remotePath) => {
+    const client = new ftp.Client(90000);
+    try {
+        await client.access(ftpConfig);
+        await client.remove(remotePath);
+        console.log(`File deleted via FTP: ${remotePath}`);
+    } catch (error) {
+        console.error('FTP delete error:', error.message);
+        throw error;
+    } finally {
+        client.close();
+    }
+};
+
+module.exports = { uploadToFTP, deleteFromFTP };
