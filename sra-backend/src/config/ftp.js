@@ -1,15 +1,16 @@
 const ftp = require("basic-ftp");
 const path = require("path");
 
+// Increased timeout to 90 seconds for production stability
 const ftpConfig = {
     host: process.env.FTP_HOST,
     user: process.env.FTP_USER,
     password: process.env.FTP_PASSWORD,
-    port: 21, // Standard FTP port
-    secure: false,
-    timeout: 60000, 
+    port: 21,
+    secure: false, 
+    timeout: 90000, //
     settings: {
-        retries: 2,
+        retries: 5, // Increased retries for transient network issues
         retryDelay: 5000
     }
 };
@@ -18,19 +19,22 @@ const ftpConfig = {
  * Uploads a file using standard FTP
  */
 const uploadToFTP = async (localPath, remotePath) => {
-    const client = new ftp.Client();
-    client.ftp.verbose = true; // Equivalent to your previous debug: console.log
+    // Pass the timeout directly to the client constructor
+    const client = new ftp.Client(90000); 
+    client.ftp.verbose = true;
     
     try {
         console.log('=== FTP Upload Debug ===');
         console.log('Local file:', localPath);
         console.log('Remote path requested:', remotePath);
 
+        // Required for NAT environments like Render to avoid socket mismatch
+        client.ftp.allowSeparateTransferHost = false; 
+
         await client.access(ftpConfig);
         console.log('FTP connected successfully');
 
-        // FORCE PASSIVE MODE (This is crucial for Render to Hostinger)
-        // basic-ftp usually defaults to passive, but explicit setting helps
+        // Explicitly enable Passive Mode for production firewalls
         client.ftp.pasv = true;
 
         // Ensure the remote directory exists
@@ -42,10 +46,10 @@ const uploadToFTP = async (localPath, remotePath) => {
         await client.uploadFrom(localPath, path.basename(remotePath));
         console.log(`File uploaded successfully to: ${remotePath}`);
 
-        // Build public URL - remove 'public_html/' for web access
+        // Build public URL logic
         const baseUrl = process.env.CDN_BASE_URL || 'https://shreeradheadvertisers.com';
         
-        // FIX: Ensure we strip public_html and handle slashes correctly for the URL
+        // Strip public_html and handle slashes for the public URL
         const webPath = remotePath.replace('public_html/', '');
         const finalUrl = `${baseUrl.replace(/\/$/, '')}/${webPath.replace(/^\//, '')}`;
         
@@ -64,7 +68,7 @@ const uploadToFTP = async (localPath, remotePath) => {
  * Deletes a file using standard FTP
  */
 const deleteFromFTP = async (remotePath) => {
-    const client = new ftp.Client();
+    const client = new ftp.Client(90000);
     try {
         await client.access(ftpConfig);
         await client.remove(remotePath);
