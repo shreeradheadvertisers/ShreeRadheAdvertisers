@@ -14,7 +14,6 @@ const morgan = require('morgan');
 // otherwise defaults to the standard .env (production).
 const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
 require('dotenv').config({ path: path.join(__dirname, envFile) });
-// -----------------------------------
 
 const { connectDB } = require('./src/config/database');
 const { errorHandler } = require('./src/middleware/errorHandler');

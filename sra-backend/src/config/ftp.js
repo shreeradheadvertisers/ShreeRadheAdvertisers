@@ -29,6 +29,10 @@ const uploadToFTP = async (localPath, remotePath) => {
         await client.access(ftpConfig);
         console.log('FTP connected successfully');
 
+        // FORCE PASSIVE MODE (This is crucial for Render to Hostinger)
+        // basic-ftp usually defaults to passive, but explicit setting helps
+        client.ftp.pasv = true;
+
         // Ensure the remote directory exists
         const remoteDir = path.dirname(remotePath);
         console.log('Ensuring directory exists:', remoteDir);

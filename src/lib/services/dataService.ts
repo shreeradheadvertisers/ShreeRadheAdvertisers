@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Data Service - Provides unified interface for data access
 // Uses API when backend is configured, falls back to static data otherwise
 
@@ -20,7 +21,7 @@ export const isBackendConfigured = (): boolean => {
 };
 
 // Type adapter: Convert API types to frontend types
-export const adaptMediaLocation = (apiMedia: ApiMediaLocation) => ({
+export const adaptMediaLocation = (apiMedia: any) => ({
   _id: apiMedia._id,
   id: apiMedia.id || apiMedia._id,
   name: apiMedia.name,
@@ -30,20 +31,21 @@ export const adaptMediaLocation = (apiMedia: ApiMediaLocation) => ({
   city: apiMedia.city,
   address: apiMedia.address,
   status: apiMedia.status,
-  size: apiMedia.size,
-  lighting: apiMedia.lighting,
-  facing: apiMedia.facing,
-  image: apiMedia.image,
-  images: apiMedia.images,
-  pricePerMonth: apiMedia.pricePerMonth,
-  latitude: apiMedia.latitude,
-  longitude: apiMedia.longitude,
-  landmark: apiMedia.landmark,
-  occupancyRate: apiMedia.occupancyRate,
-  totalDaysBooked: apiMedia.totalDaysBooked,
-  bookedDates: apiMedia.bookedDates,
-  deleted: apiMedia.deleted,
-  deletedAt: apiMedia.deletedAt,
+  
+  // Map backend imageUrl to frontend image property
+  image: apiMedia.imageUrl || apiMedia.image, 
+  
+  // Ensure these fields are passed through correctly
+  size: apiMedia.size || 'Standard',
+  lighting: apiMedia.lighting || 'Non-Lit',
+  facing: apiMedia.facing || 'N/A',
+  
+  pricePerMonth: apiMedia.pricePerMonth || 0,
+  landmark: apiMedia.landmark || '',
+  occupancyRate: apiMedia.occupancyRate || 0,
+  totalDaysBooked: apiMedia.totalDaysBooked || 0,
+  bookedDates: apiMedia.bookedDates || [],
+  deleted: apiMedia.deleted || false,
   createdAt: apiMedia.createdAt,
   updatedAt: apiMedia.updatedAt,
 });

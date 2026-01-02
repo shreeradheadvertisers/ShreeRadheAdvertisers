@@ -97,13 +97,31 @@ router.get('/public', async (req, res) => {
 // Get single media (public with optional auth)
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const media = await Media.findById(req.params.id);
-    if (!media || media.deleted) {
-      return res.status(404).json({ message: 'Media not found' });
+    const { id } = req.params;
+    
+    // Check if the id is a valid MongoDB ObjectId
+    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    
+    let media;
+    if (isObjectId) {
+      // If it looks like an ObjectId, try finding by _id first
+      media = await Media.findById(id);
     }
-    res.json(media);
+    
+    // If not found by _id (or not an ObjectId), try finding by your custom 'id'
+    if (!media) {
+      media = await Media.findOne({ id: id, deleted: false });
+    }
+
+    if (!media || media.deleted) {
+      return res.status(404).json({ success: false, message: 'Media not found' });
+    }
+    
+    // Wrap in success: true and data: media to match your hook expectations
+    res.json({ success: true, data: media }); 
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch media' });
+    console.error('Fetch single media error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch media' });
   }
 });
 
@@ -112,9 +130,18 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const media = new Media(req.body);
     await media.save();
-    res.status(201).json({ success: true, data: media }); // Wrap in success/data
+    res.status(201).json({ success: true, data: media });
   } catch (error) {
     console.error('Create media error:', error);
+    
+    // Check specifically for Duplicate Key error
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `The ID "${req.body.id}" is already in use. Please use a unique SRA ID.` 
+      });
+    }
+
     res.status(500).json({ success: false, message: 'Failed to create media' });
   }
 });

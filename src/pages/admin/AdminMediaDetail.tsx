@@ -84,15 +84,15 @@ const AdminMediaDetail = () => {
               <h1 className="text-2xl font-bold">{media.name}</h1>
               <Badge variant={statusVariant}>{media.status}</Badge>
             </div>
-            <p className="text-muted-foreground font-mono">{media._id || media.id}</p>
+            <p className="text-muted-foreground font-mono">{media.id}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => navigate(`/admin/availability?mediaId=${media._id || media.id}`)}>
+          <Button variant="outline" onClick={() => navigate(`/admin/availability?mediaId=${media.id}`)}>
             <Calendar className="h-4 w-4 mr-2" />
             Manage Availability
           </Button>
-          <Button onClick={() => navigate(`/admin/media/edit/${media._id || media.id}`)}>
+          <Button onClick={() => navigate(`/admin/media/edit/${media.id}`)}>
             <Edit className="h-4 w-4 mr-2" />
             Edit Media
           </Button>
@@ -138,7 +138,8 @@ const AdminMediaDetail = () => {
             <h3 className="text-lg font-semibold mb-4">Booking History</h3>
             <div className="space-y-4">
               {media.bookedDates && media.bookedDates.length > 0 ? (
-                media.bookedDates.map((booking, i) => (
+                // Added explicit type to the booking parameter
+                media.bookedDates.map((booking: { start: string; end: string }, i: number) => (
                   <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                     <div className="w-3 h-3 rounded-full bg-destructive" />
                     <div className="flex-1">
