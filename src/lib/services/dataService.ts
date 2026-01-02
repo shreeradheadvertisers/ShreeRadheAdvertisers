@@ -32,10 +32,10 @@ export const adaptMediaLocation = (apiMedia: any) => ({
   address: apiMedia.address,
   status: apiMedia.status,
   
-  // Map backend imageUrl to frontend image property
-  image: apiMedia.imageUrl || apiMedia.image, 
+  // FIX: Map backend 'imageUrl' (Hostinger SSD URL) to frontend 'image' property
+  image: apiMedia.imageUrl || apiMedia.image,
   
-  // Ensure these fields are passed through correctly
+  // Ensure technical specifications flow correctly from DB
   size: apiMedia.size || 'Standard',
   lighting: apiMedia.lighting || 'Non-Lit',
   facing: apiMedia.facing || 'N/A',

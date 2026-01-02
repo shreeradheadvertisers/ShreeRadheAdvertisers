@@ -38,7 +38,7 @@ const AdminMediaDetail = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/media/edit/${id}`)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="space-y-2">
@@ -102,12 +102,16 @@ const AdminMediaDetail = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Image */}
+          {/* Image - Mapping fixed via adaptMediaLocation */}
           <Card className="overflow-hidden bg-card border-border/50">
             <img 
               src={media.image} 
               alt={media.name}
               className="w-full aspect-video object-cover"
+              onError={(e) => {
+                // Fallback for broken image URLs
+                (e.target as HTMLImageElement).src = 'https://placehold.co/800x450?text=No+Image+Found';
+              }}
             />
           </Card>
 
@@ -126,37 +130,35 @@ const AdminMediaDetail = () => {
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">{spec.label}</div>
-                    <div className="font-medium">{spec.value}</div>
+                    <div className="font-medium text-sm">{spec.value}</div>
                   </div>
                 </div>
               </Card>
             ))}
           </div>
 
-          {/* Booking Timeline */}
-          {/* Booking Timeline */}
-        <Card className="p-6 bg-card border-border/50">
-          <h3 className="text-lg font-semibold mb-4">Booking History</h3>
-          <div className="space-y-4">
-            {media.bookedDates && media.bookedDates.length > 0 ? (
-              // Added explicit type to the booking parameter
-              media.bookedDates.map((booking: { start: string; end: string }, i: number) => (
-                <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <div className="w-3 h-3 rounded-full bg-destructive" />
-                  <div className="flex-1">
-                    <div className="font-medium">Booked Period</div>
-                    <div className="text-sm text-muted-foreground">{booking.start} to {booking.end}</div>
+          {/* Booking History */}
+          <Card className="p-6 bg-card border-border/50">
+            <h3 className="text-lg font-semibold mb-4">Booking History</h3>
+            <div className="space-y-4">
+              {media.bookedDates && media.bookedDates.length > 0 ? (
+                media.bookedDates.map((booking: { start: string; end: string }, i: number) => (
+                  <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <div className="w-3 h-3 rounded-full bg-destructive" />
+                    <div className="flex-1">
+                      <div className="font-medium">Booked Period</div>
+                      <div className="text-sm text-muted-foreground">{booking.start} to {booking.end}</div>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No booking history available</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No booking history available</p>
-              </div>
-            )}
-          </div>
-        </Card>
+              )}
+            </div>
+          </Card>
 
           {/* AI Insight */}
           <Card className="p-6 bg-gradient-to-br from-primary/10 via-purple-500/5 to-transparent border-primary/20">
@@ -192,15 +194,15 @@ const AdminMediaDetail = () => {
               </div>
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                 <div>
-                  <div className="text-muted-foreground">City</div>
+                  <div className="text-muted-foreground text-xs uppercase">City</div>
                   <div className="font-medium">{media.city}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">District</div>
+                  <div className="text-muted-foreground text-xs uppercase">District</div>
                   <div className="font-medium">{media.district}</div>
                 </div>
                 <div className="col-span-2">
-                  <div className="text-muted-foreground">State</div>
+                  <div className="text-muted-foreground text-xs uppercase">State</div>
                   <div className="font-medium">{media.state}</div>
                 </div>
               </div>

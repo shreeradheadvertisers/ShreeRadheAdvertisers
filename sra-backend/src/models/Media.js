@@ -16,7 +16,7 @@ const MediaSchema = new mongoose.Schema({
   city: { type: String, required: true },
   address: String,
   
-  // ADD THESE FIELDS TO FIX MISSING DATA IN UI
+  // Fields for Technical Specifications
   size: { type: String, default: "" },
   lighting: { 
     type: String, 
@@ -32,9 +32,9 @@ const MediaSchema = new mongoose.Schema({
     default: 'Available' 
   },
   pricePerMonth: { type: Number, required: true },
-  imageUrl: { type: String }, // FTP Bridge URL
+  imageUrl: { type: String }, // Stores the absolute link to Hostinger SSD
 
-  // Metrics for Sidebar
+  // Performance Metrics
   occupancyRate: { type: Number, default: 0 },
   totalDaysBooked: { type: Number, default: 0 },
 
