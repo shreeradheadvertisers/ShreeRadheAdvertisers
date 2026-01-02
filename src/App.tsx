@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LocationDataProvider } from "@/contexts/LocationDataContext";
+import { RecycleBinProvider } from "@/contexts/RecycleBinContext"; // Added Import
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -39,59 +40,61 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <LocationDataProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-        <BrowserRouter
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <Routes>
-            {/* Public Routes */}
-            <Route element={<PublicLayout />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/media/:id" element={<MediaDetail />} />
-              <Route path="/contact" element={<Contact />} />
-            </Route>
-
-            {/* Admin Login - Outside Protected Area */}
-            <Route path="/admin/login" element={<Login />} />
-
-            {/* Protected Admin Routes */}
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }
+      <RecycleBinProvider> {/* Wrapped with RecycleBinProvider to fix context error */}
+        <LocationDataProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true,
+              }}
             >
-              <Route index element={<Dashboard />} />
-              <Route path="inquiries" element={<Inquiries />} />
-              <Route path="media" element={<MediaManagement />} />
-              <Route path="media/new" element={<AddMedia />} />
-              <Route path="media/edit/:id" element={<EditMedia />} />
-              <Route path="media/:id" element={<AdminMediaDetail />} />
-              <Route path="bookings" element={<CustomerBookings />} />
-              <Route path="payments" element={<Payments />} />
-              <Route path="availability" element={<Availability />} />
-              <Route path="analytics" element={<Analytics />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="documents" element={<Documents />} />
-              <Route path="maintenance" element={<Maintenance />} />
-            </Route>
+              <Routes>
+                {/* Public Routes */}
+                <Route element={<PublicLayout />}>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/explore" element={<Explore />} />
+                  <Route path="/media/:id" element={<MediaDetail />} />
+                  <Route path="/contact" element={<Contact />} />
+                </Route>
 
-            {/* 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        </TooltipProvider>
-      </LocationDataProvider>
+                {/* Admin Login - Outside Protected Area */}
+                <Route path="/admin/login" element={<Login />} />
+
+                {/* Protected Admin Routes */}
+                <Route 
+                  path="/admin" 
+                  element={
+                    <ProtectedRoute>
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Dashboard />} />
+                  <Route path="inquiries" element={<Inquiries />} />
+                  <Route path="media" element={<MediaManagement />} />
+                  <Route path="media/new" element={<AddMedia />} />
+                  <Route path="media/edit/:id" element={<EditMedia />} />
+                  <Route path="media/:id" element={<AdminMediaDetail />} />
+                  <Route path="bookings" element={<CustomerBookings />} />
+                  <Route path="payments" element={<Payments />} />
+                  <Route path="availability" element={<Availability />} />
+                  <Route path="analytics" element={<Analytics />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="documents" element={<Documents />} />
+                  <Route path="maintenance" element={<Maintenance />} />
+                </Route>
+
+                {/* 404 */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </LocationDataProvider>
+      </RecycleBinProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
