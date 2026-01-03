@@ -100,6 +100,7 @@ export const API_ENDPOINTS = {
   
   // Compliance (Tenders & Taxes)
   COMPLIANCE: {
+    LIST: '/api/compliance', // Fetch both tenders and taxes in one call
     TENDERS: '/api/compliance/tenders',
     TENDER: (id: string) => `/api/compliance/tenders/${id}`,
     TAXES: '/api/compliance/taxes',
