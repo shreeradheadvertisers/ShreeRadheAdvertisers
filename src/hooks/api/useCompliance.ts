@@ -2,7 +2,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS, isBackendConfigured } from '@/lib/api/config';
-import { ApiResponse } from '@/lib/api/types';
 
 // Query Keys
 export const complianceKeys = {
@@ -18,12 +17,11 @@ export function useCompliance() {
     queryKey: complianceKeys.lists(),
     queryFn: async () => {
       if (!isBackendConfigured()) {
-        // Fallback for local development if backend is not running
         return { success: true, tenders: [], taxes: [] };
       }
-      
       // Hits GET /api/compliance
-      return await apiClient.get<any>(API_ENDPOINTS.COMPLIANCE.LIST || '/api/compliance');
+      const response = await apiClient.get<any>(API_ENDPOINTS.COMPLIANCE.LIST || '/api/compliance');
+      return response;
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -34,18 +32,13 @@ export function useCompliance() {
  */
 export function useDeleteCompliance() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ id, type }: { id: string; type: 'agreement' | 'tax' }) => {
-      // Logic: DELETE /api/compliance/tenders/:id or /api/compliance/taxes/:id
-      const endpoint = type === 'agreement' 
-        ? `${API_ENDPOINTS.COMPLIANCE.TENDERS}/${id}`
-        : `${API_ENDPOINTS.COMPLIANCE.TAXES}/${id}`;
-        
-      return await apiClient.delete(endpoint);
+    mutationFn: async ({ id, type }: { id: string; type: string }) => {
+      const backendType = type === 'agreement' ? 'tenders' : type === 'tax' ? 'taxes' : type;
+      return await apiClient.delete(`/api/compliance/${backendType}/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: complianceKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
     },
   });
 }
@@ -63,6 +56,7 @@ export function useRestoreCompliance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: complianceKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
     },
   });
 }
@@ -75,6 +69,24 @@ export function useUpdateAgreement() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       return await apiClient.put(`/api/upload/agreement/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: complianceKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
+    },
+  });
+}
+
+/**
+ * Permanent Purge of a Compliance Record
+ */
+export function usePermanentDeleteCompliance() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, type }: { id: string; type: string }) => {
+      const backendType = type === 'agreement' ? 'tenders' : 'taxes';
+      return await apiClient.delete(`/api/compliance/permanent/${backendType}/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['compliance'] });

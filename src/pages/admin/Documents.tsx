@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  FileText, CheckCircle2, Search, Download, AlertCircle, Upload, Plus, FilterX, Clock, Trash2, ArchiveRestore, Filter, Loader2, Save, MapPin, Pencil
+  FileText, CheckCircle2, Search, Download, AlertCircle, Upload, Plus, FilterX, Clock, Trash2, Filter, Loader2, Save, MapPin, Pencil, Eye
 } from "lucide-react";
 
 // DATA & TYPES
@@ -25,7 +25,13 @@ import { LocationManagementDialog } from "@/components/admin/LocationManagement"
 import { toast } from "@/hooks/use-toast";
 import { useUploadDocument } from "@/hooks/api/useMedia"; 
 import { useLocationData } from "@/contexts/LocationDataContext";
-import { useCompliance, useDeleteCompliance, useRestoreCompliance, useUpdateAgreement } from "@/hooks/api/useCompliance"; 
+import { 
+  useCompliance, 
+  useDeleteCompliance, 
+  useRestoreCompliance, 
+  useUpdateAgreement,
+  usePermanentDeleteCompliance 
+} from "@/hooks/api/useCompliance"; 
 
 const Documents = () => {
   // --- HOOKS ---
@@ -37,6 +43,7 @@ const Documents = () => {
   const { data: complianceData, isLoading: isLoadingCompliance } = useCompliance();
   const deleteMutation = useDeleteCompliance();
   const restoreMutation = useRestoreCompliance();
+  const permanentDeleteMutation = usePermanentDeleteCompliance();
 
   // --- STATE MANAGEMENT ---
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,7 +136,6 @@ const Documents = () => {
     setFrequencyFilter("all");
   };
 
-  // --- NEW: INITIATE DELETE FUNCTION ---
   const initiateDelete = (type: 'agreement' | 'tax', id: string) => { 
     setItemToDelete({ type, id }); 
     setDeleteAlertOpen(true); 
@@ -145,11 +151,36 @@ const Documents = () => {
     setIsAgreementDialogOpen(true);
   };
 
-  // --- FORM SUBMIT (HANDLES BOTH CREATE & UPDATE) ---
+  const handleDownload = async (url?: string, fileName?: string) => {
+    if (!url) {
+      toast({ title: "No file available", variant: "destructive" });
+      return;
+    }
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = fileName || 'document.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      toast({ title: "Download Failed", variant: "destructive" });
+    }
+  };
+
+  // --- FORM SUBMIT (Handles Create & Update with Optional File) ---
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!dialogLocation.district || (!editingAgreement && !selectedFile)) {
-        toast({ title: "Error", description: "Missing location or file", variant: "destructive"});
+    if (!dialogLocation.district || !dialogLocation.area) {
+        toast({ title: "Error", description: "Select location", variant: "destructive"});
+        return;
+    }
+
+    // Required only on new creation
+    if (!editingAgreement && !selectedFile) {
+        toast({ title: "File Required", description: "Please upload the Agreement PDF", variant: "destructive"});
         return;
     }
 
@@ -169,8 +200,14 @@ const Documents = () => {
 
     try {
       if (editingAgreement) {
-        await updateAgreementMutation.mutateAsync({ id: editingAgreement.id, data: payload });
-        toast({ title: "Updated", description: "Agreement and installments updated." });
+        // If editing and a file is selected, we need to upload the new file first or use a multipart update mutation
+        // For simplicity, we use updateAgreementMutation for metadata. 
+        // Note: If you want to replace the file on edit, your useUpdateAgreement hook must support FormData or handle file upload.
+        await updateAgreementMutation.mutateAsync({ 
+          id: editingAgreement.id, 
+          data: { ...payload, file: selectedFile } 
+        });
+        toast({ title: "Updated", description: "Agreement updated successfully." });
       } else {
         await uploadDoc.mutateAsync({ 
           file: selectedFile!, 
@@ -178,7 +215,7 @@ const Documents = () => {
           ...payload, 
           type: 'tender' 
         });
-        toast({ title: "Success", description: "New Agreement and taxes generated." });
+        toast({ title: "Success", description: "New Agreement generated." });
       }
       queryClient.invalidateQueries({ queryKey: ['compliance'] });
       setIsAgreementDialogOpen(false);
@@ -188,6 +225,45 @@ const Documents = () => {
       toast({ variant: "destructive", title: "Error", description: err.message });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // --- RECYCLE BIN ACTIONS ---
+  const handleRestore = async (id: string, type: CentralBinItem['type']) => {
+    try {
+      await restoreMutation.mutateAsync({ id, type: type as any });
+      toast({ title: "Restored", description: "Item moved back to active records." });
+    } catch (err) { 
+      toast({ variant: "destructive", title: "Restore Failed" }); 
+    }
+  };
+
+  const handlePermanentDelete = async (id: string, type: CentralBinItem['type']) => {
+    try {
+      await permanentDeleteMutation.mutateAsync({ id, type: type as any });
+      toast({ title: "Purged", description: "Item removed permanently.", variant: "destructive" });
+    } catch (err) { 
+      toast({ variant: "destructive", title: "Purge Failed" }); 
+    }
+  };
+
+  const handleRestoreAll = async () => {
+    const deletedItems = allDeletedItems;
+    try {
+      await Promise.all(deletedItems.map(item => restoreMutation.mutateAsync({ id: item.id, type: item.type as any })));
+      toast({ title: "Success", description: "All items restored." });
+    } catch (err) { 
+      toast({ variant: "destructive", title: "Bulk Restore Failed" }); 
+    }
+  };
+
+  const handleDeleteAllPermanently = async () => {
+    const deletedItems = allDeletedItems;
+    try {
+      await Promise.all(deletedItems.map(item => permanentDeleteMutation.mutateAsync({ id: item.id, type: item.type as any })));
+      toast({ title: "Purged", description: "Recycle bin emptied.", variant: "destructive" });
+    } catch (err) { 
+      toast({ variant: "destructive", title: "Bulk Purge Failed" }); 
     }
   };
 
@@ -219,22 +295,16 @@ const Documents = () => {
   const confirmDelete = async () => {
     if (!itemToDelete) return;
     try {
-      const backendType = itemToDelete.type === 'agreement' ? 'tenders' : 'taxes';
-      await deleteMutation.mutateAsync({ id: itemToDelete.id, type: backendType as any });
+      await deleteMutation.mutateAsync({ id: itemToDelete.id, type: itemToDelete.type as any });
       setDeleteAlertOpen(false); 
       setItemToDelete(null);
       toast({ title: "Moved to Recycle Bin" });
-    } catch (err) { toast({ variant: "destructive", title: "Delete Failed" }); }
+    } catch (err) { 
+      toast({ variant: "destructive", title: "Delete Failed" }); 
+    }
   };
 
-  const handleRestore = async (id: string, type: any) => {
-    try {
-      await restoreMutation.mutateAsync({ id, type });
-      toast({ title: "Restored" });
-    } catch (err) { toast({ variant: "destructive", title: "Restore Failed" }); }
-  };
-
-  // --- FILTER LOGIC ---
+  // --- DATA FILTERING ---
   const filteredTenders = agreements.filter(a => !a.deleted).filter(t => {
     const matchesSearch = t.district.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           t.area.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -267,14 +337,10 @@ const Documents = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold">Documents & Compliance</h1>
-          <p className="text-muted-foreground">Manage tender agreements and track tax liabilities</p>
+          <p className="text-muted-foreground">Manage tender agreements and track tax liabilities from MongoDB</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => setLocationDialogOpen(true)}><MapPin className="h-4 w-4 mr-2" /> Locations</Button>
-          <Button variant="outline" className="relative" onClick={() => setRecycleBinOpen(true)}>
-            <ArchiveRestore className="h-4 w-4 mr-2" /> Recycle Bin
-            {allDeletedItems.length > 0 && <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">{allDeletedItems.length}</span>}
-          </Button>
           <Button onClick={() => { setEditingAgreement(null); setSelectedFile(null); setDialogLocation({state: activeState, district: '', area: ''}); setIsAgreementDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> New Agreement
           </Button>
@@ -348,7 +414,12 @@ const Documents = () => {
                     <TableCell><Badge variant={tender.status === 'Active' ? 'success' : 'warning'}>{tender.status}</Badge></TableCell>
                     <TableCell className="text-right">
                        <div className="flex justify-end gap-2">
-                         <Button variant="outline" size="sm" onClick={() => window.open(tender.documentUrl, '_blank')}>View</Button>
+                         <Button variant="outline" size="sm" onClick={() => window.open(tender.documentUrl, '_blank')}>
+                           <Eye className="h-3 w-3 mr-1" /> View
+                         </Button>
+                         <Button variant="outline" size="sm" onClick={() => handleDownload(tender.documentUrl, `${tender.tenderNumber}_agreement.pdf`)}>
+                           <Download className="h-3 w-3 mr-1" /> Download
+                         </Button>
                          <Button variant="ghost" size="icon" onClick={() => handleEditClick(tender)}><Pencil className="h-4 w-4" /></Button>
                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => initiateDelete('agreement', tender.id)}><Trash2 className="h-4 w-4" /></Button>
                        </div>
@@ -387,7 +458,14 @@ const Documents = () => {
                                     {tax.status !== 'Paid' ? (
                                         <Button size="sm" onClick={() => { setPayTaxId(tax.id); setSelectedFile(null); setIsPayDialogOpen(true); }}>Mark Paid</Button>
                                     ) : (
-                                        <Button variant="ghost" size="sm" onClick={() => window.open(tax.documentUrl, '_blank')}><Download className="h-4 w-4" /></Button>
+                                      <>
+                                        <Button variant="outline" size="sm" onClick={() => window.open(tax.documentUrl, '_blank')}>
+                                          <Eye className="h-3 w-3 mr-1" /> View
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleDownload(tax.documentUrl, `${tax.tenderNumber}_receipt.pdf`)}>
+                                          <Download className="h-3 w-3 mr-1" /> Download
+                                        </Button>
+                                      </>
                                     )}
                                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => initiateDelete('tax', tax.id)}><Trash2 className="h-4 w-4" /></Button>
                                 </div>
@@ -400,10 +478,15 @@ const Documents = () => {
         </TabsContent>
       </Tabs>
 
-      {/* --- DIALOGS --- */}
+      {/* --- AGREEMENT DIALOG (Fixed Edit PDF Option) --- */}
       <Dialog open={isAgreementDialogOpen} onOpenChange={(val) => { setIsAgreementDialogOpen(val); if(!val) setEditingAgreement(null); }}>
         <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader><DialogTitle>{editingAgreement ? 'Edit Agreement' : 'New Tender Agreement'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingAgreement ? 'Edit Agreement' : 'New Tender Agreement'}</DialogTitle>
+            <DialogDescription>
+              {editingAgreement ? "Modify the existing agreement details or upload a new PDF." : "Enter tender details and upload the agreement PDF."}
+            </DialogDescription>
+          </DialogHeader>
           <form onSubmit={handleFormSubmit} className="space-y-4 py-4">
              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Agreement Name</Label><Input name="tenderName" defaultValue={editingAgreement?.tenderName} required /></div>
@@ -416,13 +499,15 @@ const Documents = () => {
                         <SelectContent>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                     </Select>
                 </div>
-                <div className="space-y-2"><Label>District *</Label>
+                <div className="space-y-2">
+                    <Label>District *</Label>
                     <Select value={dialogLocation.district} onValueChange={(v) => setDialogLocation({...dialogLocation, district: v, area: ''})} disabled={!dialogLocation.state}>
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>{getDistrictsForState(dialogLocation.state).map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                     </Select>
                 </div>
-                <div className="space-y-2"><Label>Town *</Label>
+                <div className="space-y-2">
+                    <Label>Town *</Label>
                     <Select value={dialogLocation.area} onValueChange={(v) => setDialogLocation({...dialogLocation, area: v})} disabled={!dialogLocation.district}>
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>{getCitiesForDistrict(dialogLocation.district).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
@@ -442,16 +527,20 @@ const Documents = () => {
                     </Select>
                 </div>
              </div>
-             {!editingAgreement && (
-               <div className="space-y-2">
-                  <Label>Agreement PDF</Label>
-                  <div className="border-2 border-dashed rounded-lg p-6 text-center relative hover:bg-muted/50 cursor-pointer">
-                      <Input type="file" accept=".pdf" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
-                      <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-sm">{selectedFile ? selectedFile.name : 'Click to select PDF'}</p>
-                  </div>
-               </div>
-             )}
+             
+             {/* File Upload (Always visible, mandatory for new, optional for edit) */}
+             <div className="space-y-2">
+                <Label>Agreement PDF {editingAgreement && "(Optional - upload to replace)"}</Label>
+                <div className="border-2 border-dashed rounded-lg p-6 text-center relative hover:bg-muted/50 cursor-pointer">
+                    <Input type="file" accept=".pdf" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+                    <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm">{selectedFile ? selectedFile.name : 'Click to select PDF'}</p>
+                </div>
+                {editingAgreement && !selectedFile && (
+                  <p className="text-xs text-muted-foreground">Current file will be kept if no new file is selected.</p>
+                )}
+             </div>
+
              <DialogFooter>
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4 mr-2" />} 
@@ -463,12 +552,33 @@ const Documents = () => {
       </Dialog>
 
       <LocationManagementDialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen} />
-      <RecycleBinDialog open={recycleBinOpen} onOpenChange={setRecycleBinOpen} deletedItems={allDeletedItems} onRestore={handleRestore} onPermanentDelete={() => {}} />
+      <RecycleBinDialog 
+        open={recycleBinOpen} 
+        onOpenChange={setRecycleBinOpen} 
+        deletedItems={allDeletedItems} 
+        onRestore={handleRestore} 
+        onPermanentDelete={handlePermanentDelete}
+        onRestoreAll={handleRestoreAll}
+        onDeleteAll={handleDeleteAllPermanently}
+      />
       <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive">Confirm</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Move to Recycle Bin?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive">Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
+      
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
-         <DialogContent><DialogHeader><DialogTitle>Mark as Paid</DialogTitle></DialogHeader>
+         <DialogContent>
+           <DialogHeader>
+             <DialogTitle>Mark Tax as Paid</DialogTitle>
+             <DialogDescription>Upload the payment receipt below.</DialogDescription>
+           </DialogHeader>
            <form onSubmit={handlePaySubmit} className="space-y-4">
               <div className="space-y-2"><Label>Upload Receipt (PDF)</Label>
                  <div className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center relative hover:bg-muted/50 cursor-pointer">

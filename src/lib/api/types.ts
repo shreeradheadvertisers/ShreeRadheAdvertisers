@@ -9,6 +9,7 @@ export type CustomerGroup = 'Corporate' | 'Government' | 'Agency' | 'Startup' | 
 export type MaintenanceStatus = 'Pending' | 'In Progress' | 'Completed';
 export type MaintenancePriority = 'Low' | 'Medium' | 'High' | 'Critical';
 export type ContactStatus = 'New' | 'Contacted' | 'Qualified' | 'Converted' | 'Closed';
+export type BinItemType = 'media' | 'booking' | 'customer' | 'payment' | 'agreement' | 'tax' | 'maintenance';
 
 // ============= COMPLIANCE & DOCUMENTS =============
 export type TenderStatus = 'Active' | 'Expiring Soon' | 'Expired';
@@ -43,9 +44,7 @@ export interface TaxRecord {
   paymentDate?: string;
   amount: number;
   status: TaxStatus;
-  // UPDATED: Added documentUrl to support the Cloudinary bridge
   documentUrl?: string; 
-  // RETAINED: Keep receiptUrl for backward compatibility with static data
   receiptUrl?: string; 
   deleted?: boolean;
   deletedAt?: string;
@@ -352,7 +351,7 @@ export interface BookingFilters {
 
 export interface CentralBinItem {
   id: string;
-  type: 'media' | 'booking' | 'customer' | 'payment' | 'agreement' | 'tax' | 'maintenance';
+  type: BinItemType; // Use the named union here
   displayName: string;
   subText: string;
   deletedAt: string;

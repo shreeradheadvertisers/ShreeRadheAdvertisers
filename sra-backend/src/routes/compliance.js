@@ -9,7 +9,7 @@ const { Tender, TaxRecord } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 
 /**
- * Unified Compliance Fetch (Used by useCompliance hook)
+ * Unified Compliance Fetch
  * GET /api/compliance
  */
 router.get('/', authMiddleware, async (req, res) => {
@@ -17,33 +17,22 @@ router.get('/', authMiddleware, async (req, res) => {
     const now = new Date();
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    // Fetch both collections in parallel
     const [tenders, taxes] = await Promise.all([
       Tender.find({ deleted: { $ne: true } }).sort({ endDate: 1 }),
       TaxRecord.find({ deleted: { $ne: true } }).sort({ dueDate: 1 })
     ]);
 
-    // Map Tender Status (Active/Expired/Expiring Soon)
     const tendersWithStatus = tenders.map(t => {
       let status = 'Active';
       if (t.endDate < now) status = 'Expired';
       else if (t.endDate <= thirtyDaysLater) status = 'Expiring Soon';
-      return { 
-        ...t.toObject(), 
-        status,
-        id: t._id // Map _id to id for frontend compatibility
-      };
+      return { ...t.toObject(), status, id: t._id };
     });
 
-    // Map Tax Status (Paid/Pending/Overdue)
     const taxesWithStatus = taxes.map(t => {
       let status = t.status;
       if (status !== 'Paid' && t.dueDate < now) status = 'Overdue';
-      return { 
-        ...t.toObject(), 
-        status,
-        id: t._id 
-      };
+      return { ...t.toObject(), status, id: t._id };
     });
 
     res.json({ 
@@ -57,7 +46,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Create tender (protected)
+// Create tender
 router.post('/tenders', authMiddleware, async (req, res) => {
   try {
     const tender = new Tender(req.body);
@@ -70,16 +59,28 @@ router.post('/tenders', authMiddleware, async (req, res) => {
 
 /**
  * Soft Delete - Move to Recycle Bin
+ * Handles: DELETE /api/compliance/tenders/:id or /api/compliance/taxes/:id
  */
 router.delete('/:type/:id', authMiddleware, async (req, res) => {
   try {
     const { type, id } = req.params;
-    const Model = type === 'agreement' || type === 'tenders' ? Tender : TaxRecord;
+    const isTender = type === 'agreement' || type === 'tenders';
+    const Model = isTender ? Tender : TaxRecord;
     
-    await Model.findByIdAndUpdate(id, { 
+    const record = await Model.findByIdAndUpdate(id, { 
       deleted: true, 
       deletedAt: new Date() 
     });
+
+    if (!record) return res.status(404).json({ message: 'Record not found' });
+
+    // CASCADING DELETE: If an agreement is deleted, also hide its pending taxes
+    if (isTender) {
+      await TaxRecord.updateMany(
+        { tenderId: id, status: 'Pending' }, 
+        { deleted: true, deletedAt: new Date() }
+      );
+    }
 
     res.json({ success: true, message: 'Moved to recycle bin' });
   } catch (error) {
@@ -88,25 +89,78 @@ router.delete('/:type/:id', authMiddleware, async (req, res) => {
 });
 
 /**
+ * Permanent Delete - Remove from MongoDB forever
+ * DELETE /api/compliance/permanent/:type/:id
+ */
+router.delete('/permanent/:type/:id', authMiddleware, async (req, res) => {
+  try {
+    const { type, id } = req.params;
+    const isTender = type === 'agreement' || type === 'tenders';
+    const Model = isTender ? Tender : TaxRecord;
+    
+    // Find the record first to ensure it's already soft-deleted
+    const record = await Model.findOne({ _id: id, deleted: true });
+    if (!record) {
+      return res.status(400).json({ message: 'Only items in the Recycle Bin can be permanently deleted' });
+    }
+
+    await Model.findByIdAndDelete(id);
+
+    // If it was a tender, permanently remove all its associated taxes too
+    if (isTender) {
+      await TaxRecord.deleteMany({ tenderId: id });
+    }
+
+    res.json({ success: true, message: 'Record permanently purged' });
+  } catch (error) {
+    res.status(500).json({ message: 'Permanent delete failed' });
+  }
+});
+
+/**
  * Restore from Recycle Bin
+ * Handles: POST /api/compliance/restore/:id
  */
 router.post('/restore/:id', authMiddleware, async (req, res) => {
   try {
     const { type } = req.body;
-    const Model = type === 'agreement' ? Tender : TaxRecord;
+    const { id } = req.params;
     
-    await Model.findByIdAndUpdate(req.params.id, { 
+    // Normalize type to handle different string inputs
+    const isTender = ['agreement', 'tenders', 'tender'].includes(type.toLowerCase());
+    const Model = isTender ? Tender : TaxRecord;
+    
+    // 1. Restore the main record
+    const restoredRecord = await Model.findByIdAndUpdate(id, { 
       deleted: false, 
       deletedAt: null 
-    });
+    }, { new: true });
+
+    if (!restoredRecord) {
+      return res.status(404).json({ message: 'Record not found' });
+    }
+
+    // 2. CASCADING RESTORE: If it's an agreement, restore all its taxes automatically
+    if (isTender) {
+      await TaxRecord.updateMany(
+        { tenderId: id }, 
+        { deleted: false, deletedAt: null }
+      );
+    }
     
-    res.json({ success: true, message: 'Record restored successfully' });
+    res.json({ 
+      success: true, 
+      message: isTender 
+        ? 'Agreement and associated taxes restored successfully' 
+        : 'Tax record restored successfully' 
+    });
   } catch (error) {
+    console.error('Restore Error:', error);
     res.status(500).json({ message: 'Restore operation failed' });
   }
 });
 
-// Pay tax (protected)
+// Pay tax
 router.post('/taxes/:id/pay', authMiddleware, async (req, res) => {
   try {
     const { receiptUrl } = req.body;
@@ -123,7 +177,7 @@ router.post('/taxes/:id/pay', authMiddleware, async (req, res) => {
   }
 });
 
-// Compliance stats (protected)
+// Compliance stats
 router.get('/stats', authMiddleware, async (req, res) => {
   try {
     const now = new Date();

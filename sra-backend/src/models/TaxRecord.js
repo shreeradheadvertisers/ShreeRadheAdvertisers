@@ -9,7 +9,7 @@ const TaxRecordSchema = new mongoose.Schema({
     ref: 'Tender', 
     required: true 
   },
-  tenderNumber: String, // Denormalized for quick reference
+  tenderNumber: { type: String, required: true }, // Denormalized for quick reference
   district: String,
   area: String,
   dueDate: { type: Date, required: true },
@@ -20,18 +20,17 @@ const TaxRecordSchema = new mongoose.Schema({
     enum: ['Paid', 'Pending', 'Overdue'], 
     default: 'Pending' 
   },
-
-  // receiptUrl: Stores the link to the proof of payment on Hostinger SSD.
-  // Important for audit trails since MongoDB only holds the metadata.
+  // receiptUrl: Stores the Cloudinary link to the proof of payment.
   receiptUrl: { type: String },
   deleted: { type: Boolean, default: false },
-  deletedAt: Date
+  deletedAt: { type: Date }
 }, { timestamps: true });
 
-// Indexes
+// Indexes for high-performance filtering
 TaxRecordSchema.index({ tenderId: 1 });
 TaxRecordSchema.index({ status: 1 });
 TaxRecordSchema.index({ dueDate: 1 });
 TaxRecordSchema.index({ deleted: 1 });
+TaxRecordSchema.index({ tenderNumber: 1 });
 
 module.exports = mongoose.model('TaxRecord', TaxRecordSchema);

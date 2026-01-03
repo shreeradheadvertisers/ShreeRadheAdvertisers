@@ -8,6 +8,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { initScheduledJobs } = require('./src/services/cronService');
 
 // --- Dynamic Environment Loading ---
 // Loads .env.local if NODE_ENV is set to 'development' (local testing), 
@@ -77,6 +78,8 @@ app.use('/api/contact', routes.contactRoutes);
 app.use('/api/compliance', routes.complianceRoutes);
 app.use('/api/media/upload', routes.uploadRoutes);
 app.use('/api/recycle-bin', routes.recycleBinRoutes);
+
+initScheduledJobs();
 
 // Error Handler
 app.use(errorHandler);
