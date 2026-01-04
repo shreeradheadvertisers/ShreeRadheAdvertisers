@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, RefreshCw, X, Clock, AlertTriangle, ArchiveRestore } from "lucide-react";
+import { Trash2, RefreshCw, Clock } from "lucide-react"; 
 import { CentralBinItem } from "@/lib/api/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -71,7 +71,8 @@ export function RecycleBinDialog({
         <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden">
           <div className="p-6 pb-2">
             <DialogHeader>
-              <div className="flex items-center justify-between">
+              {/* Added pr-12 to push content away from the X button */}
+              <div className="flex items-center justify-between pr-12">
                 <DialogTitle className="flex items-center gap-2 text-xl">
                   <Trash2 className="h-5 w-5 text-destructive" /> Central Recycle Bin
                 </DialogTitle>
@@ -121,7 +122,7 @@ export function RecycleBinDialog({
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-20 text-muted-foreground">
                         <div className="flex flex-col items-center gap-2">
-                          <ArchiveRestore className="h-10 w-10 opacity-20" />
+                          <Trash2 className="h-10 w-10 opacity-20" />
                           <p>Bin is empty.</p>
                         </div>
                       </TableCell>

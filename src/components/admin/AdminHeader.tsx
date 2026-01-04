@@ -1,7 +1,7 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { ArchiveRestore, Bell } from "lucide-react";
+import { Bell, Trash2 } from "lucide-react"; // Import Trash2, removed ArchiveRestore
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -32,14 +32,15 @@ export function AdminHeader({ onOpenBin, binCount }: AdminHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Recycle Bin Button */}
+        {/* Recycle Bin Button - Updated to Trash2 icon */}
         <Button 
           variant="ghost" 
           size="icon" 
           className="relative" 
           onClick={onOpenBin}
+          title="Recycle Bin"
         >
-          <ArchiveRestore className="h-5 w-5" />
+          <Trash2 className="h-5 w-5" /> {/* This matches the icon used inside the bin */}
           {binCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
               {binCount}
