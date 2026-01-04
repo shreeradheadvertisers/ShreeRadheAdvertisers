@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { states, districts, mediaTypes } from "@/lib/data";
+import { mediaTypes } from "@/lib/data";
 import { Search, X } from "lucide-react";
+import { useLocationData } from "@/contexts/LocationDataContext";
 
 interface FilterPanelProps {
   filters: {
@@ -17,7 +19,13 @@ interface FilterPanelProps {
 }
 
 export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
-  const availableDistricts = filters.state ? districts[filters.state] || [] : [];
+  // 1. Initialize the hook to get states and allDistricts mapping
+  const { states, allDistricts } = useLocationData();
+
+  // 2. Derive available districts based on the selected state from context
+  const availableDistricts = filters.state && filters.state !== 'all' 
+    ? allDistricts[filters.state] || [] 
+    : [];
 
   const clearFilters = () => {
     setFilters({
@@ -65,6 +73,7 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All States</SelectItem>
+              {/* Uses the live states list from LocationDataContext */}
               {states.map(state => (
                 <SelectItem key={state} value={state}>{state}</SelectItem>
               ))}
@@ -77,13 +86,14 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
           <Select 
             value={filters.district} 
             onValueChange={(value) => setFilters({ ...filters, district: value })}
-            disabled={!filters.state}
+            disabled={!filters.state || filters.state === 'all'}
           >
             <SelectTrigger>
-              <SelectValue placeholder={filters.state ? "Select District" : "Select State First"} />
+              <SelectValue placeholder={filters.state && filters.state !== 'all' ? "Select District" : "Select State First"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Districts</SelectItem>
+              {/* Uses the districts mapped to the selected state */}
               {availableDistricts.map(district => (
                 <SelectItem key={district} value={district}>{district}</SelectItem>
               ))}
@@ -122,7 +132,6 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="Available">Available</SelectItem>
               <SelectItem value="Booked">Booked</SelectItem>
-              {/* CHANGED: Under Maintenance -> Coming Soon */}
               <SelectItem value="Coming Soon">Coming Soon</SelectItem>
             </SelectContent>
           </Select>
