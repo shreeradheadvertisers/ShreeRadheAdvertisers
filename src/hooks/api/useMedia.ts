@@ -39,6 +39,7 @@ export function useMedia(filters: MediaFilters = {}) {
           minPrice: filters.minPrice,
           maxPrice: filters.maxPrice,
           search: filters.search,
+          limit: 5000
         };
         
         return await apiClient.get<PaginatedResponse<MediaLocation>>(
@@ -77,6 +78,8 @@ export function usePublicMedia(filters: MediaFilters = {}) {
           type: filters.type,
           status: filters.status,
           search: filters.search,
+          limit: filters.limit,
+          page: filters.page
         };
         
         return await apiClient.get<PaginatedResponse<MediaLocation>>(

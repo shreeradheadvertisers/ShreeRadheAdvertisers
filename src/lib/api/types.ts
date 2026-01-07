@@ -338,6 +338,8 @@ export interface MediaFilters {
   minPrice?: number;
   maxPrice?: number;
   search?: string;
+  limit?: number;
+  page?: number;
 }
 
 export interface BookingFilters {

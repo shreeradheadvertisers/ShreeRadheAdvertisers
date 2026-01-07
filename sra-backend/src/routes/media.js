@@ -27,7 +27,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // 2. GET all media (Admin list)
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { state, district, city, type, status, search, minPrice, maxPrice, page = 1, limit = 50 } = req.query;
+    const { state, district, city, type, status, search, minPrice, maxPrice, page = 1, limit = 5000 } = req.query;
     
     const filter = { deleted: false };
     if (state) filter.state = state;
