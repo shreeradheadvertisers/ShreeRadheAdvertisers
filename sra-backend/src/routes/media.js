@@ -184,4 +184,22 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// GET all unique locations (States, Districts, Towns) currently in use
+router.get('/locations/sync', async (req, res) => {
+  try {
+    const locations = await Media.aggregate([
+      { $match: { deleted: false } },
+      {
+        $group: {
+          _id: { state: "$state", district: "$district" },
+          towns: { $addToSet: "$city" }
+        }
+      }
+    ]);
+    res.json({ success: true, data: locations });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

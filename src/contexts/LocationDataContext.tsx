@@ -1,7 +1,12 @@
+/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Context for managing states, districts, and cities
 // Pre-populated with Chhattisgarh as default operating state
+// Enhanced with Database Sync to prevent data loss
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { apiClient } from '@/lib/api/client';
+import { API_ENDPOINTS } from '@/lib/api/config';
 
 const STORAGE_KEY = 'sra_location_data_v3';
 
@@ -63,6 +68,7 @@ interface LocationDataContextType {
   removeCity: (district: string, city: string) => void;
   getCitiesForDistrict: (district: string) => string[];
   getDistrictsForState: (state: string) => string[];
+  syncWithDatabase: () => Promise<void>;
 }
 
 const getDefaultData = (): LocationData => ({
@@ -80,14 +86,12 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Ensure Chhattisgarh is always present with all districts
         if (!parsed.states?.includes(DEFAULT_STATE)) {
           parsed.states = [DEFAULT_STATE, ...(parsed.states || [])];
         }
         if (!parsed.districts?.[DEFAULT_STATE]) {
           parsed.districts = { ...parsed.districts, [DEFAULT_STATE]: [...CHHATTISGARH_DISTRICTS] };
         } else {
-          // Merge default districts
           parsed.districts[DEFAULT_STATE] = [...new Set([...CHHATTISGARH_DISTRICTS, ...parsed.districts[DEFAULT_STATE]])].sort();
         }
         return parsed;
@@ -97,6 +101,41 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
       return getDefaultData();
     }
   });
+
+  // --- DATABASE SYNC LOGIC ---
+  // This automatically pulls Towns/Tehsils used in billboards from the database
+  const syncWithDatabase = useCallback(async () => {
+    try {
+      // API call to the new sync endpoint
+      const response = await apiClient.get<any>(API_ENDPOINTS.MEDIA.LOCATIONS);
+      
+      if (response && response.success && response.data) {
+        setData(prev => {
+          const updatedCities = { ...prev.cities };
+          
+          response.data.forEach((loc: any) => {
+            const district = loc._id.district;
+            const towns = loc.towns;
+            
+            // Merge database towns with existing towns to prevent duplicates
+            updatedCities[district] = [...new Set([...(updatedCities[district] || []), ...towns])].sort();
+          });
+
+          return {
+            ...prev,
+            cities: updatedCities
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Failed to sync locations from database:", err);
+    }
+  }, []);
+
+  // Sync on initial load
+  useEffect(() => {
+    syncWithDatabase();
+  }, [syncWithDatabase]);
 
   // Persist to localStorage
   useEffect(() => {
@@ -124,19 +163,14 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
   }, [data.states]);
 
   const removeState = useCallback((state: string) => {
-    // Don't allow removing the default state
     if (state === DEFAULT_STATE) return;
-    
     setData(prev => {
       const newDistricts = { ...prev.districts };
       delete newDistricts[state];
-      
-      // Remove cities for all districts in this state
       const newCities = { ...prev.cities };
       (prev.districts[state] || []).forEach(district => {
         delete newCities[district];
       });
-      
       return {
         ...prev,
         states: prev.states.filter(s => s !== state),
@@ -151,11 +185,9 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
     const trimmed = district.trim();
     const targetState = state || data.activeState;
     if (!trimmed) return;
-    
     setData(prev => {
       const stateDistricts = prev.districts[targetState] || [];
       if (stateDistricts.includes(trimmed)) return prev;
-      
       return {
         ...prev,
         districts: {
@@ -168,14 +200,11 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
 
   const removeDistrict = useCallback((district: string, state?: string) => {
     const targetState = state || data.activeState;
-    // Don't allow removing default Chhattisgarh districts
     if (targetState === DEFAULT_STATE && CHHATTISGARH_DISTRICTS.includes(district)) return;
-    
     setData(prev => {
       const stateDistricts = prev.districts[targetState] || [];
       const newCities = { ...prev.cities };
       delete newCities[district];
-      
       return {
         ...prev,
         districts: {
@@ -190,11 +219,9 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
   const addCity = useCallback((district: string, city: string) => {
     const trimmed = city.trim();
     if (!trimmed) return;
-    
     setData(prev => {
       const districtCities = prev.cities[district] || [];
       if (districtCities.includes(trimmed)) return prev;
-      
       return {
         ...prev,
         cities: {
@@ -241,6 +268,7 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
     removeCity,
     getCitiesForDistrict,
     getDistrictsForState,
+    syncWithDatabase,
   };
 
   return (
@@ -258,5 +286,4 @@ export function useLocationData() {
   return context;
 }
 
-// Export for use in components
 export { CHHATTISGARH_DISTRICTS, STATE_DISTRICTS };
