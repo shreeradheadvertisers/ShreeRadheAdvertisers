@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // API Hooks for Media Management with Cloudinary Organization
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS, isBackendConfigured } from '@/lib/api/config';
 import { mediaLocations as staticMedia } from '@/lib/data';
@@ -39,7 +39,8 @@ export function useMedia(filters: MediaFilters = {}) {
           minPrice: filters.minPrice,
           maxPrice: filters.maxPrice,
           search: filters.search,
-          limit: 5000
+          page: filters.page || 1,
+          limit: filters.limit || 12,
         };
         
         return await apiClient.get<PaginatedResponse<MediaLocation>>(
@@ -49,17 +50,17 @@ export function useMedia(filters: MediaFilters = {}) {
       }
 
       // Local fallback only if no backend URL exists
-      let data = [...staticMedia] as unknown as MediaLocation[];
-      if (filters.status) data = data.filter(m => m.status === filters.status);
-      if (filters.type) data = data.filter(m => m.type === filters.type);
-      if (filters.search) {
-        const q = filters.search.toLowerCase();
-        data = data.filter(m => 
-          m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)
-        );
-      }
-      return { success: true, data, pagination: { page: 1, limit: 100, total: data.length, totalPages: 1 } };
+      return { 
+        success: true, 
+        data: [], 
+        pagination: { page: 1, limit: 12, total: 0, totalPages: 1 } 
+      };
     },
+    // keepPreviousData: true is deprecated in latest TanStack Query, 
+    // but often used in older versions to prevent flickering. 
+    // If using version 5+, use placeholderData: keepPreviousData from imports.
+    // keepPreviousData: true, 
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -78,8 +79,9 @@ export function usePublicMedia(filters: MediaFilters = {}) {
           type: filters.type,
           status: filters.status,
           search: filters.search,
-          limit: filters.limit,
-          page: filters.page
+          // UPDATED: Explicitly set a high limit or use filter limit to prevent 50-item cutoff
+          limit: filters.limit || 1000, 
+          page: filters.page || 1
         };
         
         return await apiClient.get<PaginatedResponse<MediaLocation>>(
@@ -95,7 +97,6 @@ export function usePublicMedia(filters: MediaFilters = {}) {
         pagination: { page: 1, limit: 100, total: 0, totalPages: 1 } 
       };
     },
-    // Shorter staleTime for public so they see new billboards faster
     staleTime: 1 * 60 * 1000, 
   });
 }
@@ -107,13 +108,11 @@ export function useMediaById(id: string) {
     queryFn: async () => {
       if (isBackendConfigured()) {
         const response = await apiClient.get<ApiResponse<MediaLocation>>(
-          API_ENDPOINTS.MEDIA.GET(id) // This should hit /api/media/:id
+          API_ENDPOINTS.MEDIA.GET(id)
         );
-        // Ensure we return the data property from the API response
         return response?.data || null;
       }
 
-      // Fallback to static data
       const media = staticMedia.find(m => m.id === id);
       return media ? (media as unknown as MediaLocation) : null;
     },
@@ -132,7 +131,6 @@ export function useCreateMedia() {
       return response.data || response; 
     },
     onSuccess: () => {
-      // Invalidate both admin and public lists so UI updates everywhere
       queryClient.invalidateQueries({ queryKey: mediaKeys.all });
     },
   });

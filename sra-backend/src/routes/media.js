@@ -76,7 +76,7 @@ router.get('/', authMiddleware, async (req, res) => {
 // 3. GET Public media list
 router.get('/public', async (req, res) => {
   try {
-    const { state, district, city, type, status, search, page = 1, limit = 50 } = req.query;
+    const { state, district, city, type, status, search, page = 1, limit = 12 } = req.query;
     
     const filter = { deleted: false };
     if (state && state !== 'all') filter.state = state;
@@ -99,9 +99,22 @@ router.get('/public', async (req, res) => {
       Media.countDocuments(filter)
     ]);
 
+    // --- CRITICAL FIX START: Data Standardization ---
+    // This ensures that items 50+ show images even if field names are inconsistent
+    const standardizedData = media.map(item => {
+      const doc = item.toObject();
+      return {
+        ...doc,
+        // If imageUrl is missing but 'image' exists, use it. 
+        // If both are missing, it remains undefined (handled by frontend fallback).
+        imageUrl: doc.imageUrl || doc.image || null 
+      };
+    });
+    // --- CRITICAL FIX END ---
+
     res.json({ 
       success: true,
-      data: media, 
+      data: standardizedData, // Send the standardized version
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

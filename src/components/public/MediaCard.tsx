@@ -11,14 +11,15 @@ interface MediaCardProps {
 }
 
 export function MediaCard({ media }: MediaCardProps) {
-  // Cloudinary Bandwidth Optimization Helper
-  const getOptimizedImage = (url: string | undefined) => {
-    if (!url) return "https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?q=80&w=1000";
+  // 1. IMPROVED IMAGE LOGIC: Prioritize Cloudinary URL from MongoDB
+  const getOptimizedImage = (url: string | undefined, fallbackImage?: string) => {
+    // Use the primary URL, then the fallback image field, then a generic placeholder
+    const imageSrc = url || fallbackImage || "https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?q=80&w=1000";
     
-    if (url.includes('cloudinary.com')) {
-      return url.replace('/upload/', '/upload/w_600,c_fill,g_auto,q_auto,f_auto/');
+    if (imageSrc.includes('cloudinary.com')) {
+      return imageSrc.replace('/upload/', '/upload/w_600,c_fill,g_auto,q_auto,f_auto/');
     }
-    return url;
+    return imageSrc;
   };
 
   const getStatusColor = (status: string) => {
@@ -39,10 +40,15 @@ export function MediaCard({ media }: MediaCardProps) {
       {/* Image Section */}
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
-          src={getOptimizedImage(media.imageUrl || (media as any).image)}
+          // 2. PASS BOTH FIELDS: Ensure we don't show placeholders if 'image' field has data
+          src={getOptimizedImage(media.imageUrl|| media.image)}
           alt={media.name}
           className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
           loading="lazy"
+          onError={(e) => {
+            // Final safety fallback
+            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?q=80&w=1000";
+          }}
         />
         
         <div className="absolute top-3 left-3 z-10">
@@ -93,9 +99,7 @@ export function MediaCard({ media }: MediaCardProps) {
           <span className="text-lg font-bold text-primary">₹{media.pricePerMonth}<span className="text-xs font-normal text-muted-foreground">/mo</span></span>
         </div>
         <Button size="sm" asChild className="rounded-full px-4 shadow-sm hover:shadow-md transition-all">
-          {/* FIX: Prioritize MongoDB _id for dynamic persistence. 
-              This ensures the Details page can fetch the specific record from MongoDB.
-          */}
+          {/* 3. PERSISTENT NAVIGATION: Use MongoDB _id so the Details page can fetch live data */}
           <Link to={`/media/${(media as any)._id || media.id}`}>
             View Details <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Link>

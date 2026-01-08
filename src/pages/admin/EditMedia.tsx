@@ -58,9 +58,9 @@ const EditMedia = () => {
         lighting: media.lighting || '',
         facing: media.facing || '',
         pricePerMonth: String(media.pricePerMonth || ''),
-        imageUrl: media.imageUrl || (media as any).image || '', 
+        imageUrl: media.imageUrl || '', 
       });
-      setPreviewUrl(media.imageUrl || (media as any).image || null);
+      setPreviewUrl(media.imageUrl || null);
     }
   }, [media]);
 
@@ -69,12 +69,16 @@ const EditMedia = () => {
   const availableTehsils = getCitiesForDistrict(formData.district);
 
   const handleStateChange = (state: string) => {
+  if (state !== formData.state) { // Only clear if it's a NEW state
     setFormData({ ...formData, state, district: '', city: '' });
-  };
+  }
+};
 
   const handleDistrictChange = (district: string) => {
+  if (district !== formData.district) { // Only clear if it's a NEW district
     setFormData({ ...formData, district, city: '' });
-  };
+  }
+};
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,7 +103,7 @@ const EditMedia = () => {
     setIsSubmitting(true);
 
     try {
-      let finalImageUrl = formData.imageUrl;
+      let finalImageUrl = formData.imageUrl || media?.imageUrl;
 
       // 1. Organized Cloudinary Upload
       if (selectedFile && isBackendConfigured()) {
@@ -252,17 +256,21 @@ const EditMedia = () => {
                 <div className="space-y-2">
                   <Label>Town / Tehsil *</Label>
                   <Select 
-                    value={formData.city} 
-                    onValueChange={(v) => setFormData({ ...formData, city: v })}
-                    disabled={!formData.district}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select Town/Tehsil" /></SelectTrigger>
-                    <SelectContent>
-                      {availableTehsils.map(tehsil => (
-                        <SelectItem key={tehsil} value={tehsil}>{tehsil}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+  value={formData.city} 
+  onValueChange={(v) => setFormData({ ...formData, city: v })}
+  disabled={!formData.district}
+>
+  <SelectTrigger><SelectValue placeholder="Select Town/Tehsil" /></SelectTrigger>
+  <SelectContent>
+    {/* If the current city isn't in the list yet, add it manually so it stays selected */}
+    {formData.city && !availableTehsils.includes(formData.city) && (
+      <SelectItem value={formData.city}>{formData.city}</SelectItem>
+    )}
+    {availableTehsils.map(tehsil => (
+      <SelectItem key={tehsil} value={tehsil}>{tehsil}</SelectItem>
+    ))}
+  </SelectContent>
+</Select>
                 </div>
               </div>
               <div className="mt-5 space-y-2">
