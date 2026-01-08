@@ -24,9 +24,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState } from "react";
-import { mediaLocations, customers } from "@/lib/data";
+// Import the hooks to fetch live data and perform mutations
+import { useCustomers } from "@/hooks/api/useCustomers";
+import { useMedia } from "@/hooks/api/useMedia";
+import { useCreateBooking } from "@/hooks/api/useBookings";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Check, ChevronsUpDown, Trash2, CalendarPlus } from "lucide-react";
+import { Plus, Check, ChevronsUpDown, Trash2, CalendarPlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +47,14 @@ interface BookingItem {
 export function CreateBookingDialog() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+
+  // --- API Data Fetching ---
+  const { data: customerRes } = useCustomers();
+  const { data: mediaRes } = useMedia();
+  const createBookingMutation = useCreateBooking();
+
+  const customers = customerRes?.data || [];
+  const mediaLocations = mediaRes?.data || [];
 
   // --- Global Booking State ---
   const [customerId, setCustomerId] = useState("");
@@ -64,7 +75,6 @@ export function CreateBookingDialog() {
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const currentMedia = mediaLocations.find((m) => m.id === currentItem.mediaId);
 
-  // Helper: Reset the "Add Item" form only
   const resetCurrentItem = () => {
     setCurrentItem({
       mediaId: "",
@@ -74,7 +84,6 @@ export function CreateBookingDialog() {
     });
   };
 
-  // Action: Add Item to Queue
   const handleAddItem = () => {
     if (
       !currentItem.mediaId ||
@@ -108,47 +117,52 @@ export function CreateBookingDialog() {
     toast({ description: "Item added to booking list." });
   };
 
-  // Action: Remove Item from Queue
   const handleRemoveItem = (id: string) => {
     setBookingQueue(bookingQueue.filter((item) => item.tempId !== id));
   };
 
-  // Action: Submit All
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!customerId) {
-      toast({
-        variant: "destructive",
-        title: "Missing Customer",
-        description: "Please select a customer for these bookings.",
+  if (!customerId) {
+    toast({
+      variant: "destructive",
+      title: "Missing Customer",
+      description: "Please select a customer for these bookings.",
+    });
+    return;
+  }
+
+  try {
+    // Loop through queue and send requests to the backend
+    for (const item of bookingQueue) {
+      // 'status' is removed here to match CreateBookingRequest type
+      await createBookingMutation.mutateAsync({
+        customerId,
+        mediaId: item.mediaId,
+        startDate: item.startDate,
+        endDate: item.endDate,
+        amount: Number(item.amount),
       });
-      return;
     }
-
-    if (bookingQueue.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Empty Booking List",
-        description: "Please add at least one media item to the list.",
-      });
-      return;
-    }
-
-    // --- API Integration Point ---
-    // Here you would loop through `bookingQueue` and send requests to your backend
-    console.log("Submitting Bookings:", { customerId, bookings: bookingQueue });
 
     toast({
       title: "Success",
-      description: `Created ${bookingQueue.length} booking(s) for ${selectedCustomer?.name}.`,
+      description: `Created ${bookingQueue.length} booking(s) for ${selectedCustomer?.company}.`,
     });
 
     setBookingQueue([]);
     setCustomerId("");
     resetCurrentItem();
     setOpen(false);
-  };
+  } catch (error) {
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Failed to create some or all bookings.",
+    });
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -168,7 +182,6 @@ export function CreateBookingDialog() {
         </DialogHeader>
 
         <div className="grid gap-6 py-4">
-          {/* 1. Global Customer Selection */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="customer" className="text-right font-medium text-sm">
               Customer
@@ -241,14 +254,12 @@ export function CreateBookingDialog() {
 
           <Separator />
 
-          {/* 2. Add Item Section (The "Builder") */}
           <div className="bg-muted/40 p-4 rounded-lg border border-dashed border-muted-foreground/30 space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <CalendarPlus className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold">Add Media to Booking</span>
             </div>
 
-            {/* Media Select */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2 md:col-span-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -320,7 +331,6 @@ export function CreateBookingDialog() {
                 </Popover>
               </div>
 
-              {/* Start Date */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                   Start Date
@@ -335,7 +345,6 @@ export function CreateBookingDialog() {
                 />
               </div>
 
-              {/* End Date */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                   End Date
@@ -350,7 +359,6 @@ export function CreateBookingDialog() {
                 />
               </div>
 
-              {/* Amount */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                   Agreed Rate (₹)
@@ -366,7 +374,6 @@ export function CreateBookingDialog() {
                 />
               </div>
 
-              {/* Add Button */}
               <div className="flex items-end">
                 <Button
                   type="button"
@@ -380,7 +387,6 @@ export function CreateBookingDialog() {
             </div>
           </div>
 
-          {/* 3. Items Queue (The List) */}
           <div className="space-y-2">
             <div className="flex justify-between items-center px-1">
               <Label>Booking List ({bookingQueue.length})</Label>
@@ -448,7 +454,11 @@ export function CreateBookingDialog() {
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={bookingQueue.length === 0}>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={bookingQueue.length === 0 || createBookingMutation.isPending}
+          >
+            {createBookingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Confirm {bookingQueue.length} Bookings
           </Button>
         </DialogFooter>

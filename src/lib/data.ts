@@ -5,14 +5,18 @@ import {
   TaxRecord, 
   ComplianceStats, 
 } from './api/types';
+import { type BookingStatus } from './api/types';
 
 export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED';
-export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon';
+export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon' | 'Maintenance';
 export type PaymentStatus = 'Paid' | 'Pending' | 'Partially Paid';
 export type PaymentMode = 'Cash' | 'Cheque' | 'Online' | 'Bank Transfer';
 
 export interface MediaLocation {
+  _id: string
   id: string;
+  createdAt: string; 
+  updatedAt: string;
   name: string;
   type: MediaType;
   state: string;
@@ -24,7 +28,7 @@ export interface MediaLocation {
   lighting: 'Front Lit' | 'Back Lit' | 'Non-Lit' | 'Digital';
   facing: string;
   imageUrl?: string;
-  image: string;
+  image?: string;
   pricePerMonth: number;
   bookedDates?: { start: string; end: string }[];
   occupancyRate: number;
@@ -34,11 +38,14 @@ export interface MediaLocation {
 }
 
 export interface Booking {
+  _id: string;
   id: string;
+  createdAt: string; 
+  updatedAt: string;
   mediaId: string;
   customerId: string;
   media?: MediaLocation;
-  status: string;
+  status: BookingStatus;
   startDate: string;
   endDate: string;
   amount: number;
