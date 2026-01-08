@@ -5,6 +5,7 @@ import { FilterPanel } from "@/components/public/FilterPanel";
 import { mediaLocations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input"; //
 import { Grid, List, SlidersHorizontal, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { usePublicMedia } from "@/hooks/api/useMedia";
@@ -14,6 +15,7 @@ import { adaptMediaLocation } from "@/lib/services/dataService";
 const Explore = () => {
   // 1. Pagination State
   const [currentPage, setCurrentPage] = useState(1);
+  const [jumpPage, setJumpPage] = useState(""); // State for the "Go to" input box
   const itemsPerPage = 12;
 
   const [filters, setFilters] = useState({
@@ -28,7 +30,13 @@ const Explore = () => {
   // 2. Reset to page 1 whenever any filter or search term changes
   useEffect(() => {
     setCurrentPage(1);
+    setJumpPage("1");
   }, [filters]);
+
+  // Sync jumpPage input with currentPage changes
+  useEffect(() => {
+    setJumpPage(currentPage.toString());
+  }, [currentPage]);
 
   // 3. Fetch from MongoDB with pagination parameters
   const { data: apiData, isLoading, isFetching } = usePublicMedia({
@@ -42,29 +50,40 @@ const Explore = () => {
   });
 
   const filteredMedia = useMemo(() => {
-  // 1. If we have data from the API, we simply map it for the UI
-  if (isBackendConfigured() && apiData?.data) {
-    return apiData.data.map(m => {
-      const adapted = adaptMediaLocation(m);
-      return {
-        ...adapted,
-        // Ensure the MediaCard always uses the Cloudinary URL
-        image: m.imageUrl || (m as any).image || adapted.image,
-        imageUrl: m.imageUrl || (m as any).image,
-        _id: (m as any)._id, 
-        id: adapted.id || (m as any).id 
-      };
-    });
-  }
-  return [];
-}, [apiData]);
+    if (isBackendConfigured() && apiData?.data) {
+      return apiData.data.map(m => {
+        const adapted = adaptMediaLocation(m);
+        return {
+          ...adapted,
+          image: m.imageUrl || (m as any).image || adapted.image,
+          imageUrl: m.imageUrl || (m as any).image,
+          _id: (m as any)._id, 
+          id: adapted.id || (m as any).id 
+        };
+      });
+    }
+    return [];
+  }, [apiData]);
 
   const totalCount = apiData?.pagination?.total ?? mediaLocations.length;
   const totalPages = apiData?.pagination?.totalPages ?? Math.ceil(totalCount / itemsPerPage);
 
   const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleJumpToPage = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pageNum = parseInt(jumpPage);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      handlePageChange(pageNum);
+    } else {
+      // Reset input to current page if invalid
+      setJumpPage(currentPage.toString());
+    }
   };
 
   return (
@@ -154,34 +173,54 @@ const Explore = () => {
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                  <div className="flex flex-col items-center justify-center mt-12 mb-8 gap-4 border-t pt-8">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        className="w-28"
-                        disabled={currentPage === 1}
-                        onClick={() => handlePageChange(currentPage - 1)}
-                      >
-                        <ChevronLeft className="h-4 w-4 mr-2" />
-                        Previous
-                      </Button>
-                      
-                      <div className="flex items-center justify-center min-w-[140px]">
-                        <span className="text-sm font-medium">
-                          Page {currentPage} of {totalPages}
-                        </span>
+                  <div className="flex flex-col items-center justify-center mt-12 mb-8 gap-6 border-t pt-8">
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                      {/* Existing Prev/Next Buttons */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          className="w-28"
+                          disabled={currentPage === 1}
+                          onClick={() => handlePageChange(currentPage - 1)}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-2" />
+                          Previous
+                        </Button>
+                        
+                        <div className="flex items-center justify-center min-w-[100px]">
+                          <span className="text-sm font-medium">
+                            {currentPage} / {totalPages}
+                          </span>
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          className="w-28"
+                          disabled={currentPage === totalPages}
+                          onClick={() => handlePageChange(currentPage + 1)}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-2" />
+                        </Button>
                       </div>
 
-                      <Button
-                        variant="outline"
-                        className="w-28"
-                        disabled={currentPage === totalPages}
-                        onClick={() => handlePageChange(currentPage + 1)}
-                      >
-                        Next
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </Button>
+                      {/* New Jump to Page Box */}
+                      <form onSubmit={handleJumpToPage} className="flex items-center gap-2 border-l pl-4">
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">Go to:</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={totalPages}
+                          value={jumpPage}
+                          onChange={(e) => setJumpPage(e.target.value)}
+                          className="w-16 h-9 text-center"
+                        />
+                        <Button type="submit" size="sm" variant="ghost" className="h-9 px-3">
+                          Go
+                        </Button>
+                      </form>
                     </div>
+                    
                     <p className="text-xs text-muted-foreground">
                       Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} billboards
                     </p>
