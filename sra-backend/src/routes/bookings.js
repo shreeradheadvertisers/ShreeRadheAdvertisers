@@ -7,14 +7,34 @@ const router = express.Router();
 const { Booking, Customer, Media } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 
+// Helper: Resolve Custom ID to ObjectId
+const resolveId = async (Model, id) => {
+  if (!id) return null;
+  // If it's already a valid ObjectId, return it
+  if (id.match(/^[0-9a-fA-F]{24}$/)) return id;
+  
+  // Otherwise, try to find the document by its custom 'id' field
+  const doc = await Model.findOne({ id: id });
+  return doc ? doc._id : null;
+};
+
 // Get all bookings (protected)
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { customerId, mediaId, status, paymentStatus, page = 1, limit = 50 } = req.query;
+    let { customerId, mediaId, status, paymentStatus, page = 1, limit = 50 } = req.query;
     
     const filter = { deleted: false };
-    if (customerId) filter.customerId = customerId;
-    if (mediaId) filter.mediaId = mediaId;
+
+    // FIX: Resolve IDs before querying
+    if (customerId) {
+      const resolvedCustId = await resolveId(Customer, customerId);
+      if (resolvedCustId) filter.customerId = resolvedCustId;
+    }
+    if (mediaId) {
+      const resolvedMediaId = await resolveId(Media, mediaId);
+      if (resolvedMediaId) filter.mediaId = resolvedMediaId;
+    }
+
     if (status) filter.status = status;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
 
@@ -31,6 +51,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({ data: bookings, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) });
   } catch (error) {
+    console.error("Fetch bookings error:", error);
     res.status(500).json({ message: 'Failed to fetch bookings' });
   }
 });
@@ -53,8 +74,16 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Get bookings by customer (protected)
 router.get('/customer/:customerId', authMiddleware, async (req, res) => {
   try {
+    // FIX: Resolve Customer ID here (e.g., convert "SRA-CUST-001" to ObjectId)
+    const resolvedCustId = await resolveId(Customer, req.params.customerId);
+    
+    if (!resolvedCustId) {
+       // If we can't find the customer, return empty list instead of error
+       return res.json({ data: [], total: 0, page: 1, pages: 1 });
+    }
+
     const bookings = await Booking.find({ 
-      customerId: req.params.customerId, 
+      customerId: resolvedCustId, 
       deleted: false 
     })
       .populate('mediaId')
@@ -62,6 +91,7 @@ router.get('/customer/:customerId', authMiddleware, async (req, res) => {
     
     res.json({ data: bookings, total: bookings.length, page: 1, pages: 1 });
   } catch (error) {
+    console.error("Fetch customer bookings error:", error);
     res.status(500).json({ message: 'Failed to fetch customer bookings' });
   }
 });
@@ -69,40 +99,42 @@ router.get('/customer/:customerId', authMiddleware, async (req, res) => {
 // Create booking (protected)
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    console.log("Received Booking Payload:", req.body); // Debug log
+    console.log("Received Booking Payload:", req.body); 
 
-    // 1. Handle ID resolution (If frontend sends custom string IDs instead of _ids)
     let { mediaId, customerId, ...bookingData } = req.body;
 
-    // Verify Media ID
-    if (mediaId && !mediaId.match(/^[0-9a-fA-F]{24}$/)) {
-      const media = await Media.findOne({ id: mediaId });
-      if (media) mediaId = media._id;
-      else return res.status(404).json({ message: `Media with ID ${mediaId} not found` });
-    }
-
-    // Verify Customer ID
-    if (customerId && !customerId.match(/^[0-9a-fA-F]{24}$/)) {
-      const customer = await Customer.findOne({ id: customerId }); // Assuming Customer has 'id' field
-      if (customer) customerId = customer._id;
-      // If using _id only for customers, this block might skip
-    }
+    // 1. Resolve IDs
+    const resolvedMediaId = await resolveId(Media, mediaId);
+    if (!resolvedMediaId) return res.status(404).json({ message: `Media with ID ${mediaId} not found` });
+    
+    const resolvedCustId = await resolveId(Customer, customerId);
+    // If we can't find by custom ID, and it looks like a MongoID, use it directly, else fail
+    const finalCustId = resolvedCustId || (customerId.match(/^[0-9a-fA-F]{24}$/) ? customerId : null);
+    
+    if (!finalCustId) return res.status(404).json({ message: `Customer with ID ${customerId} not found` });
 
     const booking = new Booking({
       ...bookingData,
-      mediaId,
-      customerId
+      mediaId: resolvedMediaId,
+      customerId: finalCustId
     });
 
     await booking.save();
     
-    // Update customer stats
-    await Customer.findByIdAndUpdate(customerId, {
-      $inc: { totalBookings: 1 }
+    // 2. FIX: Update customer stats (Count AND Total Spent)
+    // We use amountPaid if available, otherwise 0. Or you can use 'amount' for Total Contract Value.
+    // Usually 'totalSpent' implies actual money paid.
+    const amountToAdd = booking.amountPaid || 0; 
+    
+    await Customer.findByIdAndUpdate(finalCustId, {
+      $inc: { 
+        totalBookings: 1,
+        totalSpent: amountToAdd 
+      }
     });
     
-    // Update media status and booked dates
-    await Media.findByIdAndUpdate(mediaId, { 
+    // 3. Update media status
+    await Media.findByIdAndUpdate(resolvedMediaId, { 
       status: 'Booked',
       $push: { 
         bookedDates: { 
@@ -115,10 +147,10 @@ router.post('/', authMiddleware, async (req, res) => {
     
     res.status(201).json(booking);
   } catch (error) {
-    console.error('Create booking error:', error); // LOG THE ACTUAL ERROR
+    console.error('Create booking error:', error);
     res.status(500).json({ 
       message: 'Failed to create booking', 
-      error: error.message // Return specific error to frontend for debugging
+      error: error.message 
     });
   }
 });
@@ -126,10 +158,23 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update booking (protected)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
+    const oldBooking = await Booking.findById(req.params.id);
     const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
+
+    // FIX: Update Customer Total Spent if payment amount changed
+    if (oldBooking && booking.amountPaid !== oldBooking.amountPaid) {
+      const difference = (booking.amountPaid || 0) - (oldBooking.amountPaid || 0);
+      if (difference !== 0) {
+        await Customer.findByIdAndUpdate(booking.customerId, {
+          $inc: { totalSpent: difference }
+        });
+      }
+    }
+
     res.json(booking);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update booking' });
@@ -144,9 +189,25 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       { deleted: true, deletedAt: new Date() }, 
       { new: true }
     );
+    
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
+
+    // Optional: Decrement stats on delete
+    await Customer.findByIdAndUpdate(booking.customerId, {
+      $inc: { 
+        totalBookings: -1,
+        totalSpent: -(booking.amountPaid || 0)
+      }
+    });
+
+    // Also free up the media status
+    await Media.findByIdAndUpdate(booking.mediaId, {
+       status: 'Available',
+       $pull: { bookedDates: { bookingId: booking._id } }
+    });
+
     res.json({ message: 'Booking deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete booking' });

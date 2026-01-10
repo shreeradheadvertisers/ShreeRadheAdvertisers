@@ -235,6 +235,12 @@ export function CreateBookingDialog() {
 
     try {
       for (const item of bookingQueue) {
+        // LOGIC TO DETERMINE PAID AMOUNT
+        let paidAmount = 0;
+        if (item.paymentStatus === 'Paid') {
+            paidAmount = Number(item.amount);
+        }
+
         const payload = {
           customerId: customerId,
           mediaId: item.mediaId,
@@ -243,6 +249,7 @@ export function CreateBookingDialog() {
           startDate: new Date(item.startDate).toISOString(),
           endDate: new Date(item.endDate).toISOString(),
           amount: Number(item.amount),
+          amountPaid: item.paymentStatus === 'Paid' ? Number(item.amount) : 0,
           status: item.status, 
           paymentStatus: item.paymentStatus,
         } as any;
