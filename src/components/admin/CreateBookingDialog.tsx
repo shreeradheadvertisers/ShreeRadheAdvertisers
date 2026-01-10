@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useMemo } from "react"; // Added useMemo
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -71,16 +71,16 @@ export function CreateBookingDialog() {
   const { toast } = useToast();
 
   const { data: customerRes } = useCustomers();
-  // Keep limit 5000 to fetch everything, but we will limit RENDER count below
   const { data: mediaRes } = useMedia({ limit: 5000 } as any);
-  
   const { data: existingBookingsRes } = useBookings({ limit: 2000 } as any); 
   
   const createBookingMutation = useCreateBooking();
 
-  const customers = customerRes?.data || [];
-  const mediaLocations = mediaRes?.data || [];
-  const existingBookings = existingBookingsRes?.data || [];
+  // --- FIX: Wrap data extraction in useMemo to prevent unstable dependencies ---
+  const customers = useMemo(() => customerRes?.data || [], [customerRes?.data]);
+  const mediaLocations = useMemo(() => mediaRes?.data || [], [mediaRes?.data]);
+  const existingBookings = useMemo(() => existingBookingsRes?.data || [], [existingBookingsRes?.data]);
+  // ---------------------------------------------------------------------------
 
   const [customerId, setCustomerId] = useState("");
   const [bookingQueue, setBookingQueue] = useState<BookingItem[]>([]);
@@ -90,7 +90,6 @@ export function CreateBookingDialog() {
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   
-  // --- ADDED: Search States for optimization ---
   const [customerSearch, setCustomerSearch] = useState("");
   const [mediaSearch, setMediaSearch] = useState("");
 
@@ -105,8 +104,7 @@ export function CreateBookingDialog() {
   const selectedCustomer = customers.find((c: any) => getId(c) === customerId);
   const currentMedia = mediaLocations.find((m: any) => getId(m) === currentItem.mediaId);
 
-  // --- OPTIMIZED FILTERING ---
-  // Only render the top 50 matches to keep the UI snappy
+  // Optimized Filtering
   const filteredCustomers = useMemo(() => {
     if (!customerSearch) return customers.slice(0, 50);
     const searchLower = customerSearch.toLowerCase();
@@ -125,7 +123,6 @@ export function CreateBookingDialog() {
       m.type?.toLowerCase().includes(searchLower)
     ).slice(0, 50);
   }, [mediaLocations, mediaSearch]);
-  // ---------------------------
 
   const resetCurrentItem = () => {
     setCurrentItem({
@@ -235,11 +232,8 @@ export function CreateBookingDialog() {
 
     try {
       for (const item of bookingQueue) {
-        // LOGIC TO DETERMINE PAID AMOUNT
-        let paidAmount = 0;
-        if (item.paymentStatus === 'Paid') {
-            paidAmount = Number(item.amount);
-        }
+        // Logic to determine paid amount
+        const paidAmount = item.paymentStatus === 'Paid' ? Number(item.amount) : 0;
 
         const payload = {
           customerId: customerId,
@@ -249,7 +243,7 @@ export function CreateBookingDialog() {
           startDate: new Date(item.startDate).toISOString(),
           endDate: new Date(item.endDate).toISOString(),
           amount: Number(item.amount),
-          amountPaid: item.paymentStatus === 'Paid' ? Number(item.amount) : 0,
+          amountPaid: paidAmount, 
           status: item.status, 
           paymentStatus: item.paymentStatus,
         } as any;
@@ -305,9 +299,6 @@ export function CreateBookingDialog() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0">
-                {/* OPTIMIZATION: shouldFilter={false} prevents cmdk from doing heavy filtering work.
-                   We filter manually in 'filteredCustomers' above and limit render to 50 items.
-                */}
                 <Command shouldFilter={false}>
                   <CommandInput 
                     placeholder="Search customer..." 
@@ -358,7 +349,6 @@ export function CreateBookingDialog() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0">
-                    {/* OPTIMIZATION: Manual filtering + Limit to 50 rendered items */}
                     <Command shouldFilter={false}>
                       <CommandInput 
                         placeholder="Search media..." 
@@ -390,7 +380,6 @@ export function CreateBookingDialog() {
                 </Popover>
               </div>
 
-              {/* START DATE */}
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground uppercase">Start Date</Label>
                 <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
@@ -422,7 +411,6 @@ export function CreateBookingDialog() {
                 </Popover>
               </div>
 
-              {/* END DATE */}
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground uppercase">End Date</Label>
                 <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
