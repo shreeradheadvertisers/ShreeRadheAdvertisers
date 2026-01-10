@@ -26,7 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // Define the shape of the form data using the CustomerGroup union type
-type CustomerFormData = Omit<Customer, 'id' | 'totalBookings' | 'totalSpent'> & {
+type CustomerFormData = Omit<Customer, 'id' | '_id' | 'totalBookings' | 'totalSpent'> & {
   group: CustomerGroup;
 };
 
