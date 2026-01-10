@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useMemo } from "react"; // Added useMemo
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -71,9 +71,9 @@ export function CreateBookingDialog() {
   const { toast } = useToast();
 
   const { data: customerRes } = useCustomers();
-  const { data: mediaRes } = useMedia();
+  // Keep limit 5000 to fetch everything, but we will limit RENDER count below
+  const { data: mediaRes } = useMedia({ limit: 5000 } as any);
   
-  // Fetch existing bookings. We use 'refetchOnMount' to ensure we don't have stale "deleted" data.
   const { data: existingBookingsRes } = useBookings({ limit: 2000 } as any); 
   
   const createBookingMutation = useCreateBooking();
@@ -89,6 +89,10 @@ export function CreateBookingDialog() {
   const [mediaOpen, setMediaOpen] = useState(false);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  
+  // --- ADDED: Search States for optimization ---
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [mediaSearch, setMediaSearch] = useState("");
 
   const [currentItem, setCurrentItem] = useState({
     mediaId: "",
@@ -101,6 +105,28 @@ export function CreateBookingDialog() {
   const selectedCustomer = customers.find((c: any) => getId(c) === customerId);
   const currentMedia = mediaLocations.find((m: any) => getId(m) === currentItem.mediaId);
 
+  // --- OPTIMIZED FILTERING ---
+  // Only render the top 50 matches to keep the UI snappy
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch) return customers.slice(0, 50);
+    const searchLower = customerSearch.toLowerCase();
+    return customers.filter((c: any) => 
+      c.name.toLowerCase().includes(searchLower) || 
+      c.company?.toLowerCase().includes(searchLower)
+    ).slice(0, 50);
+  }, [customers, customerSearch]);
+
+  const filteredMedia = useMemo(() => {
+    if (!mediaSearch) return mediaLocations.slice(0, 50);
+    const searchLower = mediaSearch.toLowerCase();
+    return mediaLocations.filter((m: any) => 
+      m.name.toLowerCase().includes(searchLower) || 
+      m.city?.toLowerCase().includes(searchLower) ||
+      m.type?.toLowerCase().includes(searchLower)
+    ).slice(0, 50);
+  }, [mediaLocations, mediaSearch]);
+  // ---------------------------
+
   const resetCurrentItem = () => {
     setCurrentItem({
       mediaId: "",
@@ -111,7 +137,6 @@ export function CreateBookingDialog() {
     });
   };
 
-  // --- Auto-Calculate Status ---
   const calculateStatus = (start: string, end: string) => {
     if (!start || !end) return "Upcoming";
     const today = startOfDay(new Date());
@@ -123,7 +148,6 @@ export function CreateBookingDialog() {
     return "Active";
   };
 
-  // --- Conflict Detection (FIXED) ---
   const checkConflicts = () => {
     if (!currentItem.mediaId || !currentItem.startDate || !currentItem.endDate) return null;
 
@@ -131,18 +155,10 @@ export function CreateBookingDialog() {
     const newEnd = new Date(currentItem.endDate);
     const targetMediaId = currentItem.mediaId;
 
-    // 1. Database Check
     const dbConflict = existingBookings.find((b: any) => {
-      // Rule 1: Must match the media location
       if (getId(b.mediaId) !== targetMediaId) return false;
-      
-      // Rule 2: Ignore Cancelled bookings
       if (b.status === 'Cancelled') return false;
-
-      // Rule 3: [FIX] Ignore Deleted bookings (Soft Deletes)
       if (b.deleted === true) return false;
-
-      // Rule 4: Check Date Overlap
       return areIntervalsOverlapping(
         { start: newStart, end: newEnd },
         { start: new Date(b.startDate), end: new Date(b.endDate) },
@@ -152,7 +168,6 @@ export function CreateBookingDialog() {
 
     if (dbConflict) return "Already booked by another client for these dates.";
 
-    // 2. Queue Check
     const queueConflict = bookingQueue.find((item) => {
       if (item.mediaId !== targetMediaId) return false;
       return areIntervalsOverlapping(
@@ -232,7 +247,6 @@ export function CreateBookingDialog() {
           paymentStatus: item.paymentStatus,
         } as any;
 
-        console.log("🚀 Sending Payload:", JSON.stringify(payload, null, 2));
         await createBookingMutation.mutateAsync(payload);
       }
 
@@ -284,12 +298,19 @@ export function CreateBookingDialog() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0">
-                <Command>
-                  <CommandInput placeholder="Search customer..." />
+                {/* OPTIMIZATION: shouldFilter={false} prevents cmdk from doing heavy filtering work.
+                   We filter manually in 'filteredCustomers' above and limit render to 50 items.
+                */}
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Search customer..." 
+                    value={customerSearch}
+                    onValueChange={setCustomerSearch}
+                  />
                   <CommandList>
                     <CommandEmpty>No customer found.</CommandEmpty>
                     <CommandGroup>
-                      {customers.map((c: any) => {
+                      {filteredCustomers.map((c: any) => {
                         const id = getId(c);
                         return (
                           <CommandItem key={id} value={`${c.company} ${c.name} ${id}`} onSelect={() => { setCustomerId(id); setCustomerOpen(false); }}>
@@ -330,22 +351,31 @@ export function CreateBookingDialog() {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0">
-                    <Command>
-                      <CommandInput placeholder="Search..." />
+                    {/* OPTIMIZATION: Manual filtering + Limit to 50 rendered items */}
+                    <Command shouldFilter={false}>
+                      <CommandInput 
+                        placeholder="Search media..." 
+                        value={mediaSearch}
+                        onValueChange={setMediaSearch}
+                      />
                       <CommandList>
                         <CommandGroup>
-                          {mediaLocations.map((m: any) => {
-                            const id = getId(m);
-                            return (
-                              <CommandItem key={id} value={`${m.name} ${id}`} onSelect={() => {
-                                setCurrentItem({ ...currentItem, mediaId: id, amount: m.pricePerMonth?.toString() || "" });
-                                setMediaOpen(false);
-                              }}>
-                                <Check className={cn("mr-2 h-4 w-4", currentItem.mediaId === id ? "opacity-100" : "opacity-0")} />
-                                <div><div className="font-medium">{m.name}</div><div className="text-xs text-muted-foreground">{m.city} • {m.type}</div></div>
-                              </CommandItem>
-                            );
-                          })}
+                          {filteredMedia.length > 0 ? (
+                            filteredMedia.map((m: any) => {
+                              const id = getId(m);
+                              return (
+                                <CommandItem key={id} value={`${m.name} ${id}`} onSelect={() => {
+                                  setCurrentItem({ ...currentItem, mediaId: id, amount: m.pricePerMonth?.toString() || "" });
+                                  setMediaOpen(false);
+                                }}>
+                                  <Check className={cn("mr-2 h-4 w-4", currentItem.mediaId === id ? "opacity-100" : "opacity-0")} />
+                                  <div><div className="font-medium">{m.name}</div><div className="text-xs text-muted-foreground">{m.city} • {m.type}</div></div>
+                                </CommandItem>
+                              );
+                            })
+                          ) : (
+                             <div className="py-6 text-center text-sm text-muted-foreground">No media found.</div>
+                          )}
                         </CommandGroup>
                       </CommandList>
                     </Command>
