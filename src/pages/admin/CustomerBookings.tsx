@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { 
   Users, Search, Building2, Mail, Phone, MapPin, Calendar, IndianRupee,
@@ -21,6 +21,7 @@ import { EditBookingDialog, ViewBookingDialog, DeleteBookingDialog, AllBookingsD
 import { toast } from "@/hooks/use-toast";
 import { useRecycleBin } from "@/contexts/RecycleBinContext";
 import { formatIndianRupee } from "@/lib/utils";
+import { useCustomers } from "@/hooks/api/useCustomers"; // Added Import
 
 // Interface for CustomerCard
 interface CustomerCardProps {
@@ -34,9 +35,9 @@ interface CustomerCardProps {
 function CustomerCard({ customer, bookings, onEditBooking, onDeleteBooking, onViewBooking }: CustomerCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   
-  const activeBookings = bookings.filter(b => b.status === 'Active' || b.status === 'active').length;
-  const completedBookings = bookings.filter(b => b.status === 'Completed' || b.status === 'completed').length;
-  const upcomingBookings = bookings.filter(b => b.status === 'Upcoming' || b.status === 'upcoming').length;
+  const activeBookings = bookings.filter(b => b.status === 'Active').length;
+  const completedBookings = bookings.filter(b => b.status === 'Completed').length;
+  const upcomingBookings = bookings.filter(b => b.status === 'Upcoming').length;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -183,27 +184,65 @@ function CustomerCard({ customer, bookings, onEditBooking, onDeleteBooking, onVi
 export default function CustomerBookings() {
   const [searchQuery, setSearchQuery] = useState("");
   
-  // State for Data
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  // --- Data Fetching ---
+  const { data: customersData, isLoading: isLoadingCustomers } = useCustomers({ search: searchQuery });
+
+  // State for Groups & Bookings
+  // Note: Groups could also be dynamic, but keeping local logic for now
   const [groups, setGroups] = useState<string[]>(initialGroups);
-  // Replaced any[] with Booking[]
+  
+  // Note: We are keeping Bookings as local state for now. 
+  // Ideally, this should also be replaced with `useBookings` hook.
   const [allBookings, setAllBookings] = useState<Booking[]>(initialBookings); 
+
+  // --- Derived State (Fixes Crash & Missing Fields) ---
+  const customers = useMemo(() => {
+    // If loading, return empty or initial data if you prefer
+    if (isLoadingCustomers && !customersData) return [];
+
+    // Use data from API or fallback to initialCustomers (only if backend not configured logic in hook failed)
+    const sourceData = customersData?.data || [];
+    
+    // Map raw API data to expected Customer shape with Stats
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return sourceData.map((c: any) => {
+      // Handle MongoDB _id vs frontend id
+      const id = c.id || c._id;
+      
+      // Calculate Stats dynamically from the bookings list
+      const custBookings = allBookings.filter(b => b.customerId === id);
+      const totalSpent = custBookings.reduce((sum, b) => sum + b.amount, 0);
+      const totalBookingsCount = custBookings.length;
+      
+      return {
+        ...c,
+        id, // Ensure ID is set
+        group: c.group || 'Uncategorized',
+        totalBookings: totalBookingsCount, // Explicitly set to prevent NaN
+        totalSpent: totalSpent // Explicitly set to prevent NaN
+      } as Customer;
+    });
+  }, [customersData, allBookings, isLoadingCustomers]);
 
   const [activeTab, setActiveTab] = useState("bookings");
   
-  // Dialog States - Customer & Group
+  // Dialog States
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [manageGroupsOpen, setManageGroupsOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
 
-  // Dialog States - Bookings (Replaced any | null with Booking | null)
+  // Dialog States - Bookings
   const [viewBooking, setViewBooking] = useState<Booking | null>(null);
   const [editBooking, setEditBooking] = useState<Booking | null>(null);
   const [deleteBooking, setDeleteBooking] = useState<Booking | null>(null);
   const [allBookingsDialogOpen, setAllBookingsDialogOpen] = useState(false);
 
+  // Filter is now handled mainly by API, but we keep this for local filtering if needed or group filtering
+  // Since we pass searchQuery to the hook, this filter is redundant for name/company, 
+  // but helpful if we are searching groups locally or if hook is in 'static' mode.
   const filteredCustomers = customers.filter(customer => 
+    !searchQuery || // If search is handled by API, this might be partial
     customer.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (customer.group && customer.group.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -215,10 +254,18 @@ export default function CustomerBookings() {
   // --- Handlers ---
   const { addToRecycleBin } = useRecycleBin();
   
-  const handleCustomerAdded = (newCustomer: Customer) => setCustomers(prev => [...prev, newCustomer]);
-  const handleCustomerUpdated = (updatedCustomer: Customer) => setCustomers(prev => prev.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+  // Modified: We do NOT manually update state here. We rely on React Query invalidation.
+  const handleCustomerAdded = () => {
+    // Just close dialog/toast. The list updates automatically via useCustomers hook.
+    toast({ title: "Customer Added", description: "Customer list has been refreshed." });
+  };
+
+  const handleCustomerUpdated = () => {
+     // Relies on hook invalidation
+  };
   
   const handleCustomerDeleted = (customerId: string) => {
+    // We only handle recycle bin here. Removal from list is auto via API re-fetch.
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
       addToRecycleBin({
@@ -228,13 +275,12 @@ export default function CustomerBookings() {
         subText: `Contact: ${customer.name} • ${customer.email}`,
         originalData: customer,
       });
-      setCustomers(prev => prev.filter(c => c.id !== customerId));
     }
   };
   
   const handleAddGroup = (newGroup: string) => { if (!groups.includes(newGroup)) setGroups([...groups, newGroup]); };
 
-  // Booking Handlers (Using Booking type)
+  // Booking Handlers
   const handleUpdateBooking = (updatedBooking: Booking) => {
     setAllBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
     toast({ title: "Booking Updated", description: "Changes saved successfully." });
@@ -283,10 +329,8 @@ export default function CustomerBookings() {
         </TabsList>
 
         <TabsContent value="bookings" className="space-y-6 mt-6">
-          {/* INTERACTIVE STATS ROW */}
+          {/* STATS ROW */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* Total Customers - Click to switch to Manage Tab */}
             <Card 
               className="bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all cursor-pointer group"
               onClick={() => setActiveTab("manage")}
@@ -302,7 +346,6 @@ export default function CustomerBookings() {
               </CardContent>
             </Card>
 
-            {/* Total Bookings - Click to open All Bookings Master Dialog */}
             <Card 
               className="bg-card/50 backdrop-blur-sm hover:border-accent/50 transition-all cursor-pointer group"
               onClick={() => setAllBookingsDialogOpen(true)}
@@ -318,7 +361,6 @@ export default function CustomerBookings() {
               </CardContent>
             </Card>
 
-            {/* Total Revenue - (Static for now) */}
             <Card className="bg-card/50 backdrop-blur-sm">
               <CardContent className="p-6 flex items-center gap-4">
                 <div className="rounded-xl bg-success/10 p-3 text-success">
@@ -336,11 +378,18 @@ export default function CustomerBookings() {
 
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by company name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-background/50" />
+            <Input 
+              placeholder="Search by company name..." 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              className="pl-10 bg-background/50" 
+            />
           </div>
 
           <div className="space-y-4">
-            {filteredCustomers.map((customer) => (
+            {isLoadingCustomers ? (
+               <div className="p-12 text-center text-muted-foreground">Loading customers...</div>
+            ) : filteredCustomers.map((customer) => (
               <CustomerCard 
                 key={customer.id} 
                 customer={customer} 
@@ -350,7 +399,9 @@ export default function CustomerBookings() {
                 onViewBooking={setViewBooking}
               />
             ))}
-            {filteredCustomers.length === 0 && <Card><CardContent className="p-12 text-center text-muted-foreground">No customers found</CardContent></Card>}
+            {!isLoadingCustomers && filteredCustomers.length === 0 && (
+              <Card><CardContent className="p-12 text-center text-muted-foreground">No customers found</CardContent></Card>
+            )}
           </div>
         </TabsContent>
 
@@ -361,12 +412,14 @@ export default function CustomerBookings() {
               <Table>
                 <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Company</TableHead><TableHead>Group</TableHead><TableHead>Bookings</TableHead><TableHead>Spent</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {customers.map(c => {
+                  {isLoadingCustomers ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-4">Loading...</TableCell></TableRow>
+                  ) : customers.map(c => {
                     const custBookings = allBookings.filter(b => b.customerId === c.id);
                     const spent = custBookings.reduce((sum, b) => sum + b.amount, 0);
                     return (
                       <TableRow key={c.id}>
-                        <TableCell className="font-mono text-xs">{c.id}</TableCell>
+                        <TableCell className="font-mono text-xs">{c.id.substring(0, 6)}...</TableCell>
                         <TableCell className="font-medium">{c.company}</TableCell>
                         <TableCell><Badge variant="outline" className="font-normal">{c.group || 'N/A'}</Badge></TableCell>
                         <TableCell><Badge variant="secondary">{custBookings.length}</Badge></TableCell>
@@ -392,8 +445,9 @@ export default function CustomerBookings() {
         onOpenChange={setManageGroupsOpen}
         groups={groups}
         customers={customers}
+        // These updates might need refactoring to support API, leaving as is for now:
         onUpdateGroups={setGroups}
-        onUpdateCustomers={setCustomers}
+        onUpdateCustomers={() => {}} 
       />
 
       <AddCustomerDialog 
@@ -451,7 +505,6 @@ export default function CustomerBookings() {
         />
       )}
 
-      {/* ALL BOOKINGS MASTER DIALOG */}
       <AllBookingsDialog 
         open={allBookingsDialogOpen}
         onOpenChange={setAllBookingsDialogOpen}

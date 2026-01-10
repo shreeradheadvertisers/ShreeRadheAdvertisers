@@ -39,10 +39,15 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
       if (!stats[groupName]) {
         stats[groupName] = { count: 0, bookings: 0, revenue: 0 };
       }
+      
+      // Safety check: ensure values are numbers to avoid NaN
+      const cBookings = typeof c.totalBookings === 'number' ? c.totalBookings : 0;
+      const cSpent = typeof c.totalSpent === 'number' ? c.totalSpent : 0;
+
       stats[groupName].count += 1;
-      stats[groupName].bookings += c.totalBookings;
-      stats[groupName].revenue += c.totalSpent;
-      totalRev += c.totalSpent;
+      stats[groupName].bookings += cBookings;
+      stats[groupName].revenue += cSpent;
+      totalRev += cSpent;
     });
 
     return Object.entries(stats)
@@ -57,7 +62,8 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
     if (!selectedGroup) return [];
     return customers
       .filter(c => (c.group || "Uncategorized") === selectedGroup)
-      .sort((a, b) => b.totalSpent - a.totalSpent);
+      // Safety check for sort
+      .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
   }, [customers, selectedGroup]);
 
   // 3. Get bookings for the selected customer (Drill Down)
@@ -185,11 +191,11 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
                 <div className="grid grid-cols-3 gap-4">
                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground uppercase">Total Spent</p>
-                      <p className="text-2xl font-bold text-primary mt-1">₹{(selectedCustomer.totalSpent / 100000).toFixed(2)}L</p>
+                      <p className="text-2xl font-bold text-primary mt-1">₹{((selectedCustomer.totalSpent || 0) / 100000).toFixed(2)}L</p>
                    </div>
                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground uppercase">Total Bookings</p>
-                      <p className="text-2xl font-bold mt-1">{selectedCustomer.totalBookings}</p>
+                      <p className="text-2xl font-bold mt-1">{selectedCustomer.totalBookings || 0}</p>
                    </div>
                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground uppercase">Active Campaigns</p>
@@ -291,14 +297,11 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
                         </TableCell>
                         <TableCell className="text-center">
                             <Badge variant="secondary" className="font-normal min-w-[2rem] justify-center">
-                                {customer.totalBookings}
+                                {customer.totalBookings || 0}
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right font-bold text-success">
-                            ₹{(customer.totalSpent / 100000).toFixed(2)}L
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-success">
-                            ₹{(customer.totalSpent / 100000).toFixed(2)}L
+                            ₹{((customer.totalSpent || 0) / 100000).toFixed(2)}L
                         </TableCell>
                         <TableCell className="text-right">
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
