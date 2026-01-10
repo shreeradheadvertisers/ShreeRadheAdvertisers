@@ -1,6 +1,5 @@
 /**
  * SRA Backend Server
- * Node.js/Express backend for Shree Radhe Advertisers
  */
 
 const path = require('path');
