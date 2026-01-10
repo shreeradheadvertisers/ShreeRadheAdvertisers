@@ -69,16 +69,40 @@ router.get('/customer/:customerId', authMiddleware, async (req, res) => {
 // Create booking (protected)
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const booking = new Booking(req.body);
+    console.log("Received Booking Payload:", req.body); // Debug log
+
+    // 1. Handle ID resolution (If frontend sends custom string IDs instead of _ids)
+    let { mediaId, customerId, ...bookingData } = req.body;
+
+    // Verify Media ID
+    if (mediaId && !mediaId.match(/^[0-9a-fA-F]{24}$/)) {
+      const media = await Media.findOne({ id: mediaId });
+      if (media) mediaId = media._id;
+      else return res.status(404).json({ message: `Media with ID ${mediaId} not found` });
+    }
+
+    // Verify Customer ID
+    if (customerId && !customerId.match(/^[0-9a-fA-F]{24}$/)) {
+      const customer = await Customer.findOne({ id: customerId }); // Assuming Customer has 'id' field
+      if (customer) customerId = customer._id;
+      // If using _id only for customers, this block might skip
+    }
+
+    const booking = new Booking({
+      ...bookingData,
+      mediaId,
+      customerId
+    });
+
     await booking.save();
     
     // Update customer stats
-    await Customer.findByIdAndUpdate(req.body.customerId, {
+    await Customer.findByIdAndUpdate(customerId, {
       $inc: { totalBookings: 1 }
     });
     
     // Update media status and booked dates
-    await Media.findByIdAndUpdate(req.body.mediaId, { 
+    await Media.findByIdAndUpdate(mediaId, { 
       status: 'Booked',
       $push: { 
         bookedDates: { 
@@ -91,7 +115,11 @@ router.post('/', authMiddleware, async (req, res) => {
     
     res.status(201).json(booking);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create booking' });
+    console.error('Create booking error:', error); // LOG THE ACTUAL ERROR
+    res.status(500).json({ 
+      message: 'Failed to create booking', 
+      error: error.message // Return specific error to frontend for debugging
+    });
   }
 });
 

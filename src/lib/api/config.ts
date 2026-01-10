@@ -31,7 +31,7 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/api/media/${id}`,
     RESTORE: (id: string) => `/api/media/${id}/restore`,
     PUBLIC: '/api/media/public',
-    LOCATIONS: '/media/locations/sync',
+    LOCATIONS: '/api/media/locations/sync',
   },
   
   // File Upload (FTP Bridge to Hostinger & Cloudinary Integration)

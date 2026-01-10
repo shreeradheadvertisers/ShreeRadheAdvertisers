@@ -51,9 +51,9 @@ function CustomerCard({ customer, bookings, onEditBooking, onDeleteBooking, onVi
                 </div>
                 <div className="space-y-1">
                   <CardTitle className="text-lg">{customer.company}</CardTitle>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1">
                     <Badge variant="outline" className="text-xs font-normal">{customer.group || 'General'}</Badge>
-                  </p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-4">
