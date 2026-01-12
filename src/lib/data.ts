@@ -156,6 +156,7 @@ export const getChartData = () => {
 export const recentBookings: { id: string; mediaId: string; client: string; startDate: string; endDate: string; amount: number }[] = [];
 
 export interface Customer {
+  _id: string;
   id: string;
   name: string;
   company: string;
