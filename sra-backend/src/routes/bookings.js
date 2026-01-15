@@ -158,15 +158,48 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update booking (protected)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const oldBooking = await Booking.findById(req.params.id);
-    const booking = await Booking.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    
-    if (!booking) {
+    const bookingId = req.params.id;
+    const updateData = { ...req.body };
+
+    // 1. Safety: If mediaId or customerId are objects (populated from frontend), extract the IDs
+    if (updateData.mediaId && typeof updateData.mediaId === 'object') {
+      updateData.mediaId = updateData.mediaId._id || updateData.mediaId.id;
+    }
+    if (updateData.customerId && typeof updateData.customerId === 'object') {
+      updateData.customerId = updateData.customerId._id || updateData.customerId.id;
+    }
+
+    // 2. Get the old booking state to check for status changes
+    const oldBooking = await Booking.findById(bookingId);
+    if (!oldBooking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // FIX: Update Customer Total Spent if payment amount changed
-    if (oldBooking && booking.amountPaid !== oldBooking.amountPaid) {
+    // 3. Update the booking
+    const booking = await Booking.findByIdAndUpdate(bookingId, updateData, { new: true });
+
+    // 4. SYNC MEDIA STATUS: Update media asset if booking status changed
+    const freeingStatuses = ['Completed', 'Cancelled'];
+    const occupyingStatuses = ['Active', 'Upcoming'];
+
+    if (updateData.status && updateData.status !== oldBooking.status) {
+      if (freeingStatuses.includes(updateData.status)) {
+        // Change Media status to 'Available'
+        await Media.findByIdAndUpdate(booking.mediaId, { 
+          status: 'Available',
+          // If cancelled, also remove the dates from the media calendar
+          ...(updateData.status === 'Cancelled' && { 
+            $pull: { bookedDates: { bookingId: booking._id } } 
+          })
+        });
+      } else if (occupyingStatuses.includes(updateData.status)) {
+        // Change Media status back to 'Booked'
+        await Media.findByIdAndUpdate(booking.mediaId, { status: 'Booked' });
+      }
+    }
+
+    // 5. Update Customer Total Spent if payment amount changed
+    if (booking.amountPaid !== oldBooking.amountPaid) {
       const difference = (booking.amountPaid || 0) - (oldBooking.amountPaid || 0);
       if (difference !== 0) {
         await Customer.findByIdAndUpdate(booking.customerId, {
@@ -177,6 +210,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     res.json(booking);
   } catch (error) {
+    console.error("Update booking error:", error);
     res.status(500).json({ message: 'Failed to update booking' });
   }
 });

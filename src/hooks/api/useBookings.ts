@@ -96,7 +96,7 @@ export function useCreateBooking() {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       
       // 4. Refresh Dashboard Stats (If you have a separate stats endpoint)
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
     onError: (error: any) => {
@@ -134,7 +134,7 @@ export function useDeleteBooking() {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['media'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }

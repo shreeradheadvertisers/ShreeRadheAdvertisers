@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-// 1. FIXED: Use API types instead of mock data types to resolve the assignability error
+// Use API types for full compatibility with live data and master dialogs
 import { customerGroups as initialGroups } from "@/lib/data";
 import type { Customer, Booking } from "@/lib/api/types"; 
 
@@ -176,7 +176,7 @@ export default function CustomerBookings() {
   const updateBookingMutation = useUpdateBooking();
   const deleteBookingMutation = useDeleteBooking();
 
-  // --- 3. DYNAMIC STATS CALCULATION (Handles Populated Objects) ---
+  // --- 3. DYNAMIC STATS CALCULATION ---
   const customers = useMemo(() => {
     if (isLoadingCustomers && !customersData) return [];
     const sourceData = customersData?.data || [];
@@ -184,7 +184,6 @@ export default function CustomerBookings() {
     return sourceData.map((c: any) => {
       const id = c._id || c.id;
       
-      // Filter bookings for this customer (handles both string ID and populated object)
       const custBookings = allBookings.filter(b => {
         const bCustId = typeof b.customerId === 'object' ? b.customerId._id : b.customerId;
         return bCustId === id;
@@ -196,7 +195,7 @@ export default function CustomerBookings() {
         group: c.group || 'General',
         totalBookings: custBookings.length,
         totalSpent: custBookings.reduce((sum, b) => sum + (b.amount || 0), 0),
-        // FIXED: Ensure mandatory fields exist for Customer type
+        // Ensure mandatory timestamps for API type compatibility
         createdAt: c.createdAt || new Date().toISOString(),
         updatedAt: c.updatedAt || new Date().toISOString()
       } as Customer;
@@ -256,33 +255,39 @@ export default function CustomerBookings() {
         </TabsList>
 
         <TabsContent value="bookings" className="space-y-6 mt-6">
-          {/* STATS ROW */}
+          {/* STATS ROW WITH RESTORED HOVER EFFECTS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-card/50 cursor-pointer" onClick={() => setActiveTab("manage")}>
+            <Card 
+              className="bg-card/50 backdrop-blur-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group" 
+              onClick={() => setActiveTab("manage")}
+            >
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-xl bg-primary/10 p-3 text-primary"><Users className="h-6 w-6"/></div>
+                <div className="rounded-xl bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><Users className="h-6 w-6"/></div>
                 <div><p className="text-sm text-muted-foreground">Total Clients</p><p className="text-2xl font-bold">{customers.length}</p></div>
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 cursor-pointer" onClick={() => setAllBookingsDialogOpen(true)}>
+            <Card 
+              className="bg-card/50 backdrop-blur-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group" 
+              onClick={() => setAllBookingsDialogOpen(true)}
+            >
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-xl bg-accent/10 p-3 text-accent"><Calendar className="h-6 w-6"/></div>
+                <div className="rounded-xl bg-accent/10 p-3 text-accent group-hover:bg-accent group-hover:text-white transition-colors"><Calendar className="h-6 w-6"/></div>
                 <div><p className="text-sm text-muted-foreground">Total Bookings</p><p className="text-2xl font-bold">{allBookings.length}</p></div>
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50">
+            <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-xl bg-success/10 p-3 text-success"><IndianRupee className="h-6 w-6"/></div>
+                <div className="rounded-xl bg-success/10 p-3 text-success group-hover:bg-success group-hover:text-white transition-colors"><IndianRupee className="h-6 w-6"/></div>
                 <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">₹{(totalRevenue / 10000000).toFixed(2)} Cr</p></div>
               </CardContent>
             </Card>
           </div>
 
-          {/* 4. RESTORED PERFORMANCE BREAKDOWN SECTION */}
+          {/* FIXED: Added missing allBookings prop */}
           <div className="my-8">
-            <CustomerGroupInsights customers={customers} />
+            <CustomerGroupInsights customers={customers} allBookings={allBookings} />
           </div>
 
           <div className="relative max-w-md">

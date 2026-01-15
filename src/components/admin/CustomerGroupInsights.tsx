@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { type Customer, getBookingsByCustomerId } from "@/lib/data";
+// FIXED: Import from API types to ensure compatibility with live data
+import { type Customer, type Booking } from "@/lib/api/types"; 
 import { Users, Briefcase, TrendingUp, Wallet, ArrowRight, ArrowLeft, Calendar, MapPin } from "lucide-react";
 import {
   Dialog,
@@ -23,13 +25,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CustomerGroupInsightsProps {
   customers: Customer[];
+  allBookings: Booking[]; // Added Prop for live drill-down
 }
 
-export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps) {
+export function CustomerGroupInsights({ customers, allBookings }: CustomerGroupInsightsProps) {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  // 1. Aggregate data by group
   const groupStats = useMemo(() => {
     const stats: Record<string, { count: number; bookings: number; revenue: number }> = {};
     let totalRev = 0;
@@ -40,7 +42,6 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
         stats[groupName] = { count: 0, bookings: 0, revenue: 0 };
       }
       
-      // Safety check: ensure values are numbers to avoid NaN
       const cBookings = typeof c.totalBookings === 'number' ? c.totalBookings : 0;
       const cSpent = typeof c.totalSpent === 'number' ? c.totalSpent : 0;
 
@@ -57,22 +58,23 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
 
   const topGroup = groupStats[0];
 
-  // 2. Get specific customers for the clicked group
   const groupCustomers = useMemo(() => {
     if (!selectedGroup) return [];
     return customers
       .filter(c => (c.group || "Uncategorized") === selectedGroup)
-      // Safety check for sort
       .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
   }, [customers, selectedGroup]);
 
-  // 3. Get bookings for the selected customer (Drill Down)
+  // FIXED: Filter from the passed live bookings list instead of using getBookingsByCustomerId
   const customerBookings = useMemo(() => {
     if (!selectedCustomer) return [];
-    return getBookingsByCustomerId(selectedCustomer.id);
-  }, [selectedCustomer]);
+    const custId = selectedCustomer._id || selectedCustomer.id;
+    return allBookings.filter(b => {
+      const bCustId = typeof b.customerId === 'object' ? b.customerId._id : b.customerId;
+      return bCustId === custId;
+    });
+  }, [selectedCustomer, allBookings]);
 
-  // Handle Reset
   const handleClose = (open: boolean) => {
     if (!open) {
       setSelectedGroup(null);
@@ -82,7 +84,6 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
 
   return (
     <div className="space-y-6 animate-slide-up">
-      {/* Main Header */}
       <div className="flex items-center justify-between">
         <div>
            <h3 className="text-lg font-semibold">Customer Groups</h3>
@@ -96,17 +97,15 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
         )}
       </div>
 
-      {/* Stats Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {groupStats.map((group) => (
           <Card 
             key={group.name} 
-            className="overflow-hidden hover:shadow-md transition-all cursor-pointer border-l-4 border-l-transparent hover:border-l-primary group relative"
+            // RESTORED: Added enhanced hover effects (shadow and slight lift)
+            className="overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer border-l-4 border-l-transparent hover:border-l-primary group relative bg-card/50 backdrop-blur-sm"
             onClick={() => setSelectedGroup(group.name)}
           >
-             <div className="h-1 w-full bg-primary/10">
-                 <div className="h-full bg-primary" style={{ width: `${group.percent}%` }} />
-             </div>
+             {/* FIXED: Removed the top progress bar div that was creating a "permanent blue line" */}
              <CardContent className="p-5">
                 <div className="flex justify-between items-start mb-4">
                     <h4 className="font-semibold text-lg">{group.name}</h4>
@@ -144,24 +143,15 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
         ))}
       </div>
 
-      {/* Dynamic Drill-Down Dialog */}
       <Dialog open={!!selectedGroup} onOpenChange={handleClose}>
         <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
-          
           <DialogHeader className="pb-4 border-b">
             {selectedCustomer ? (
-              // === LEVEL 2: CUSTOMER DETAILS HEADER ===
               <div className="flex items-start gap-4">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => setSelectedCustomer(null)} 
-                  className="mt-1"
-                >
+                <Button variant="ghost" size="icon" onClick={() => setSelectedCustomer(null)} className="mt-1">
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
                  <div>
-                   {/* Company Name is Main Title */}
                    <DialogTitle className="text-xl">{selectedCustomer.company}</DialogTitle>
                    <DialogDescription className="flex items-center gap-2 mt-1">
                      <Badge variant="outline" className="text-xs">{selectedGroup}</Badge>
@@ -171,14 +161,13 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
                  </div>
                </div>
             ) : (
-              // === LEVEL 1: GROUP LIST HEADER ===
               <div>
                 <DialogTitle className="flex items-center gap-2 text-xl">
                   <Users className="h-5 w-5 text-primary" />
                   {selectedGroup} Sector Analysis
                 </DialogTitle>
                 <DialogDescription className="mt-1">
-                  Showing {groupCustomers.length} clients sorted by total revenue contribution.
+                  Showing {groupCustomers.length} clients sorted by revenue contribution.
                 </DialogDescription>
               </div>
             )}
@@ -186,7 +175,6 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
 
           <ScrollArea className="flex-1 pr-4 -mr-4">
             {selectedCustomer ? (
-              // === LEVEL 2: CUSTOMER BOOKINGS TABLE ===
               <div className="space-y-6 pt-4">
                 <div className="grid grid-cols-3 gap-4">
                    <div className="bg-muted/30 p-4 rounded-lg text-center">
@@ -200,7 +188,7 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground uppercase">Active Campaigns</p>
                       <p className="text-2xl font-bold text-success mt-1">
-                        {customerBookings.filter(b => b.status === 'Active').length}
+                        {customerBookings.filter(b => b.status?.toLowerCase() === 'active').length}
                       </p>
                    </div>
                 </div>
@@ -217,58 +205,40 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {customerBookings.map((booking) => (
-                        <TableRow key={booking.id}>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{booking.media?.name || booking.mediaId}</span>
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {booking.media?.city || 'Unknown City'}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{booking.media?.type || 'Media'}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm text-muted-foreground flex flex-col">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" /> {booking.startDate}
-                              </span>
-                              <span className="text-xs ml-4">to {booking.endDate}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={
-                                booking.status.toLowerCase() === 'active' ? 'success' : 
-                                booking.status.toLowerCase() === 'completed' ? 'secondary' : 
-                                'outline'
-                              }
-                              className="capitalize"
-                            >
-                              {booking.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            ₹{booking.amount.toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {customerBookings.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                            No booking history found.
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      {customerBookings.map((booking: any) => {
+                        const media = booking.mediaId || booking.media;
+                        return (
+                          <TableRow key={booking._id || booking.id}>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{media?.name || "N/A"}</span>
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {media?.city || 'N/A'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell><Badge variant="outline">{media?.type || 'Media'}</Badge></TableCell>
+                            <TableCell>
+                              <div className="text-sm text-muted-foreground flex flex-col">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" /> {booking.startDate?.split('T')[0]}
+                                </span>
+                                <span className="text-xs ml-4">to {booking.endDate?.split('T')[0]}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={booking.status?.toLowerCase() === 'active' ? 'success' : 'outline'}>{booking.status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">₹{booking.amount?.toLocaleString()}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
               </div>
             ) : (
-              // === LEVEL 1: GROUP CUSTOMER LIST ===
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -279,38 +249,14 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groupCustomers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        No clients found in this group.
-                      </TableCell>
+                  {groupCustomers.map((customer) => (
+                    <TableRow key={customer.id} className="cursor-pointer hover:bg-muted/50 group" onClick={() => setSelectedCustomer(customer)}>
+                      <TableCell className="font-medium text-primary group-hover:underline">{customer.company}</TableCell>
+                      <TableCell className="text-center"><Badge variant="secondary">{customer.totalBookings || 0}</Badge></TableCell>
+                      <TableCell className="text-right font-bold text-success">₹{((customer.totalSpent || 0) / 100000).toFixed(2)}L</TableCell>
+                      <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-8 w-8"><ArrowRight className="h-4 w-4" /></Button></TableCell>
                     </TableRow>
-                  ) : (
-                    groupCustomers.map((customer) => (
-                      <TableRow 
-                        key={customer.id} 
-                        className="cursor-pointer hover:bg-muted/50 group"
-                        onClick={() => setSelectedCustomer(customer)}
-                      >
-                        <TableCell className="font-medium text-primary group-hover:underline">
-                          {customer.company}
-                        </TableCell>
-                        <TableCell className="text-center">
-                            <Badge variant="secondary" className="font-normal min-w-[2rem] justify-center">
-                                {customer.totalBookings || 0}
-                            </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-success">
-                            ₹{((customer.totalSpent || 0) / 100000).toFixed(2)}L
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                              <ArrowRight className="h-4 w-4" />
-                            </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             )}
