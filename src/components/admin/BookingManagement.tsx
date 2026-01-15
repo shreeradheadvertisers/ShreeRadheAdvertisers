@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, MapPin, Pencil, Trash2, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, MapPin, Pencil, Trash2, Eye, Search, ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -138,14 +138,20 @@ export function DeleteBookingDialog({ booking, open, onOpenChange, onConfirm }: 
   );
 }
 
+// --- UPDATED: ALL BOOKINGS DIALOG WITH STATUS FILTER ---
 export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onEdit, onDelete, onView, pagination }: any) {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const filteredBookings = (bookings || []).filter((b: any) => {
     const s = search.toLowerCase();
     const media = b.mediaId || b.media;
     const customer = customers.find((c: any) => c.id === b.customerId || c._id === b.customerId) || (typeof b.customerId === 'object' ? b.customerId : null);
-    return (media?.name || "").toLowerCase().includes(s) || (customer?.company || "").toLowerCase().includes(s);
+    
+    const matchesSearch = (media?.name || "").toLowerCase().includes(s) || (customer?.company || "").toLowerCase().includes(s);
+    const matchesStatus = statusFilter === "all" || b.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -153,12 +159,32 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">Global Booking Registry</DialogTitle>
-          <DialogDescription>Status showing "Booked" for all currently active media.</DialogDescription>
+          <DialogDescription>Full history with status filters.</DialogDescription>
         </DialogHeader>
 
-        <div className="relative max-w-sm my-4">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search within this page..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="flex flex-col md:flex-row gap-4 my-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search by company or media..." 
+              className="pl-9" 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full md:w-[200px]">
+              <ListFilter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="Active">Booked (Active)</SelectItem>
+              <SelectItem value="Upcoming">Upcoming</SelectItem>
+              <SelectItem value="Completed">Completed</SelectItem>
+              <SelectItem value="Cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <ScrollArea className="flex-1 border rounded-md">
@@ -196,6 +222,11 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
                   </TableRow>
                 );
               })}
+              {filteredBookings.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No bookings found for the selected criteria.</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </ScrollArea>

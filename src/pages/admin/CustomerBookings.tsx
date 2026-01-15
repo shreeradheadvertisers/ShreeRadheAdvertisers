@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // ADDED
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,9 +51,15 @@ export function PaginationControls({ currentPage, totalPages, onPageChange, tota
   );
 }
 
-function CustomerCard({ customer, bookings, onViewBooking }: any) {
+// --- UPDATED: CUSTOMER CARD WITH STATUS FILTER ---
+function CustomerCard({ customer, bookings, onViewBooking }: { customer: Customer; bookings: Booking[]; onViewBooking: (b: Booking) => void }) {
   const [isOpen, setIsOpen] = useState(false);
-  const recentBookings = bookings.slice(0, 5);
+  const [statusFilter, setStatusFilter] = useState("all"); // Added status state
+
+  // Filter the customer's specific bookings
+  const filtered = bookings.filter((b: any) => statusFilter === "all" || b.status === statusFilter);
+  const displayBookings = filtered.slice(0, 5); // Show top 5 matches
+  
   const totalSpent = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
   const locationDisplay = (customer as any).city || customer.address || 'N/A';
 
@@ -82,12 +89,30 @@ function CustomerCard({ customer, bookings, onViewBooking }: any) {
               <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> {customer.phone}</div>
               <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /> {locationDisplay}</div>
             </div>
+            
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Recent Bookings</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Recent History</h4>
+                
+                {/* STATUS FILTER FOR CUSTOMER CARD */}
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px] h-8 text-xs bg-muted/50 border-none shadow-none">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Active">Booked</SelectItem>
+                    <SelectItem value="Upcoming">Upcoming</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="border border-border/50 rounded-lg overflow-hidden">
                 <Table>
                   <TableBody>
-                    {recentBookings.map((b: any) => (
+                    {displayBookings.map((b: any) => (
                       <TableRow key={b._id || b.id}>
                         <TableCell className="text-xs font-medium">{(b.mediaId?.name || b.media?.name || "N/A")}</TableCell>
                         <TableCell className="text-[10px] text-muted-foreground">{b.startDate?.split('T')[0]}</TableCell>
@@ -100,7 +125,7 @@ function CustomerCard({ customer, bookings, onViewBooking }: any) {
                         <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onViewBooking(b)}><Eye className="h-3.5 w-3.5"/></Button></TableCell>
                       </TableRow>
                     ))}
-                    {bookings.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4 text-xs text-muted-foreground">No recent bookings.</TableCell></TableRow>}
+                    {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-4 text-xs text-muted-foreground">No bookings matching filter.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </div>
@@ -112,6 +137,7 @@ function CustomerCard({ customer, bookings, onViewBooking }: any) {
   );
 }
 
+// ... rest of the CustomerBookings component remains same ...
 export default function CustomerBookings() {
   const [activeTab, setActiveTab] = useState("bookings");
   const [searchQuery, setSearchQuery] = useState("");
@@ -145,10 +171,7 @@ export default function CustomerBookings() {
   };
 
   const handleUpdateBooking = async (u: Booking) => {
-    // 1. Update Booking Status
     await updateBookingMutation.mutateAsync({ id: u._id || u.id, data: u });
-    
-    // 2. Sync Media Availability
     const mediaId = typeof u.mediaId === 'object' ? u.mediaId?._id : u.mediaId;
     if (mediaId) {
       const newMediaStatus = u.status === 'Active' ? 'Booked' : 'Available';
@@ -202,7 +225,6 @@ export default function CustomerBookings() {
         </Card>
       </div>
 
-      {/* RESTORED PERFORMANCE SECTION */}
       <div className="my-8">
         <CustomerGroupInsights customers={processedCustomers} allBookings={snapshotBookings} />
       </div>
