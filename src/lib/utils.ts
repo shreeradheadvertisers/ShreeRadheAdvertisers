@@ -6,6 +6,24 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * NEW: Formats a Cloudinary URL to request optimized, pre-generated versions.
+ * @param url The original secure_url from the database
+ * @param type 'thumbnail' (for grids) or 'full' (for details/lightbox)
+ */
+export function getOptimizedImage(url: string | undefined, type: 'thumbnail' | 'full' = 'thumbnail') {
+  if (!url) return "";
+  if (!url.includes('cloudinary.com')) return url;
+
+  // thumbnail: requests the 800x600 pre-generated eager version
+  if (type === 'thumbnail') {
+    return url.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_fill,g_auto/');
+  }
+
+  // full: requests a high-quality 1600px version
+  return url.replace('/upload/', '/upload/f_auto,q_auto,w_1600/');
+}
+
+/**
  * Formats a number in Indian rupee style (lakhs, crores)
  * Example: 1234567 -> "12,34,567"
  */
@@ -15,21 +33,17 @@ export function formatIndianRupee(amount: number): string {
   const isNegative = amount < 0;
   const absAmount = Math.abs(amount);
   
-  // Convert to string and split by decimal
   const [integerPart, decimalPart] = absAmount.toString().split(".");
   
-  // Format the integer part in Indian style
   let result = "";
   const len = integerPart.length;
   
   if (len <= 3) {
     result = integerPart;
   } else {
-    // Last 3 digits
     result = integerPart.slice(-3);
     let remaining = integerPart.slice(0, -3);
     
-    // Add pairs of digits from right to left
     while (remaining.length > 2) {
       result = remaining.slice(-2) + "," + result;
       remaining = remaining.slice(0, -2);
@@ -40,9 +54,8 @@ export function formatIndianRupee(amount: number): string {
     }
   }
   
-  // Add decimal part if exists
   if (decimalPart) {
-    result += "." + decimalPart;
+    result += "." + decimalPart.slice(0, 2); // Limit to 2 decimal places
   }
   
   return (isNegative ? "-" : "") + result;

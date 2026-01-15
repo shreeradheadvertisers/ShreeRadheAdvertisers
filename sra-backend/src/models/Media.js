@@ -32,7 +32,7 @@ const MediaSchema = new mongoose.Schema({
     default: 'Available' 
   },
   pricePerMonth: { type: Number, required: true },
-  imageUrl: { type: String }, // Stores the absolute link to Hostinger SSD
+  imageUrl: { type: String }, // Stores Cloudinary secure_url
 
   // Performance Metrics
   occupancyRate: { type: Number, default: 0 },
@@ -43,9 +43,24 @@ const MediaSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 MediaSchema.set('toJSON', { virtuals: false });
+
+// --- OPTIMIZED INDEXING ---
+
+// 1. Compound Index for Location Search (Hierarchy based)
 MediaSchema.index({ state: 1, district: 1, city: 1 });
+
+// 2. Compound Index for "Explore Media" Filters (Most Used)
+// This makes filtering by District + Availability nearly instant
+MediaSchema.index({ district: 1, status: 1 });
+MediaSchema.index({ type: 1, status: 1 });
+
+// 3. Sorting Indexes
+// Speeds up pages where users sort by 'Newest' or 'Price'
+MediaSchema.index({ pricePerMonth: 1 });
+MediaSchema.index({ createdAt: -1 });
+
+// 4. Maintenance & Admin Indexes
 MediaSchema.index({ status: 1 });
-MediaSchema.index({ type: 1 });
 MediaSchema.index({ deleted: 1 });
 
 module.exports = mongoose.model('Media', MediaSchema);

@@ -10,28 +10,23 @@ const morgan = require('morgan');
 const { initScheduledJobs } = require('./src/services/cronService');
 
 // --- Dynamic Environment Loading ---
-// Loads .env.local if NODE_ENV is set to 'development' (local testing), 
-// otherwise defaults to the standard .env (production).
 const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
 require('dotenv').config({ path: path.join(__dirname, envFile) });
 
 const { connectDB } = require('./src/config/database');
 const { errorHandler } = require('./src/middleware/errorHandler');
 
-// Import routes object correctly from the index file
+// Import routes
 const routes = require('./src/routes'); 
 
 const app = express();
-// Uses the PORT from your selected .env file (e.g., 5001 locally)
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet());
 
-// Dynamically pull from .env or fallback to localhost for dev
+// Allowed Origins Optimization
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-
-// Explicitly allow both local and production origins to prevent CORS errors
 const allowedOrigins = [
   frontendUrl,
   'http://localhost:8080',
@@ -44,7 +39,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || origin.includes('hostinger.com')) {
       callback(null, true);
     } else {
       console.error(`CORS Error: Origin ${origin} not allowed`);
@@ -56,13 +51,19 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(morgan('combined'));
+app.use(morgan('dev')); // Use 'dev' for cleaner logs if preferred
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Health Check
+// --- LIGHTWEIGHT HEALTH CHECK ---
+// Using this URL for your Cron-job to keep the server awake.
+// It returns a 200 OK instantly without touching the database.
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'ok', 
+    message: 'Server is awake',
+    timestamp: new Date().toISOString() 
+  });
 });
 
 // API Routes
@@ -71,12 +72,15 @@ app.use('/api/analytics', routes.analyticsRoutes);
 app.use('/api/media', routes.mediaRoutes);
 app.use('/api/customers', routes.customerRoutes);
 app.use('/api/bookings', routes.bookingRoutes);
-app.use('/api/payments', routes.paymentRoutes);
+app.use('/api/payments', routes.paymentsRoutes || routes.paymentRoutes);
 app.use('/api/maintenance', routes.maintenanceRoutes);
 app.use('/api/contact', routes.contactRoutes);
 app.use('/api/compliance', routes.complianceRoutes);
 app.use('/api/media/upload', routes.uploadRoutes);
 app.use('/api/recycle-bin', routes.recycleBinRoutes);
+
+// Root Route
+app.get('/', (req, res) => res.send('SRA Backend API is running. Use /api/health for status.'));
 
 initScheduledJobs();
 
@@ -88,16 +92,13 @@ const startServer = async () => {
   try {
     await connectDB();
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Environment Mode: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`Loaded Config: ${envFile}`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
-
-app.get('/', (req, res) => res.send('SRA Backend API is running. Use /api/health for status.'));
 
 startServer();

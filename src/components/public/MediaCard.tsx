@@ -5,23 +5,14 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MapPin, ArrowRight, Maximize, Lightbulb } from "lucide-react";
+// Import the centralized optimization utility
+import { getOptimizedImage } from "@/lib/utils"; 
 
 interface MediaCardProps {
   media: MediaLocation; 
 }
 
 export function MediaCard({ media }: MediaCardProps) {
-  // 1. IMPROVED IMAGE LOGIC: Prioritize Cloudinary URL from MongoDB
-  const getOptimizedImage = (url: string | undefined, fallbackImage?: string) => {
-    // Use the primary URL, then the fallback image field, then a generic placeholder
-    const imageSrc = url || fallbackImage || "https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?q=80&w=1000";
-    
-    if (imageSrc.includes('cloudinary.com')) {
-      return imageSrc.replace('/upload/', '/upload/w_600,c_fill,g_auto,q_auto,f_auto/');
-    }
-    return imageSrc;
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Available":
@@ -35,19 +26,22 @@ export function MediaCard({ media }: MediaCardProps) {
     }
   };
 
+  // Fallback placeholder image
+  const fallbackPlaceholder = "https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?q=80&w=1000";
+
   return (
     <Card className="group overflow-hidden border-border/50 bg-card hover:shadow-xl transition-all duration-300 h-full flex flex-col">
       {/* Image Section */}
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
-          // 2. PASS BOTH FIELDS: Ensure we don't show placeholders if 'image' field has data
-          src={getOptimizedImage(media.imageUrl|| media.image)}
+          // Use the centralized utility with 'thumbnail' type for 800px width
+          src={getOptimizedImage(media.imageUrl || media.image || fallbackPlaceholder, 'thumbnail')}
           alt={media.name}
           className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+          // Native lazy loading to prioritize images at the top of the viewport
           loading="lazy"
           onError={(e) => {
-            // Final safety fallback
-            (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1541746972996-4e0b0f43e02a?q=80&w=1000";
+            (e.target as HTMLImageElement).src = fallbackPlaceholder;
           }}
         />
         
@@ -99,7 +93,6 @@ export function MediaCard({ media }: MediaCardProps) {
           <span className="text-lg font-bold text-primary">₹{media.pricePerMonth}<span className="text-xs font-normal text-muted-foreground">/mo</span></span>
         </div>
         <Button size="sm" asChild className="rounded-full px-4 shadow-sm hover:shadow-md transition-all">
-          {/* 3. PERSISTENT NAVIGATION: Use MongoDB _id so the Details page can fetch live data */}
           <Link to={`/media/${(media as any)._id || media.id}`}>
             View Details <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Link>

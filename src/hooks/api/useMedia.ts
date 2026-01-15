@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// API Hooks for Media Management with Cloudinary Organization
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS, isBackendConfigured } from '@/lib/api/config';
@@ -23,14 +22,13 @@ export const mediaKeys = {
   public: () => [...mediaKeys.all, 'public'] as const,
 };
 
-// --- UPDATED: ADMIN MEDIA FETCH ---
+// --- OPTIMIZED: ADMIN MEDIA FETCH ---
 export function useMedia(filters: MediaFilters = {}) {
   return useQuery({
     queryKey: mediaKeys.list(filters),
     queryFn: async () => {
-      // Prioritize Backend
       if (isBackendConfigured()) {
-        const params: Record<string, string | number | boolean | undefined> = {
+        const params: Record<string, any> = {
           state: filters.state,
           district: filters.district,
           city: filters.city,
@@ -49,37 +47,35 @@ export function useMedia(filters: MediaFilters = {}) {
         );
       }
 
-      // Local fallback only if no backend URL exists
       return { 
         success: true, 
         data: [], 
         pagination: { page: 1, limit: 12, total: 0, totalPages: 1 } 
       };
     },
-    // keepPreviousData: true is deprecated in latest TanStack Query, 
-    // but often used in older versions to prevent flickering. 
-    // If using version 5+, use placeholderData: keepPreviousData from imports.
-    // keepPreviousData: true, 
+    // PERFORMANCE: Prevent UI flickering by keeping old data while fetching new results
     placeholderData: keepPreviousData,
+    // CACHING: Keep data fresh for 5 mins to reduce redundant database hits
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false, 
   });
 }
 
-// --- FIXED: PUBLIC VIEW PERSISTENCE ---
+// --- OPTIMIZED: PUBLIC EXPLORE VIEW ---
 export function usePublicMedia(filters: MediaFilters = {}) {
   return useQuery({
     queryKey: [...mediaKeys.public(), filters],
     queryFn: async () => {
-      // Force fetch from MongoDB to ensure public sees admin changes
       if (isBackendConfigured()) {
-        const params: Record<string, string | number | boolean | undefined> = {
+        const params: Record<string, any> = {
           state: filters.state,
           district: filters.district,
           city: filters.city,
           type: filters.type,
           status: filters.status,
           search: filters.search,
-          // UPDATED: Explicitly set a high limit or use filter limit to prevent 50-item cutoff
+          // Optimization: High limit for public exploration but paginated for speed
           limit: filters.limit || 1000, 
           page: filters.page || 1
         };
@@ -90,18 +86,21 @@ export function usePublicMedia(filters: MediaFilters = {}) {
         );
       }
 
-      // Offline fallback
+      // Offline fallback from static data
       return { 
         success: true, 
         data: staticMedia.filter(m => m.status !== 'Coming Soon') as unknown as MediaLocation[], 
         pagination: { page: 1, limit: 100, total: 0, totalPages: 1 } 
       };
     },
-    staleTime: 1 * 60 * 1000, 
+    placeholderData: keepPreviousData,
+    // CACHING: Public data changes less frequently, cache for 2 mins
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
-// Fetch single media by ID
+// Fetch single media by ID (Optimized for Media Details Page)
 export function useMediaById(id: string) {
   return useQuery({
     queryKey: mediaKeys.detail(id),
@@ -117,7 +116,7 @@ export function useMediaById(id: string) {
       return media ? (media as unknown as MediaLocation) : null;
     },
     enabled: !!id,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // Details don't change often, keep cached
   });
 }
 
@@ -131,6 +130,7 @@ export function useCreateMedia() {
       return response.data || response; 
     },
     onSuccess: () => {
+      // Refresh all media caches to show the new billboard immediately
       queryClient.invalidateQueries({ queryKey: mediaKeys.all });
     },
   });

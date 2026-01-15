@@ -7,19 +7,42 @@ cloudinary.config({
 });
 
 /**
- * Uploads media to Cloudinary with folder organization by District
+ * Optimized Media Upload for Shree Radhe Advertisers
+ * Connects directly to the 'Explore Media' page performance
  */
 exports.uploadToCloudinary = async (localPath, customId, district = 'General', type = 'media') => {
   try {
-    // Organizes files: ShreeRadhe/Districts/DistrictName/Images/SRA_ID
     const folderPath = `ShreeRadhe/Districts/${district.trim()}/${type === 'media' ? 'Images' : 'Documents'}`;
     
     const result = await cloudinary.uploader.upload(localPath, {
-      public_id: customId, // Sets filename as your SRA ID
+      public_id: customId,
       folder: folderPath,
       resource_type: 'auto',
-      quality: "auto", // Perceptual compression
-      fetch_format: "auto" // Auto-converts to WebP/AVIF
+      
+      // 1. INCOMING TRANSFORMATION: 
+      // Limits the 'Master' image to 2000px. This prevents storing massive 10MB files
+      // and ensures the high-res version in the 'Details View' is already optimized.
+      transformation: [
+        { width: 2000, crop: "limit" }, 
+        { quality: "auto", fetch_format: "auto" }
+      ],
+
+      // 2. EAGER TRANSFORMATIONS: 
+      // Pre-generates the exact version used in the Explore Media grid.
+      // This is the 'secret sauce' for instant page loads.
+      eager: [
+        { 
+          width: 800, 
+          height: 600, 
+          crop: "fill", 
+          gravity: "auto", 
+          quality: "auto", 
+          fetch_format: "auto" 
+        }
+      ],
+      
+      // Process the eager version in the background so the admin upload doesn't stall
+      eager_async: true 
     });
 
     return result.secure_url;
