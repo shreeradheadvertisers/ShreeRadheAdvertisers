@@ -8,7 +8,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50
 // Check if backend is properly configured (not using placeholder)
 export const isBackendConfigured = (): boolean => {
   const url = API_BASE_URL;
-  return !!url && url !== 'http://localhost:5000' && !url.includes('your-backend');
+  return !!url && url !== ''&& !url.includes('https://shreeradhe-backend.onrender.com');
 };
 
 // API endpoints
@@ -73,7 +73,7 @@ export const API_ENDPOINTS = {
     DASHBOARD: '/api/analytics/dashboard',
     REVENUE: '/api/analytics/revenue',
     OCCUPANCY: '/api/analytics/occupancy',
-    TRENDS: '/api/analytics/trends',
+    TRENDS: '/api/analytics/revenue-trend',
     CITY_LOSS: '/api/analytics/city-loss',
     VACANT_SITES: (city: string) => `/api/analytics/vacant-sites/${encodeURIComponent(city)}`,
     REVENUE_TREND: '/api/analytics/revenue-trend',
@@ -87,7 +87,7 @@ export const API_ENDPOINTS = {
     CREATE: '/api/payments',
     UPDATE: (id: string) => `/api/payments/${id}`,
     DELETE: (id: string) => `/api/payments/${id}`,
-    STATS: '/api/payments/stats',
+    STATS: '/api/payments/stats/summary',
   },
   
   // Maintenance

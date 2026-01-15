@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // API Hooks for Analytics & Dashboard Data with Backend Fallback
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
@@ -111,55 +112,45 @@ export function useDashboardStats() {
   });
 }
 
-// 2. Chart data (city, status, monthly)
+// Update hook #2
 export function useChartData() {
   return useQuery({
     queryKey: analyticsKeys.charts(),
     queryFn: async () => {
-      if (!isBackendConfigured()) {
-        return getChartData();
-      }
-
-      const response = await apiClient.get<ApiResponse<ReturnType<typeof getChartData>>>(
-        API_ENDPOINTS.ANALYTICS.TRENDS
-      );
-      return response.data;
+      if (!isBackendConfigured()) return getChartData();
+      // Backend returns the data object directly, no .data wrapper
+      return await apiClient.get<any>(API_ENDPOINTS.ANALYTICS.TRENDS);
     },
     staleTime: 10 * 60 * 1000,
   });
 }
 
-// 3. Payment stats for analytics
+// Update hook #3
 export function usePaymentStatsAnalytics() {
   return useQuery({
     queryKey: analyticsKeys.paymentStats(),
     queryFn: async () => {
-      if (!isBackendConfigured()) {
-        return getPaymentStats();
-      }
-
-      const response = await apiClient.get<ApiResponse<ReturnType<typeof getPaymentStats>>>(
-        API_ENDPOINTS.PAYMENTS.STATS
-      );
-      return response.data;
+      if (!isBackendConfigured()) return getPaymentStats();
+      // Use direct GET and handle the specific keys returned by /stats/summary
+      const res = await apiClient.get<any>(API_ENDPOINTS.PAYMENTS.STATS);
+      return {
+        totalRevenue: res.totalCollected || 0,
+        pendingDues: res.pending || 0,
+        partialCount: 0 // Backend doesn't currently provide this count
+      };
     },
     staleTime: 5 * 60 * 1000,
   });
 }
 
-// 4. Compliance stats (Tenders/Taxes)
+// Update hook #4
 export function useComplianceStats() {
   return useQuery({
     queryKey: analyticsKeys.compliance(),
     queryFn: async () => {
-      if (!isBackendConfigured()) {
-        return getComplianceStats();
-      }
-
-      const response = await apiClient.get<ApiResponse<ReturnType<typeof getComplianceStats>>>(
-        API_ENDPOINTS.COMPLIANCE.STATS
-      );
-      return response.data;
+      if (!isBackendConfigured()) return getComplianceStats();
+      // Remove ApiResponse wrapper
+      return await apiClient.get<any>(API_ENDPOINTS.COMPLIANCE.STATS);
     },
     staleTime: 10 * 60 * 1000,
   });

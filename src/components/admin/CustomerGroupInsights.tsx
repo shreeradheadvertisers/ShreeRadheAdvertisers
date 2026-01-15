@@ -200,7 +200,7 @@ export function CustomerGroupInsights({ customers }: CustomerGroupInsightsProps)
                    <div className="bg-muted/30 p-4 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground uppercase">Active Campaigns</p>
                       <p className="text-2xl font-bold text-success mt-1">
-                        {customerBookings.filter(b => b.status === 'active' || b.status === 'Active').length}
+                        {customerBookings.filter(b => b.status === 'Active').length}
                       </p>
                    </div>
                 </div>

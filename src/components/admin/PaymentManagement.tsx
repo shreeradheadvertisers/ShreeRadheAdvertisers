@@ -24,7 +24,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Booking, PaymentMode, PaymentStatus, customers } from "@/lib/data";
+// Import real types instead of mock types
+import { Booking, PaymentMode, PaymentStatus } from "@/lib/api/types";
 import { IndianRupee, CreditCard, Pencil, Calculator, ChevronsUpDown, Check, Trash2, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
@@ -89,7 +90,8 @@ export function RecordPaymentDialog({ booking, open, onOpenChange, onPaymentReco
       newStatus = 'Partially Paid';
     }
 
-    onPaymentRecorded(booking.id, newTotalPaid, newStatus, paymentMode);
+    // Use _id for backend mutations
+    onPaymentRecorded(booking._id || booking.id, newTotalPaid, newStatus, paymentMode);
     toast.success(`Payment of ₹${formatIndianRupee(payAmount)} recorded successfully.`);
     onOpenChange(false);
   };
@@ -101,7 +103,7 @@ export function RecordPaymentDialog({ booking, open, onOpenChange, onPaymentReco
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
-          <DialogDescription>Add a new transaction for Booking {booking.id}</DialogDescription>
+          <DialogDescription>Add a new transaction for Booking {booking.id || booking._id}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -178,7 +180,7 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
   const [amountToPay, setAmountToPay] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
 
-  const selectedBooking = bookings.find(b => b.id === selectedBookingId);
+  const selectedBooking = bookings.find(b => (b._id === selectedBookingId || b.id === selectedBookingId));
 
   useEffect(() => {
     if (!open) {
@@ -211,7 +213,7 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
     if (remaining <= 0) newStatus = 'Paid';
     else newStatus = 'Partially Paid';
 
-    onPaymentRecorded(selectedBooking.id, newTotalPaid, newStatus, paymentMode);
+    onPaymentRecorded(selectedBooking._id || selectedBooking.id, newTotalPaid, newStatus, paymentMode);
     toast.success("Payment recorded successfully.");
     onOpenChange(false);
   };
@@ -241,8 +243,8 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
                     !selectedBookingId && "text-muted-foreground"
                   )}
                 >
-                  {selectedBookingId
-                    ? bookings.find((b) => b.id === selectedBookingId)?.id + " - " + customers.find(c => c.id === bookings.find(b => b.id === selectedBookingId)?.customerId)?.company
+                  {selectedBookingId && selectedBooking
+                    ? `${selectedBooking.id || selectedBooking._id} - ${selectedBooking.customerId?.company || selectedBooking.customerId?.name || 'Unknown'}`
                     : "Search booking by ID or Client..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -254,26 +256,27 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
                     <CommandEmpty>No booking found.</CommandEmpty>
                     <CommandGroup>
                       {bookings.map((booking) => {
-                         const client = customers.find(c => c.id === booking.customerId);
+                         const clientName = booking.customerId?.company || booking.customerId?.name || "N/A";
+                         const bId = booking.id || booking._id;
                          return (
                            <CommandItem
-                             key={booking.id}
-                             value={`${booking.id} ${client?.company || ''}`}
+                             key={bId}
+                             value={`${bId} ${clientName}`}
                              onSelect={() => {
-                               setSelectedBookingId(booking.id);
+                               setSelectedBookingId(bId);
                                setOpenCombobox(false);
                              }}
                            >
                              <Check
                                className={cn(
                                  "mr-2 h-4 w-4",
-                                 selectedBookingId === booking.id ? "opacity-100" : "opacity-0"
+                                 selectedBookingId === bId ? "opacity-100" : "opacity-0"
                                )}
                              />
                              <div className="flex flex-col">
-                               <span className="font-medium">{booking.id}</span>
+                               <span className="font-medium">{bId}</span>
                                 <span className="text-xs text-muted-foreground">
-                                  {client?.company} • ₹{formatIndianRupee(booking.amount)}
+                                  {clientName} • ₹{formatIndianRupee(booking.amount)}
                                 </span>
                              </div>
                            </CommandItem>
@@ -291,7 +294,7 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
               <div className="bg-muted/40 p-3 rounded-md text-sm space-y-2 border">
                  <div className="flex justify-between">
                    <span className="text-muted-foreground">Booking:</span>
-                   <span className="font-medium">{selectedBooking.media?.name}</span>
+                   <span className="font-medium">{selectedBooking.mediaId?.name || selectedBooking.media?.name || "N/A"}</span>
                  </div>
                  <div className="flex justify-between">
                    <span className="text-muted-foreground">Outstanding Balance:</span>
@@ -379,7 +382,7 @@ export function EditPaymentDialog({ booking, open, onOpenChange, onSave }: EditP
       return;
     }
 
-    onSave(booking.id, formData.amountPaid, formData.status, formData.mode);
+    onSave(booking._id || booking.id, formData.amountPaid, formData.status, formData.mode);
     toast.success("Payment details updated successfully.");
     onOpenChange(false);
   };
@@ -409,7 +412,7 @@ export function EditPaymentDialog({ booking, open, onOpenChange, onSave }: EditP
             Edit Payment Details
           </DialogTitle>
           <DialogDescription>
-            Modify payment records for Booking <span className="font-mono text-xs">{booking.id}</span>
+            Modify payment records for Booking <span className="font-mono text-xs">{booking.id || booking._id}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -503,7 +506,7 @@ interface PaymentListDialogProps {
   bookings: Booking[];
   initialFilter?: PaymentStatus | 'All';
   onUpdateBooking: (updatedBooking: Booking) => void;
-  onDeleteBooking: (id: string) => void; // Added for administrative deletion
+  onDeleteBooking: (id: string) => void; 
 }
 
 export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter = 'All', onUpdateBooking, onDeleteBooking }: PaymentListDialogProps) {
@@ -518,18 +521,28 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
     if (open) setFilter(initialFilter);
   }, [open, initialFilter]);
 
-  const filteredBookings = bookings.filter(b => {
+  const filteredBookings = (bookings || []).filter(b => {
     const matchesFilter = filter === 'All' ? true : b.paymentStatus === filter;
-    const customer = customers.find(c => c.id === b.customerId);
+    
+    // SAFE SEARCH: Use optional chaining and fallbacks to avoid crashes
+    const searchLower = (search || "").toLowerCase();
+    
+    const bookingIdStr = (b.id || b._id || "").toString().toLowerCase();
+    const mediaName = (b.mediaId?.name || b.media?.name || "").toLowerCase();
+    const customerCompany = (b.customerId?.company || "").toLowerCase();
+    const customerName = (b.customerId?.name || "").toLowerCase();
+
     const matchesSearch = 
-      b.id.toLowerCase().includes(search.toLowerCase()) || 
-      b.media?.name.toLowerCase().includes(search.toLowerCase()) ||
-      customer?.company.toLowerCase().includes(search.toLowerCase());
+      bookingIdStr.includes(searchLower) || 
+      mediaName.includes(searchLower) ||
+      customerCompany.includes(searchLower) ||
+      customerName.includes(searchLower);
+
     return matchesFilter && matchesSearch;
   });
 
-  const handleUpdate = (id: string, newAmountPaid: number, status: PaymentStatus, mode: PaymentMode) => {
-     const booking = bookings.find(b => b.id === id);
+  const handleUpdate = (bookingId: string, newAmountPaid: number, status: PaymentStatus, mode: PaymentMode) => {
+     const booking = bookings.find(b => (b.id === bookingId || b._id === bookingId));
      if (booking) {
        onUpdateBooking({ ...booking, amountPaid: newAmountPaid, paymentStatus: status, paymentMode: mode });
      }
@@ -597,16 +610,16 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                   </TableRow>
                 ) : (
                   filteredBookings.map((booking) => {
-                    const customer = customers.find(c => c.id === booking.customerId);
-                    void (booking.amountPaid / booking.amount); // progress calc reference
+                    const customerName = booking.customerId?.company || booking.customerId?.name || "N/A";
+                    const mediaName = booking.mediaId?.name || booking.media?.name || "N/A";
                     const isFullyPaid = booking.paymentStatus === 'Paid';
 
                     return (
-                      <TableRow key={booking.id} className="group hover:bg-muted/30">
+                      <TableRow key={booking._id || booking.id} className="group hover:bg-muted/30">
                         <TableCell>
-                          <div className="font-mono text-xs font-bold text-primary">{booking.id}</div>
-                          <div className="text-sm font-medium">{customer?.company}</div>
-                          <div className="text-xs text-muted-foreground truncate max-w-[150px]">{booking.media?.name}</div>
+                          <div className="font-mono text-xs font-bold text-primary">{booking.id || booking._id}</div>
+                          <div className="text-sm font-medium">{customerName}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-[150px]">{mediaName}</div>
                         </TableCell>
                         <TableCell className="font-medium">₹{booking.amount.toLocaleString()}</TableCell>
                         <TableCell>
@@ -651,7 +664,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                               size="icon" 
                               variant="ghost" 
                               className="h-8 w-8 text-destructive"
-                              onClick={() => setDeleteConfirm(booking.id)}
+                              onClick={() => setDeleteConfirm(booking._id || booking.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

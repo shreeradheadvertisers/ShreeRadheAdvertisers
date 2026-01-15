@@ -183,25 +183,32 @@ router.get('/stats', authMiddleware, async (req, res) => {
     const now = new Date();
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const [activeTenders, expiringTenders, pendingTaxes, overdueTaxes, taxPaid, taxLiability] = await Promise.all([
+    const [activeTenders, expiringTenders, pendingTaxes, overdueTaxes, taxPaidAgg, taxLiabilityAgg] = await Promise.all([
       Tender.countDocuments({ deleted: false, endDate: { $gte: now } }),
       Tender.countDocuments({ deleted: false, endDate: { $gte: now, $lte: thirtyDaysLater } }),
       TaxRecord.countDocuments({ deleted: false, status: 'Pending' }),
       TaxRecord.countDocuments({ deleted: false, status: { $ne: 'Paid' }, dueDate: { $lt: now } }),
-      TaxRecord.aggregate([{ $match: { status: 'Paid', deleted: false } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
-      TaxRecord.aggregate([{ $match: { status: { $ne: 'Paid' }, deleted: false } }, { $group: { _id: null, total: { $sum: '$amount' } } }])
+      TaxRecord.aggregate([
+        { $match: { status: 'Paid', deleted: false } }, 
+        { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } } } }
+      ]),
+      TaxRecord.aggregate([
+        { $match: { status: { $ne: 'Paid' }, deleted: false } }, 
+        { $group: { _id: null, total: { $sum: { $ifNull: ['$amount', 0] } } } }
+      ])
     ]);
 
     res.json({
-      totalActiveTenders: activeTenders,
-      expiringTenders,
-      pendingTaxes,
-      overdueTaxes,
-      totalTaxPaid: taxPaid[0]?.total || 0,
-      totalTaxLiability: taxLiability[0]?.total || 0
+      totalActiveTenders: activeTenders || 0,
+      expiringTenders: expiringTenders || 0,
+      pendingTaxes: pendingTaxes || 0,
+      overdueTaxes: overdueTaxes || 0,
+      totalTaxPaid: taxPaidAgg[0]?.total || 0,
+      totalTaxLiability: taxLiabilityAgg[0]?.total || 0
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch compliance stats' });
+    console.error('Compliance Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch compliance stats' });
   }
 });
 

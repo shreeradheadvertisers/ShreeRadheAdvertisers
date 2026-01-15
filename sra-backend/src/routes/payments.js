@@ -95,14 +95,34 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // Payment stats (protected)
 router.get('/stats/summary', authMiddleware, async (req, res) => {
   try {
+    // 1. Calculate Total Collected
     const stats = await Payment.aggregate([
       { $match: { status: 'Completed' } },
       { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
     ]);
 
+    // 2. Calculate Pending Dues safely
+    // We add a projection to ensure amount and amountPaid are treated as numbers
     const pendingBookings = await Booking.aggregate([
-      { $match: { deleted: false, paymentStatus: { $in: ['Pending', 'Partially Paid'] } } },
-      { $group: { _id: null, pending: { $sum: { $subtract: ['$amount', '$amountPaid'] } } } }
+      { 
+        $match: { 
+          deleted: false, 
+          paymentStatus: { $in: ['Pending', 'Partially Paid'] } 
+        } 
+      },
+      {
+        $group: {
+          _id: null,
+          pending: { 
+            $sum: { 
+              $subtract: [
+                { $ifNull: ['$amount', 0] }, 
+                { $ifNull: ['$amountPaid', 0] }
+              ] 
+            } 
+          }
+        }
+      }
     ]);
 
     res.json({
@@ -111,7 +131,8 @@ router.get('/stats/summary', authMiddleware, async (req, res) => {
       overdue: 0
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch payment stats' });
+    console.error('Payment Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch payment stats' });
   }
 });
 

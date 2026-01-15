@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // ============= ENUMS =============
 export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED';
 export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon' | 'Maintenance';
@@ -53,6 +54,7 @@ export interface TaxRecord {
 export interface ComplianceStats {
   expiringTenders: number;
   pendingTaxes: number;
+  upcomingTaxes: number;
   overdueTaxes: number;
   totalActiveTenders: number;
   totalTaxLiability: number;
@@ -99,9 +101,9 @@ export interface BookedDateRange {
 export interface Booking {
   _id: string;
   id: string; 
-  mediaId: string;
+  mediaId: string | any;
   media?: MediaLocation;
-  customerId: string;
+  customerId: string | any;
   customer?: Customer;
   status: BookingStatus;
   startDate: string;
@@ -349,6 +351,8 @@ export interface BookingFilters {
   paymentStatus?: PaymentStatus;
   startDate?: string;
   endDate?: string;
+  limit?: number;
+  page?: number;
 }
 
 export interface CentralBinItem {
@@ -357,6 +361,5 @@ export interface CentralBinItem {
   displayName: string;
   subText: string;
   deletedAt: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   originalData?: any;
 }
