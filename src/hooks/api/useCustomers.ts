@@ -15,16 +15,20 @@ import type {
 export const customerKeys = {
   all: ['customers'] as const,
   lists: () => [...customerKeys.all, 'list'] as const,
-  list: (filters?: { search?: string; group?: string }) => [...customerKeys.lists(), filters] as const,
+  // UPDATED: Added page and limit to the key for proper caching
+  list: (filters?: { search?: string; group?: string; page?: number; limit?: number }) => 
+    [...customerKeys.lists(), filters] as const,
   details: () => [...customerKeys.all, 'detail'] as const,
   detail: (id: string) => [...customerKeys.details(), id] as const,
 };
 
 // Fetch all customers
-export function useCustomers(filters?: { search?: string; group?: string }) {
+// UPDATED: Added page and limit to filters type
+export function useCustomers(filters?: { search?: string; group?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: customerKeys.list(filters),
-    queryFn: async () => {
+    queryFn: async (): Promise<PaginatedResponse<Customer>> => {
+      // 1. FALLBACK LOGIC (Offline/Local)
       if (!isBackendConfigured()) {
         let data = [...staticCustomers];
         if (filters?.search) {
@@ -38,9 +42,25 @@ export function useCustomers(filters?: { search?: string; group?: string }) {
         if (filters?.group && filters.group !== 'all') {
           data = data.filter(c => c.group === filters.group);
         }
-        return { success: true, data, total: data.length, page: 1, limit: 100 };
+
+        const page = filters?.page || 1;
+        const limit = filters?.limit || 12;
+        const total = data.length;
+
+        // UPDATED: Standardized return structure to match PaginatedResponse
+        return { 
+          success: true, 
+          data: data.slice((page - 1) * limit, page * limit) as unknown as Customer[], 
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+          }
+        };
       }
 
+      // 2. LIVE BACKEND LOGIC
       const response = await apiClient.get<PaginatedResponse<Customer>>(
         API_ENDPOINTS.CUSTOMERS.LIST,
         filters
@@ -51,6 +71,7 @@ export function useCustomers(filters?: { search?: string; group?: string }) {
   });
 }
 
+// ... rest of the file (useCustomerById, useCreateCustomer, etc.) remains same
 // Fetch single customer by ID
 export function useCustomerById(id: string) {
   return useQuery({

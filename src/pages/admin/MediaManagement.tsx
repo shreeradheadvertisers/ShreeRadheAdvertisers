@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +36,10 @@ const MediaManagement = () => {
   const navigate = useNavigate();
   const { activeState, districts } = useLocationData();
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [districtFilter, setDistrictFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -43,12 +47,20 @@ const MediaManagement = () => {
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MediaLocation | null>(null);
 
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, districtFilter, typeFilter, statusFilter, activeState]);
+
+  // Fetch media with explicit pagination parameters
   const { data: mediaResponse, isLoading, isError } = useMedia({
     state: activeState,
     district: districtFilter === "all" ? undefined : districtFilter,
     type: typeFilter === "all" ? undefined : (typeFilter as MediaType),
     status: statusFilter === "all" ? undefined : (statusFilter as MediaStatus),
-    search: searchQuery || undefined
+    search: searchQuery || undefined,
+    page: currentPage,
+    limit: itemsPerPage
   });
 
   const deleteMedia = useDeleteMedia();
@@ -189,6 +201,8 @@ const MediaManagement = () => {
           ) : (
             <MediaTable 
               data={(mediaResponse?.data || []) as any} 
+              pagination={mediaResponse?.pagination} // Pass pagination data to Table
+              onPageChange={setCurrentPage}         // Pass page change handler
               onDelete={(id) => {
                 const item = mediaResponse?.data.find(m => m._id === id);
                 if (item) setItemToDelete(item);

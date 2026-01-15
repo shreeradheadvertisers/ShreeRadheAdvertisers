@@ -54,7 +54,7 @@ const Dashboard = () => {
   const recentBookings = recentBookingsRes?.data || [];
 
   // Fetch all bookings for the Payment Management dialog
-  const { data: allBookingsRes } = useBookings({ limit: 1000 });
+  const { data: allBookingsRes } = useBookings({ limit: 50 });
   const allBookings = allBookingsRes?.data || [];
 
   // Mutations for updating/deleting payments

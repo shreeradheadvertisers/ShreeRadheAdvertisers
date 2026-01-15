@@ -4,7 +4,7 @@
 // Pre-populated with Chhattisgarh as default operating state
 // Enhanced with Database Sync to prevent data loss
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/config';
 
@@ -69,6 +69,7 @@ interface LocationDataContextType {
   getCitiesForDistrict: (district: string) => string[];
   getDistrictsForState: (state: string) => string[];
   syncWithDatabase: () => Promise<void>;
+  isSyncing: boolean;
 }
 
 const getDefaultData = (): LocationData => ({
@@ -81,6 +82,10 @@ const getDefaultData = (): LocationData => ({
 const LocationDataContext = createContext<LocationDataContextType | undefined>(undefined);
 
 export function LocationDataProvider({ children }: { children: React.ReactNode }) {
+  const [isSyncing, setIsSyncing] = useState(false);
+  // Guard to prevent multiple syncs in one session
+  const hasSynced = useRef(false);
+
   const [data, setData] = useState<LocationData>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -103,10 +108,11 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
   });
 
   // --- DATABASE SYNC LOGIC ---
-  // This automatically pulls Towns/Tehsils used in billboards from the database
   const syncWithDatabase = useCallback(async () => {
+    if (isSyncing) return;
+    
     try {
-      // API call to the new sync endpoint
+      setIsSyncing(true);
       const response = await apiClient.get<any>(API_ENDPOINTS.MEDIA.LOCATIONS);
       
       if (response && response.success && response.data) {
@@ -116,8 +122,6 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
           response.data.forEach((loc: any) => {
             const district = loc._id.district;
             const towns = loc.towns;
-            
-            // Merge database towns with existing towns to prevent duplicates
             updatedCities[district] = [...new Set([...(updatedCities[district] || []), ...towns])].sort();
           });
 
@@ -126,15 +130,20 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
             cities: updatedCities
           };
         });
+        hasSynced.current = true; // Mark as successful
       }
     } catch (err) {
       console.error("Failed to sync locations from database:", err);
+    } finally {
+      setIsSyncing(false);
     }
-  }, []);
+  }, [isSyncing]);
 
-  // Sync on initial load
+  // Sync only once on initial load
   useEffect(() => {
-    syncWithDatabase();
+    if (!hasSynced.current) {
+      syncWithDatabase();
+    }
   }, [syncWithDatabase]);
 
   // Persist to localStorage
@@ -269,6 +278,7 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
     getCitiesForDistrict,
     getDistrictsForState,
     syncWithDatabase,
+    isSyncing
   };
 
   return (

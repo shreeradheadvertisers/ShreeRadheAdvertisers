@@ -76,7 +76,7 @@ export function usePublicMedia(filters: MediaFilters = {}) {
           status: filters.status,
           search: filters.search,
           // Optimization: High limit for public exploration but paginated for speed
-          limit: filters.limit || 1000, 
+          limit: filters.limit || 20, 
           page: filters.page || 1
         };
         
@@ -90,7 +90,7 @@ export function usePublicMedia(filters: MediaFilters = {}) {
       return { 
         success: true, 
         data: staticMedia.filter(m => m.status !== 'Coming Soon') as unknown as MediaLocation[], 
-        pagination: { page: 1, limit: 100, total: 0, totalPages: 1 } 
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } 
       };
     },
     placeholderData: keepPreviousData,

@@ -1,16 +1,13 @@
 import { useState } from "react";
-import { EditPaymentDialog, NewPaymentDialog, PaymentListDialog } from "@/components/admin/PaymentManagement";
-import { bookings as initialBookings, Booking, customers, PaymentStatus, PaymentMode, customerGroups } from "@/lib/data";
+import { EditPaymentDialog, NewPaymentDialog } from "@/components/admin/PaymentManagement";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { 
-  Search, AlertCircle, Clock, Wallet, Banknote, Plus, Filter, X, 
-  IndianRupee, ArrowUpRight, Trash2, Pencil, Upload, FileSpreadsheet, FileText, FileBox 
+  Search, AlertCircle, Wallet, Plus, IndianRupee, Pencil, Upload, 
+  FileSpreadsheet, FileText, FileBox, Loader2 
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,36 +15,40 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Progress } from "@/components/ui/progress";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn, formatIndianRupee } from "@/lib/utils";
 import { toast } from "sonner";
-import { useRecycleBin } from "@/contexts/RecycleBinContext";
+
+// --- 1. IMPORT LIVE API HOOKS ---
+import { useBookings, useUpdateBooking } from "@/hooks/api/useBookings";
+import { useCustomers } from "@/hooks/api/useCustomers";
+import { Booking, PaymentStatus, PaymentMode } from "@/lib/api/types";
 
 const Payments = () => {
-  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
-  const { addToRecycleBin } = useRecycleBin();
-  
-  const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'All'>('All');
-  const [modeFilter, setModeFilter] = useState<PaymentMode | 'All'>('All');
-  const [groupFilter, setGroupFilter] = useState<string>('All');
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [search, setSearch] = useState("");
-  
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isNewPaymentOpen, setIsNewPaymentOpen] = useState(false);
-  const [detailView, setDetailView] = useState<{ open: boolean; filter: PaymentStatus | 'All' }>({ open: false, filter: 'All' });
 
-  const totalRevenueNum = bookings.reduce((acc, b) => acc + b.amountPaid, 0);
-  const pendingDuesNum = bookings.reduce((acc, b) => acc + (b.amount - b.amountPaid), 0);
+  // --- 2. FETCH LIVE DATA ---
+  // We fetch a larger batch (100) for the payments overview to ensure stats are accurate
+  const { data: bookingsRes, isLoading: bookingsLoading } = useBookings({ limit: 100 });
+  const { data: customersRes } = useCustomers({ limit: 1000 });
+  const updateBookingMutation = useUpdateBooking();
 
+  const bookings = bookingsRes?.data || [];
+  const customers = customersRes?.data || [];
+
+  // --- 3. DYNAMIC STATS (Based on Live Data) ---
+  const totalRevenueNum = bookings.reduce((acc, b) => acc + (b.amountPaid || 0), 0);
+  const pendingDuesNum = bookings.reduce((acc, b) => acc + ((b.amount || 0) - (b.amountPaid || 0)), 0);
+
+  // Filter bookings based on search (handles populated customer objects from MongoDB)
   const filteredBookings = bookings.filter(b => {
-    const customer = customers.find(c => c.id === b.customerId);
-    const matchesStatus = statusFilter === 'All' ? true : b.paymentStatus === statusFilter;
-    const matchesSearch = b.id.toLowerCase().includes(search.toLowerCase()) || 
-                          customer?.company.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
+    const customer = typeof b.customerId === 'object' ? b.customerId : customers.find(c => (c._id || c.id) === b.customerId);
+    const companyName = customer?.company || "";
+    const matchesSearch = (b._id || b.id).toLowerCase().includes(search.toLowerCase()) || 
+                          companyName.toLowerCase().includes(search.toLowerCase());
+    return matchesSearch;
   });
 
   const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
@@ -65,8 +66,8 @@ const Payments = () => {
     const csvContent = [
       headers.join(","),
       ...filteredBookings.map(b => {
-        const customer = customers.find(c => c.id === b.customerId);
-        return [b.id, `"${customer?.company || 'N/A'}"`, b.amount, b.amountPaid, b.paymentStatus].join(",");
+        const customer = typeof b.customerId === 'object' ? b.customerId : customers.find(c => (c._id || c.id) === b.customerId);
+        return [b._id || b.id, `"${customer?.company || 'N/A'}"`, b.amount, b.amountPaid, b.paymentStatus].join(",");
       })
     ].join("\n");
 
@@ -81,6 +82,16 @@ const Payments = () => {
     toast.success(`Report exported as ${format.toUpperCase()}.`);
   };
 
+  // --- 4. LOADING STATE ---
+  if (bookingsLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading payment records...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -88,7 +99,7 @@ const Payments = () => {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Wallet className="h-6 w-6 text-primary" /> Payments & Invoices
           </h1>
-          <p className="text-muted-foreground">Manage billing and track payments</p>
+          <p className="text-muted-foreground">Manage billing and track payments from live data</p>
         </div>
         <div className="flex gap-2 print:hidden">
            <Button onClick={() => setIsNewPaymentOpen(true)}>
@@ -152,30 +163,60 @@ const Payments = () => {
             </TableRow></TableHeader>
             <TableBody>
               {filteredBookings.map((booking) => {
-                const customer = customers.find(c => c.id === booking.customerId);
+                const customer = typeof booking.customerId === 'object' ? booking.customerId : customers.find(c => (c._id || c.id) === booking.customerId);
                 return (
-                  <TableRow key={booking.id}>
-                    <TableCell className="font-mono">{booking.id}</TableCell>
-                    <TableCell className="font-medium">{customer?.company}</TableCell>
+                  <TableRow key={booking._id || booking.id}>
+                    <TableCell className="font-mono text-xs">{(booking._id || booking.id).substring(0, 8)}...</TableCell>
+                    <TableCell className="font-medium">{customer?.company || "Unknown Client"}</TableCell>
                     <TableCell>₹{booking.amount.toLocaleString('en-IN')}</TableCell>
-                    <TableCell><Badge variant={booking.paymentStatus === 'Paid' ? 'success' : 'warning'}>{booking.paymentStatus}</Badge></TableCell>
+                    <TableCell>
+                      <Badge variant={booking.paymentStatus === 'Paid' ? 'success' : 'warning'}>
+                        {booking.paymentStatus}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right print:hidden space-x-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setSelectedBooking(booking); setIsEditOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setSelectedBooking(booking); setIsEditOpen(true); }}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
               })}
+              {filteredBookings.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No payment records found.</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
       </Card>
 
-      <EditPaymentDialog booking={selectedBooking} open={isEditOpen} onOpenChange={setIsEditOpen} onSave={(id, paid, status, mode) => {
-        setBookings(prev => prev.map(b => b.id === id ? { ...b, amountPaid: paid, paymentStatus: status, paymentMode: mode } : b));
-      }} />
-      <NewPaymentDialog bookings={bookings} open={isNewPaymentOpen} onOpenChange={setIsNewPaymentOpen} onPaymentRecorded={(id, paid, status, mode) => {
-        setBookings(prev => prev.map(b => b.id === id ? { ...b, amountPaid: paid, paymentStatus: status, paymentMode: mode } : b));
-      }} />
+      <EditPaymentDialog 
+        booking={selectedBooking} 
+        open={isEditOpen} 
+        onOpenChange={setIsEditOpen} 
+        onSave={(id, paid, status, mode) => {
+          updateBookingMutation.mutate({ 
+            id, 
+            data: { amountPaid: paid, paymentStatus: status as PaymentStatus, paymentMode: mode as PaymentMode } 
+          });
+          toast.success("Payment updated successfully");
+        }} 
+      />
+      
+      <NewPaymentDialog 
+        bookings={bookings} 
+        open={isNewPaymentOpen} 
+        onOpenChange={setIsNewPaymentOpen} 
+        onPaymentRecorded={(id, paid, status, mode) => {
+          updateBookingMutation.mutate({ 
+            id, 
+            data: { amountPaid: paid, paymentStatus: status as PaymentStatus, paymentMode: mode as PaymentMode } 
+          });
+          toast.success("Payment recorded successfully");
+        }} 
+      />
     </div>
   );
 };
