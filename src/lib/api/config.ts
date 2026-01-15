@@ -8,7 +8,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50
 // Check if backend is properly configured (not using placeholder)
 export const isBackendConfigured = (): boolean => {
   const url = API_BASE_URL;
-  return !!url && url !== ''&& !url.includes('https://shreeradhe-backend.onrender.com');
+  return !!url && url !== ''&& !url.includes('your-backend-url-placeholder');
 };
 
 // API endpoints
