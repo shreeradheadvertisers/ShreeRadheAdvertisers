@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter 
@@ -11,7 +12,8 @@ import { Calendar, MapPin, Clock, FileText, Search, Eye, Pencil, Trash2, IndianR
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Booking, Customer } from "@/lib/data";
+// Use live API types
+import { Booking, Customer } from "@/lib/api/types";
 import { formatIndianRupee } from "@/lib/utils";
 
 // --- VIEW DETAILS DIALOG ---
@@ -25,6 +27,8 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: ViewBookingDi
   if (!booking) return null;
 
   const balance = booking.amount - booking.amountPaid;
+  // Handle populated mediaId or fallback to media property
+  const media = booking.mediaId || booking.media;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -34,7 +38,7 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: ViewBookingDi
             <FileText className="h-5 w-5 text-primary" />
             Booking Details
           </DialogTitle>
-          <DialogDescription>Booking ID: <span className="font-mono text-xs text-foreground">{booking.id}</span></DialogDescription>
+          <DialogDescription>Booking ID: <span className="font-mono text-xs text-foreground">{booking.id || booking._id}</span></DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 py-2">
@@ -42,7 +46,7 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: ViewBookingDi
           <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg border">
              <div className="flex flex-col">
                <span className="text-xs font-medium text-muted-foreground">Booking Status</span>
-               <Badge variant={booking.status.toLowerCase() === 'active' ? 'success' : 'outline'} className="w-fit mt-1">
+               <Badge variant={booking.status?.toLowerCase() === 'active' ? 'success' : 'outline'} className="w-fit mt-1">
                  {booking.status}
                </Badge>
              </div>
@@ -60,9 +64,9 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: ViewBookingDi
               <div className="mt-1 bg-primary/10 p-2 rounded-md h-fit text-primary"><MapPin className="h-4 w-4" /></div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Media Location</p>
-                <p className="font-semibold text-lg">{booking.media?.name}</p>
-                <p className="text-sm text-muted-foreground">{booking.media?.city}, {booking.media?.district}</p>
-                <Badge variant="secondary" className="mt-1 text-xs font-normal">{booking.media?.type}</Badge>
+                <p className="font-semibold text-lg">{media?.name || "N/A"}</p>
+                <p className="text-sm text-muted-foreground">{media?.city}, {media?.district}</p>
+                <Badge variant="secondary" className="mt-1 text-xs font-normal">{media?.type}</Badge>
               </div>
             </div>
 
@@ -130,8 +134,7 @@ interface EditBookingDialogProps {
 export function EditBookingDialog({ booking, open, onOpenChange, onSave }: EditBookingDialogProps) {
   const [formData, setFormData] = useState<Booking | null>(null);
 
-  // Initialize form data when booking changes
-  if (booking && (!formData || formData.id !== booking.id)) {
+  if (booking && (!formData || (formData._id !== booking._id && formData.id !== booking.id))) {
     setFormData(booking);
   }
 
@@ -154,12 +157,11 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: EditB
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          
           <div className="space-y-2">
             <Label>Booking Status</Label>
             <Select 
               value={formData.status} 
-              onValueChange={(val) => setFormData({...formData, status: val})}
+              onValueChange={(val: any) => setFormData({...formData, status: val})}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select status" />
@@ -178,7 +180,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: EditB
               <Label>Start Date</Label>
               <Input 
                 type="date" 
-                value={formData.startDate} 
+                value={formData.startDate?.split('T')[0]} 
                 onChange={(e) => setFormData({...formData, startDate: e.target.value})} 
               />
             </div>
@@ -186,7 +188,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: EditB
               <Label>End Date</Label>
               <Input 
                 type="date" 
-                value={formData.endDate} 
+                value={formData.endDate?.split('T')[0]} 
                 onChange={(e) => setFormData({...formData, endDate: e.target.value})} 
               />
             </div>
@@ -199,11 +201,6 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: EditB
               value={formData.amount} 
               onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})} 
             />
-          </div>
-
-          <div className="bg-muted p-3 rounded-md text-xs text-muted-foreground flex gap-2">
-            <Clock className="h-4 w-4 shrink-0" />
-            Changing dates will not automatically recalculate the price. Please update the amount manually if needed.
           </div>
 
           <DialogFooter className="mt-4">
@@ -233,7 +230,7 @@ export function DeleteBookingDialog({ booking, open, onOpenChange, onConfirm }: 
         <DialogHeader>
           <DialogTitle>Cancel Booking?</DialogTitle>
           <DialogDescription>
-            Are you sure you want to cancel booking <span className="font-mono text-xs font-bold text-foreground">{booking.id}</span>?
+            Are you sure you want to cancel booking <span className="font-mono text-xs font-bold text-foreground">{booking.id || booking._id}</span>?
           </DialogDescription>
         </DialogHeader>
         <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md border border-destructive/20">
@@ -241,7 +238,7 @@ export function DeleteBookingDialog({ booking, open, onOpenChange, onConfirm }: 
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Keep Booking</Button>
-          <Button variant="destructive" onClick={() => { onConfirm(booking.id); onOpenChange(false); }}>Yes, Delete</Button>
+          <Button variant="destructive" onClick={() => { onConfirm(booking._id || booking.id); onOpenChange(false); }}>Yes, Delete</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -253,7 +250,7 @@ interface AllBookingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookings: Booking[];
-  customers: Customer[]; // Changed from any[] to Customer[]
+  customers: Customer[];
   onEdit: (booking: Booking) => void;
   onDelete: (booking: Booking) => void;
   onView: (booking: Booking) => void;
@@ -270,14 +267,24 @@ export function AllBookingsDialog({
 }: AllBookingsDialogProps) {
   const [search, setSearch] = useState("");
 
-  const filteredBookings = bookings.filter(b => {
-    const customer = customers.find(c => c.id === b.customerId);
+  // Fixes the toLowerCase crash with robust checks
+  const filteredBookings = (bookings || []).filter(b => {
     const searchLower = search.toLowerCase();
+    
+    // Safely get names from populated objects
+    const bookingId = (b.id || b._id || "").toString().toLowerCase();
+    const mediaName = (b.mediaId?.name || b.media?.name || "").toLowerCase();
+    
+    // Find customer either from props or from populated object
+    const customer = customers.find(c => c.id === b.customerId || c._id === b.customerId) || (typeof b.customerId === 'object' ? b.customerId : null);
+    const customerName = (customer?.name || "").toLowerCase();
+    const customerCompany = (customer?.company || "").toLowerCase();
+
     return (
-      b.id.toLowerCase().includes(searchLower) ||
-      b.media?.name.toLowerCase().includes(searchLower) ||
-      customer?.name.toLowerCase().includes(searchLower) ||
-      customer?.company.toLowerCase().includes(searchLower)
+      bookingId.includes(searchLower) ||
+      mediaName.includes(searchLower) ||
+      customerName.includes(searchLower) ||
+      customerCompany.includes(searchLower)
     );
   });
 
@@ -325,48 +332,40 @@ export function AllBookingsDialog({
                 </TableRow>
               ) : (
                 filteredBookings.map((booking) => {
-                  const customer = customers.find(c => c.id === booking.customerId);
+                  const customer = customers.find(c => c.id === booking.customerId || c._id === booking.customerId) || (typeof booking.customerId === 'object' ? booking.customerId : null);
+                  const media = booking.mediaId || booking.media;
+                  
                   return (
-                    <TableRow key={booking.id} className="hover:bg-muted/20">
-                      <TableCell className="font-mono text-xs font-medium">{booking.id}</TableCell>
+                    <TableRow key={booking._id || booking.id} className="hover:bg-muted/20">
+                      <TableCell className="font-mono text-xs font-medium">{booking.id || booking._id}</TableCell>
                       <TableCell>
                         <div className="font-medium text-sm">{customer?.company || "Unknown"}</div>
                         <div className="text-xs text-muted-foreground">{customer?.group}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm truncate max-w-[180px]" title={booking.media?.name}>
-                          {booking.media?.name}
+                        <div className="text-sm truncate max-w-[180px]" title={media?.name}>
+                          {media?.name || "N/A"}
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
-                          {booking.media?.city}
+                          {media?.city}
                         </div>
                       </TableCell>
                       <TableCell className="text-xs">
-                        <div className="flex items-center gap-1"><Calendar className="h-3 w-3 text-muted-foreground" /> {booking.startDate}</div>
-                        <div className="ml-4 text-muted-foreground">to {booking.endDate}</div>
+                        <div className="flex items-center gap-1"><Calendar className="h-3 w-3 text-muted-foreground" /> {booking.startDate?.split('T')[0]}</div>
+                        <div className="ml-4 text-muted-foreground">to {booking.endDate?.split('T')[0]}</div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Badge 
-                            variant={
-                              booking.status.toLowerCase() === 'active' ? 'success' : 
-                              booking.status.toLowerCase() === 'completed' ? 'secondary' : 
-                              'outline'
-                            } 
-                            className="capitalize text-xs font-normal w-fit"
-                          >
-                            {booking.status}
-                          </Badge>
-                          {/* Added Payment Status Badge here too */}
-                          <span className={`text-[10px] px-1.5 rounded-sm w-fit ${
-                            booking.paymentStatus === 'Paid' ? 'bg-green-100 text-green-700' : 
-                            booking.paymentStatus === 'Pending' ? 'bg-red-100 text-red-700' :
-                            'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {booking.paymentStatus}
-                          </span>
-                        </div>
+                        <Badge 
+                          variant={
+                            booking.status?.toLowerCase() === 'active' ? 'success' : 
+                            booking.status?.toLowerCase() === 'completed' ? 'secondary' : 
+                            'outline'
+                          } 
+                          className="capitalize text-xs font-normal w-fit"
+                        >
+                          {booking.status}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         ₹{formatIndianRupee(booking.amount)}

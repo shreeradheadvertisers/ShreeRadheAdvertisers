@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { 
@@ -12,7 +13,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { customers as initialCustomers, customerGroups as initialGroups, bookings as initialBookings, type Customer, type Booking } from "@/lib/data";
+
+// 1. FIXED: Use API types instead of mock data types to resolve the assignability error
+import { customerGroups as initialGroups } from "@/lib/data";
+import type { Customer, Booking } from "@/lib/api/types"; 
+
 import { AddCustomerDialog, EditCustomerDialog, DeleteCustomerDialog } from "@/components/admin/CustomerManagement";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { CustomerGroupInsights } from "@/components/admin/CustomerGroupInsights";
@@ -21,9 +26,9 @@ import { EditBookingDialog, ViewBookingDialog, DeleteBookingDialog, AllBookingsD
 import { toast } from "@/hooks/use-toast";
 import { useRecycleBin } from "@/contexts/RecycleBinContext";
 import { formatIndianRupee } from "@/lib/utils";
-import { useCustomers } from "@/hooks/api/useCustomers"; // Added Import
+import { useCustomers } from "@/hooks/api/useCustomers"; 
+import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
 
-// Interface for CustomerCard
 interface CustomerCardProps {
   customer: Customer;
   bookings: Booking[];
@@ -65,7 +70,7 @@ function CustomerCard({ customer, bookings, onEditBooking, onDeleteBooking, onVi
                   <p className="text-sm text-muted-foreground">Total Spent</p>
                   <p className="text-xl font-bold text-success flex items-center justify-end gap-0.5">
                     <IndianRupee className="h-4 w-4" /> 
-                    {(bookings.reduce((sum, b) => sum + b.amount, 0) / 100000).toFixed(1)}L
+                    {(bookings.reduce((sum, b) => sum + (b.amount || 0), 0) / 100000).toFixed(1)}L
                   </p>
                 </div>
                 <Button variant="ghost" size="icon" className="shrink-0">
@@ -104,72 +109,50 @@ function CustomerCard({ customer, bookings, onEditBooking, onDeleteBooking, onVi
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {bookings.map((booking) => (
-                    <TableRow key={booking.id} className="hover:bg-muted/30 group">
-                      <TableCell className="font-mono text-xs">{booking.id}</TableCell>
-                      <TableCell>
-                        <div><p className="font-medium">{booking.media?.name || booking.mediaId}</p><p className="text-xs text-muted-foreground">{booking.media?.city}</p></div>
-                      </TableCell>
-                      <TableCell><Badge variant="outline">{booking.media?.type}</Badge></TableCell>
-                      <TableCell><div className="text-sm"><p>{booking.startDate}</p><p className="text-xs text-muted-foreground">{booking.endDate}</p></div></TableCell>
-                      <TableCell><span className="flex items-center font-semibold"><IndianRupee className="h-3 w-3" />{booking.amount.toLocaleString()}</span></TableCell>
-                      <TableCell>
-                        <Badge 
-                           className="capitalize"
-                           variant={
-                            booking.status.toLowerCase() === 'active' ? 'success' : 
-                            booking.status.toLowerCase() === 'completed' ? 'secondary' : 
-                            'outline'
-                          }>
-                          {booking.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* View Button */}
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-primary" 
-                            onClick={(e) => { e.stopPropagation(); onViewBooking(booking); }}
-                            title="View Details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-
-                          {/* Action Menu */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => onEditBooking(booking)}>
-                                <Pencil className="h-4 w-4 mr-2" /> Modify Booking
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link to={`/admin/media/${booking.mediaId}`}>
-                                  <ExternalLink className="h-4 w-4 mr-2" /> View Media Asset
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive" 
-                                onClick={() => onDeleteBooking(booking)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Cancel / Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {bookings.map((booking) => {
+                    const media = booking.mediaId || booking.media;
+                    return (
+                      <TableRow key={booking._id || booking.id} className="hover:bg-muted/30 group">
+                        <TableCell className="font-mono text-xs">{booking.id || booking._id}</TableCell>
+                        <TableCell>
+                          <div><p className="font-medium">{media?.name || "N/A"}</p><p className="text-xs text-muted-foreground">{media?.city}</p></div>
+                        </TableCell>
+                        <TableCell><Badge variant="outline">{media?.type}</Badge></TableCell>
+                        <TableCell><div className="text-sm"><p>{booking.startDate?.split('T')[0]}</p><p className="text-xs text-muted-foreground">{booking.endDate?.split('T')[0]}</p></div></TableCell>
+                        <TableCell><span className="flex items-center font-semibold"><IndianRupee className="h-3 w-3" />{booking.amount?.toLocaleString()}</span></TableCell>
+                        <TableCell>
+                          <Badge 
+                             className="capitalize"
+                             variant={
+                              booking.status?.toLowerCase() === 'active' ? 'success' : 
+                              booking.status?.toLowerCase() === 'completed' ? 'secondary' : 
+                              'outline'
+                            }>
+                            {booking.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={(e) => { e.stopPropagation(); onViewBooking(booking); }}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => onEditBooking(booking)}><Pencil className="h-4 w-4 mr-2" /> Modify</DropdownMenuItem>
+                                <DropdownMenuItem asChild><Link to={`/admin/media/${media?._id || media?.id}`}><ExternalLink className="h-4 w-4 mr-2" /> View Media</Link></DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => onDeleteBooking(booking)}><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {bookings.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No bookings found for this customer.</TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No bookings found.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -183,123 +166,73 @@ function CustomerCard({ customer, bookings, onEditBooking, onDeleteBooking, onVi
 
 export default function CustomerBookings() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("bookings");
   
-  // --- Data Fetching ---
+  // --- 2. DATA FETCHING (LIVE) ---
   const { data: customersData, isLoading: isLoadingCustomers } = useCustomers({ search: searchQuery });
+  const { data: bookingsData, isLoading: isLoadingBookings } = useBookings({ limit: 1000 });
+  const allBookings = useMemo(() => bookingsData?.data || [], [bookingsData]);
 
-  // State for Groups & Bookings
-  // Note: Groups could also be dynamic, but keeping local logic for now
-  const [groups, setGroups] = useState<string[]>(initialGroups);
-  
-  // Note: We are keeping Bookings as local state for now. 
-  // Ideally, this should also be replaced with `useBookings` hook.
-  const [allBookings, setAllBookings] = useState<Booking[]>(initialBookings); 
+  const updateBookingMutation = useUpdateBooking();
+  const deleteBookingMutation = useDeleteBooking();
 
-  // --- Derived State (Fixes Crash & Missing Fields) ---
+  // --- 3. DYNAMIC STATS CALCULATION (Handles Populated Objects) ---
   const customers = useMemo(() => {
-    // If loading, return empty or initial data if you prefer
     if (isLoadingCustomers && !customersData) return [];
-
-    // Use data from API or fallback to initialCustomers (only if backend not configured logic in hook failed)
     const sourceData = customersData?.data || [];
     
-    // Map raw API data to expected Customer shape with Stats
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return sourceData.map((c: any) => {
-      // Handle MongoDB _id vs frontend id
-      const id = c.id || c._id;
+      const id = c._id || c.id;
       
-      // Calculate Stats dynamically from the bookings list
-      const custBookings = allBookings.filter(b => b.customerId === id);
-      const totalSpent = custBookings.reduce((sum, b) => sum + b.amount, 0);
-      const totalBookingsCount = custBookings.length;
-      
+      // Filter bookings for this customer (handles both string ID and populated object)
+      const custBookings = allBookings.filter(b => {
+        const bCustId = typeof b.customerId === 'object' ? b.customerId._id : b.customerId;
+        return bCustId === id;
+      });
+
       return {
         ...c,
-        id, // Ensure ID is set
-        group: c.group || 'Uncategorized',
-        totalBookings: totalBookingsCount, // Explicitly set to prevent NaN
-        totalSpent: totalSpent // Explicitly set to prevent NaN
+        id,
+        group: c.group || 'General',
+        totalBookings: custBookings.length,
+        totalSpent: custBookings.reduce((sum, b) => sum + (b.amount || 0), 0),
+        // FIXED: Ensure mandatory fields exist for Customer type
+        createdAt: c.createdAt || new Date().toISOString(),
+        updatedAt: c.updatedAt || new Date().toISOString()
       } as Customer;
     });
   }, [customersData, allBookings, isLoadingCustomers]);
 
-  const [activeTab, setActiveTab] = useState("bookings");
-  
+  const [groups, setGroups] = useState<string[]>(initialGroups);
+
   // Dialog States
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [manageGroupsOpen, setManageGroupsOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
-
-  // Dialog States - Bookings
   const [viewBooking, setViewBooking] = useState<Booking | null>(null);
   const [editBooking, setEditBooking] = useState<Booking | null>(null);
   const [deleteBooking, setDeleteBooking] = useState<Booking | null>(null);
   const [allBookingsDialogOpen, setAllBookingsDialogOpen] = useState(false);
 
-  // Filter is now handled mainly by API, but we keep this for local filtering if needed or group filtering
-  // Since we pass searchQuery to the hook, this filter is redundant for name/company, 
-  // but helpful if we are searching groups locally or if hook is in 'static' mode.
   const filteredCustomers = customers.filter(customer => 
-    !searchQuery || // If search is handled by API, this might be partial
+    !searchQuery || 
     customer.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (customer.group && customer.group.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const totalCustomers = customers.length;
-  const totalBookingsCount = allBookings.length;
-  const totalRevenue = allBookings.reduce((sum, b) => sum + b.amount, 0);
+  const totalRevenue = allBookings.reduce((sum, b) => sum + (b.amount || 0), 0);
 
-  // --- Handlers ---
-  const { addToRecycleBin } = useRecycleBin();
-  
-  // Modified: We do NOT manually update state here. We rely on React Query invalidation.
-  const handleCustomerAdded = () => {
-    // Just close dialog/toast. The list updates automatically via useCustomers hook.
-    toast({ title: "Customer Added", description: "Customer list has been refreshed." });
-  };
-
-  const handleCustomerUpdated = () => {
-     // Relies on hook invalidation
-  };
-  
-  const handleCustomerDeleted = (customerId: string) => {
-    // We only handle recycle bin here. Removal from list is auto via API re-fetch.
-    const customer = customers.find(c => c.id === customerId);
-    if (customer) {
-      addToRecycleBin({
-        id: customer.id,
-        type: 'customer',
-        displayName: customer.company,
-        subText: `Contact: ${customer.name} • ${customer.email}`,
-        originalData: customer,
-      });
-    }
-  };
-  
-  const handleAddGroup = (newGroup: string) => { if (!groups.includes(newGroup)) setGroups([...groups, newGroup]); };
-
-  // Booking Handlers
   const handleUpdateBooking = (updatedBooking: Booking) => {
-    setAllBookings(prev => prev.map(b => b.id === updatedBooking.id ? updatedBooking : b));
-    toast({ title: "Booking Updated", description: "Changes saved successfully." });
+    updateBookingMutation.mutate({ 
+      id: updatedBooking._id || updatedBooking.id, 
+      data: updatedBooking 
+    });
   };
 
   const handleDeleteBooking = (id: string) => {
-    const booking = allBookings.find(b => b.id === id);
-    if (booking) {
-      const customer = customers.find(c => c.id === booking.customerId);
-      addToRecycleBin({
-        id: booking.id,
-        type: 'booking',
-        displayName: `Booking ${booking.id}`,
-        subText: `${customer?.company || 'Unknown'} • Contact: ${customer?.name || 'N/A'} • ₹${formatIndianRupee(booking.amount)}`,
-        originalData: booking,
-      });
-      setAllBookings(prev => prev.filter(b => b.id !== id));
-      toast({ title: "Booking Deleted", description: "Moved to Recycle Bin." });
-    }
+    deleteBookingMutation.mutate(id);
+    toast({ title: "Booking Deleted", description: "The record has been updated." });
   };
 
   return (
@@ -307,17 +240,11 @@ export default function CustomerBookings() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight">Customer Bookings</h1>
-          <p className="text-muted-foreground mt-1">View and manage customer-wise booking history</p>
+          <p className="text-muted-foreground mt-1">Live overview of customer history</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setManageGroupsOpen(true)}>
-            <FolderCog className="h-4 w-4 mr-2" />
-            Manage Groups
-          </Button>
-          <Button variant="outline" onClick={() => setAddCustomerOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Customer
-          </Button>
+          <Button variant="outline" onClick={() => setManageGroupsOpen(true)}><FolderCog className="h-4 w-4 mr-2" />Groups</Button>
+          <Button variant="outline" onClick={() => setAddCustomerOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Client</Button>
           <CreateBookingDialog />
         </div>
       </div>
@@ -331,77 +258,54 @@ export default function CustomerBookings() {
         <TabsContent value="bookings" className="space-y-6 mt-6">
           {/* STATS ROW */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card 
-              className="bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all cursor-pointer group"
-              onClick={() => setActiveTab("manage")}
-            >
+            <Card className="bg-card/50 cursor-pointer" onClick={() => setActiveTab("manage")}>
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-xl bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                  <Users className="h-6 w-6"/>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground group-hover:text-primary transition-colors">Total Customers</p>
-                  <p className="text-2xl font-bold">{totalCustomers}</p>
-                </div>
+                <div className="rounded-xl bg-primary/10 p-3 text-primary"><Users className="h-6 w-6"/></div>
+                <div><p className="text-sm text-muted-foreground">Total Clients</p><p className="text-2xl font-bold">{customers.length}</p></div>
               </CardContent>
             </Card>
 
-            <Card 
-              className="bg-card/50 backdrop-blur-sm hover:border-accent/50 transition-all cursor-pointer group"
-              onClick={() => setAllBookingsDialogOpen(true)}
-            >
+            <Card className="bg-card/50 cursor-pointer" onClick={() => setAllBookingsDialogOpen(true)}>
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-xl bg-accent/10 p-3 text-accent group-hover:bg-accent group-hover:text-white transition-colors">
-                  <Calendar className="h-6 w-6"/>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground group-hover:text-accent transition-colors">Total Bookings</p>
-                  <p className="text-2xl font-bold">{totalBookingsCount}</p>
-                </div>
+                <div className="rounded-xl bg-accent/10 p-3 text-accent"><Calendar className="h-6 w-6"/></div>
+                <div><p className="text-sm text-muted-foreground">Total Bookings</p><p className="text-2xl font-bold">{allBookings.length}</p></div>
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 backdrop-blur-sm">
+            <Card className="bg-card/50">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="rounded-xl bg-success/10 p-3 text-success">
-                  <IndianRupee className="h-6 w-6"/>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">₹{(totalRevenue / 10000000).toFixed(2)} Cr</p>
-                </div>
+                <div className="rounded-xl bg-success/10 p-3 text-success"><IndianRupee className="h-6 w-6"/></div>
+                <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold">₹{(totalRevenue / 10000000).toFixed(2)} Cr</p></div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="my-8"><CustomerGroupInsights customers={customers} /></div>
+          {/* 4. RESTORED PERFORMANCE BREAKDOWN SECTION */}
+          <div className="my-8">
+            <CustomerGroupInsights customers={customers} />
+          </div>
 
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by company name..." 
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              className="pl-10 bg-background/50" 
-            />
+            <Input placeholder="Search company..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
           </div>
 
           <div className="space-y-4">
-            {isLoadingCustomers ? (
-               <div className="p-12 text-center text-muted-foreground">Loading customers...</div>
+            {isLoadingCustomers || isLoadingBookings ? (
+               <div className="p-12 text-center text-muted-foreground">Loading records...</div>
             ) : filteredCustomers.map((customer) => (
               <CustomerCard 
-                key={customer.id} 
+                key={customer._id || customer.id} 
                 customer={customer} 
-                bookings={allBookings.filter(b => b.customerId === customer.id)} 
+                bookings={allBookings.filter(b => {
+                  const bCustId = typeof b.customerId === 'object' ? b.customerId._id : b.customerId;
+                  return bCustId === (customer._id || customer.id);
+                })} 
                 onEditBooking={setEditBooking}
-                onDeleteBooking={setDeleteBooking}
+                onDeleteBooking={(b) => setDeleteBooking(b)}
                 onViewBooking={setViewBooking}
               />
             ))}
-            {!isLoadingCustomers && filteredCustomers.length === 0 && (
-              <Card><CardContent className="p-12 text-center text-muted-foreground">No customers found</CardContent></Card>
-            )}
           </div>
         </TabsContent>
 
@@ -413,17 +317,19 @@ export default function CustomerBookings() {
                 <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Company</TableHead><TableHead>Group</TableHead><TableHead>Bookings</TableHead><TableHead>Spent</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {isLoadingCustomers ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-4">Loading...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-4">Loading clients...</TableCell></TableRow>
                   ) : customers.map(c => {
-                    const custBookings = allBookings.filter(b => b.customerId === c.id);
-                    const spent = custBookings.reduce((sum, b) => sum + b.amount, 0);
+                    const custBookings = allBookings.filter(b => {
+                      const bCustId = typeof b.customerId === 'object' ? b.customerId._id : b.customerId;
+                      return bCustId === c.id;
+                    });
                     return (
                       <TableRow key={c.id}>
                         <TableCell className="font-mono text-xs">{c.id.substring(0, 6)}...</TableCell>
                         <TableCell className="font-medium">{c.company}</TableCell>
                         <TableCell><Badge variant="outline" className="font-normal">{c.group || 'N/A'}</Badge></TableCell>
                         <TableCell><Badge variant="secondary">{custBookings.length}</Badge></TableCell>
-                        <TableCell className="font-medium">₹{(spent/100000).toFixed(1)}L</TableCell>
+                        <TableCell className="font-medium">₹{(c.totalSpent/100000).toFixed(1)}L</TableCell>
                         <TableCell className="text-right flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => setEditCustomer(c)}><Pencil className="h-4 w-4"/></Button>
                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteCustomer(c)}><Trash2 className="h-4 w-4"/></Button>
@@ -438,82 +344,23 @@ export default function CustomerBookings() {
         </TabsContent>
       </Tabs>
 
-      {/* --- DIALOGS --- */}
-      
-      <ManageGroupsDialog 
-        open={manageGroupsOpen} 
-        onOpenChange={setManageGroupsOpen}
-        groups={groups}
-        customers={customers}
-        // These updates might need refactoring to support API, leaving as is for now:
-        onUpdateGroups={setGroups}
-        onUpdateCustomers={() => {}} 
-      />
-
-      <AddCustomerDialog 
-        open={addCustomerOpen} 
-        onOpenChange={setAddCustomerOpen} 
-        onCustomerAdded={handleCustomerAdded}
-        availableGroups={groups}
-        onAddGroup={handleAddGroup}
-      />
-      
-      {editCustomer && (
-        <EditCustomerDialog 
-          customer={editCustomer} 
-          open={!!editCustomer} 
-          onOpenChange={(open) => !open && setEditCustomer(null)} 
-          onCustomerUpdated={handleCustomerUpdated}
-          availableGroups={groups}
-          onAddGroup={handleAddGroup}
-        />
-      )}
-      
-      {deleteCustomer && (
-        <DeleteCustomerDialog 
-          customer={deleteCustomer} 
-          open={!!deleteCustomer} 
-          onOpenChange={(open) => !open && setDeleteCustomer(null)} 
-          onCustomerDeleted={handleCustomerDeleted} 
-        />
-      )}
-
-      {/* --- BOOKING MANAGEMENT DIALOGS --- */}
-      {viewBooking && (
-        <ViewBookingDialog 
-           booking={viewBooking} 
-           open={!!viewBooking} 
-           onOpenChange={(open) => !open && setViewBooking(null)}
-        />
-      )}
-
-      {editBooking && (
-        <EditBookingDialog 
-           booking={editBooking} 
-           open={!!editBooking} 
-           onOpenChange={(open) => !open && setEditBooking(null)}
-           onSave={handleUpdateBooking}
-        />
-      )}
-
-      {deleteBooking && (
-        <DeleteBookingDialog 
-           booking={deleteBooking} 
-           open={!!deleteBooking} 
-           onOpenChange={(open) => !open && setDeleteBooking(null)}
-           onConfirm={handleDeleteBooking}
-        />
-      )}
-
       <AllBookingsDialog 
-        open={allBookingsDialogOpen}
-        onOpenChange={setAllBookingsDialogOpen}
-        bookings={allBookings}
-        customers={customers}
-        onEdit={setEditBooking}
-        onDelete={setDeleteBooking}
-        onView={setViewBooking}
+        open={allBookingsDialogOpen} 
+        onOpenChange={setAllBookingsDialogOpen} 
+        bookings={allBookings} 
+        customers={customers} 
+        onEdit={setEditBooking} 
+        onDelete={(b) => setDeleteBooking(b)} 
+        onView={setViewBooking} 
       />
+
+      <AddCustomerDialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen} onCustomerAdded={() => {}} availableGroups={groups} onAddGroup={(g) => setGroups([...groups, g])} />
+      {editCustomer && <EditCustomerDialog customer={editCustomer} open={!!editCustomer} onOpenChange={() => setEditCustomer(null)} onCustomerUpdated={() => {}} availableGroups={groups} onAddGroup={() => {}} />}
+      {deleteCustomer && <DeleteCustomerDialog customer={deleteCustomer} open={!!deleteCustomer} onOpenChange={() => setDeleteCustomer(null)} onCustomerDeleted={() => {}} />}
+      
+      {viewBooking && <ViewBookingDialog booking={viewBooking} open={!!viewBooking} onOpenChange={() => setViewBooking(null)} />}
+      {editBooking && <EditBookingDialog booking={editBooking} open={!!editBooking} onOpenChange={() => setEditBooking(null)} onSave={handleUpdateBooking} />}
+      {deleteBooking && <DeleteBookingDialog booking={deleteBooking} open={!!deleteBooking} onOpenChange={() => setDeleteBooking(null)} onConfirm={(id) => handleDeleteBooking(id)} />}
     </div>
   );
 }
