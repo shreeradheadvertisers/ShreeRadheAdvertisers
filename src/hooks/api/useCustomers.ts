@@ -15,15 +15,14 @@ import type {
 export const customerKeys = {
   all: ['customers'] as const,
   lists: () => [...customerKeys.all, 'list'] as const,
-  // UPDATED: Added page and limit to the key for proper caching
+  // Added page and limit to the key for proper caching
   list: (filters?: { search?: string; group?: string; page?: number; limit?: number }) => 
     [...customerKeys.lists(), filters] as const,
   details: () => [...customerKeys.all, 'detail'] as const,
   detail: (id: string) => [...customerKeys.details(), id] as const,
 };
 
-// Fetch all customers
-// UPDATED: Added page and limit to filters type
+// Fetch all customers with standardized pagination
 export function useCustomers(filters?: { search?: string; group?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: customerKeys.list(filters),
@@ -47,7 +46,6 @@ export function useCustomers(filters?: { search?: string; group?: string; page?:
         const limit = filters?.limit || 12;
         const total = data.length;
 
-        // UPDATED: Standardized return structure to match PaginatedResponse
         return { 
           success: true, 
           data: data.slice((page - 1) * limit, page * limit) as unknown as Customer[], 
@@ -61,17 +59,22 @@ export function useCustomers(filters?: { search?: string; group?: string; page?:
       }
 
       // 2. LIVE BACKEND LOGIC
-      const response = await apiClient.get<PaginatedResponse<Customer>>(
+      // OPTIMIZATION: Construct params with strict defaults to prevent heavy server load
+      const params = {
+        ...filters,
+        page: filters?.page || 1,
+        limit: filters?.limit || 12, // Standard default for grid/list views
+      };
+
+      return await apiClient.get<PaginatedResponse<Customer>>(
         API_ENDPOINTS.CUSTOMERS.LIST,
-        filters
+        params
       );
-      return response;
     },
     staleTime: 5 * 60 * 1000,
   });
 }
 
-// ... rest of the file (useCustomerById, useCreateCustomer, etc.) remains same
 // Fetch single customer by ID
 export function useCustomerById(id: string) {
   return useQuery({
@@ -89,6 +92,7 @@ export function useCustomerById(id: string) {
       return response.data;
     },
     enabled: !!id,
+    staleTime: 10 * 60 * 1000, // Customer details change rarely
   });
 }
 
@@ -98,18 +102,14 @@ export function useCreateCustomer() {
 
   return useMutation({
     mutationFn: async (data: CreateCustomerRequest) => {
-      if (!isBackendConfigured()) {
-        throw new Error('Backend not configured. Please set VITE_API_URL.');
-      }
-
-      const response = await apiClient.post<ApiResponse<Customer>>(
-        API_ENDPOINTS.CUSTOMERS.CREATE,
-        data
-      );
+      if (!isBackendConfigured()) throw new Error('Backend not configured.');
+      const response = await apiClient.post<ApiResponse<Customer>>(API_ENDPOINTS.CUSTOMERS.CREATE, data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      // Invalidate both lists and any general analytics that count customers
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }
@@ -120,18 +120,12 @@ export function useUpdateCustomer() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Customer> }) => {
-      if (!isBackendConfigured()) {
-        throw new Error('Backend not configured. Please set VITE_API_URL.');
-      }
-
-      const response = await apiClient.put<ApiResponse<Customer>>(
-        API_ENDPOINTS.CUSTOMERS.UPDATE(id),
-        data
-      );
+      if (!isBackendConfigured()) throw new Error('Backend not configured.');
+      const response = await apiClient.put<ApiResponse<Customer>>(API_ENDPOINTS.CUSTOMERS.UPDATE(id), data);
       return response.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
       queryClient.invalidateQueries({ queryKey: customerKeys.detail(variables.id) });
     },
   });
@@ -143,14 +137,12 @@ export function useDeleteCustomer() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      if (!isBackendConfigured()) {
-        throw new Error('Backend not configured. Please set VITE_API_URL.');
-      }
-
+      if (!isBackendConfigured()) throw new Error('Backend not configured.');
       await apiClient.delete<ApiResponse<void>>(API_ENDPOINTS.CUSTOMERS.DELETE(id));
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: customerKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }

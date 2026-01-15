@@ -71,8 +71,8 @@ export function CreateBookingDialog() {
   const { toast } = useToast();
 
   const { data: customerRes } = useCustomers();
-  const { data: mediaRes } = useMedia({ limit: 5000 } as any);
-  const { data: existingBookingsRes } = useBookings({ limit: 2000 } as any); 
+  const { data: mediaRes } = useMedia({ limit: 100 } as any);
+  const { data: existingBookingsRes } = useBookings({ limit: 200 } as any); 
   
   const createBookingMutation = useCreateBooking();
 
