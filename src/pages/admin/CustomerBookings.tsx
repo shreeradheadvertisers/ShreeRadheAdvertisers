@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 import { 
   Users, Search, Building2, Mail, Phone, MapPin, Calendar, IndianRupee,
   ChevronDown, ChevronUp, Plus, Pencil, Trash2, Eye,
@@ -21,12 +20,20 @@ import type { Customer, Booking } from "@/lib/api/types";
 import { AddCustomerDialog, EditCustomerDialog, DeleteCustomerDialog } from "@/components/admin/CustomerManagement";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { CustomerGroupInsights } from "@/components/admin/CustomerGroupInsights";
-import { EditBookingDialog, ViewBookingDialog, DeleteBookingDialog, AllBookingsDialog } from "@/components/admin/BookingManagement";
+import { 
+  EditBookingDialog, 
+  ViewBookingDialog, 
+  DeleteBookingDialog, 
+  AllBookingsDialog,
+  getStatusLabel 
+} from "@/components/admin/BookingManagement";
+
 import { toast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/api/useCustomers"; 
 import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
+import { useUpdateMedia } from "@/hooks/api/useMedia";
 
-// Helper for Pagination
+// Pagination Helper
 export function PaginationControls({ currentPage, totalPages, onPageChange, totalItems, pageSize }: any) {
   if (totalPages <= 1) return null;
   return (
@@ -43,19 +50,17 @@ export function PaginationControls({ currentPage, totalPages, onPageChange, tota
   );
 }
 
-function CustomerCard({ customer, bookings, onViewBooking }: { customer: Customer; bookings: Booking[]; onViewBooking: (b: Booking) => void }) {
+function CustomerCard({ customer, bookings, onViewBooking }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const recentBookings = bookings.slice(0, 5);
-  const totalSpent = bookings.reduce((sum, b) => sum + (b.amount || 0), 0);
-
-  // FIX: Safe access to location property. Uses 'address' as fallback if 'city' doesn't exist on type.
+  const totalSpent = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
   const locationDisplay = (customer as any).city || customer.address || 'N/A';
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-all duration-300 hover:shadow-md">
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors rounded-t-lg">
+          <CardHeader className="cursor-pointer">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0"><Building2 className="h-6 w-6" /></div>
@@ -78,15 +83,19 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
               <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /> {locationDisplay}</div>
             </div>
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Recent Activity</h4>
+              <h4 className="text-sm font-semibold flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Recent Bookings</h4>
               <div className="border border-border/50 rounded-lg overflow-hidden">
                 <Table>
                   <TableBody>
-                    {recentBookings.map((b) => (
-                      <TableRow key={b._id || b.id} className="hover:bg-muted/30">
+                    {recentBookings.map((b: any) => (
+                      <TableRow key={b._id || b.id}>
                         <TableCell className="text-xs font-medium">{(b.mediaId?.name || b.media?.name || "N/A")}</TableCell>
                         <TableCell className="text-[10px] text-muted-foreground">{b.startDate?.split('T')[0]}</TableCell>
-                        <TableCell><Badge variant={b.status === 'Active' ? 'success' : 'outline'} className="text-[10px]">{b.status}</Badge></TableCell>
+                        <TableCell>
+                          <Badge variant={b.status === 'Active' ? 'success' : 'outline'} className="text-[10px]">
+                            {getStatusLabel(b.status)}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-right font-medium text-xs">₹{b.amount?.toLocaleString()}</TableCell>
                         <TableCell className="text-right"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onViewBooking(b)}><Eye className="h-3.5 w-3.5"/></Button></TableCell>
                       </TableRow>
@@ -108,15 +117,14 @@ export default function CustomerBookings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [clientPage, setClientPage] = useState(1);
   const [masterPage, setMasterPage] = useState(1);
-  const itemsPerPage = 10;
-  
   const listSectionRef = useRef<HTMLDivElement>(null);
 
-  const { data: custRes, isLoading: loadingCust } = useCustomers({ search: searchQuery, page: clientPage, limit: itemsPerPage });
+  const { data: custRes, isLoading: loadingCust } = useCustomers({ search: searchQuery, page: clientPage, limit: 10 });
   const { data: masterBookingsRes } = useBookings({ page: masterPage, limit: 10 });
   const { data: statsRes } = useBookings({ limit: 200 });
 
   const updateBookingMutation = useUpdateBooking();
+  const updateMediaMutation = useUpdateMedia();
   const deleteBookingMutation = useDeleteBooking();
 
   const snapshotBookings = useMemo(() => statsRes?.data || [], [statsRes]);
@@ -134,6 +142,19 @@ export default function CustomerBookings() {
   const handleTotalClientsClick = () => {
     setActiveTab("manage");
     setTimeout(() => { listSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 100);
+  };
+
+  const handleUpdateBooking = async (u: Booking) => {
+    // 1. Update Booking Status
+    await updateBookingMutation.mutateAsync({ id: u._id || u.id, data: u });
+    
+    // 2. Sync Media Availability
+    const mediaId = typeof u.mediaId === 'object' ? u.mediaId?._id : u.mediaId;
+    if (mediaId) {
+      const newMediaStatus = u.status === 'Active' ? 'Booked' : 'Available';
+      await updateMediaMutation.mutateAsync({ id: mediaId, data: { status: newMediaStatus } });
+    }
+    toast({ title: "Booking Updated", description: "Status and media availability synchronized." });
   };
 
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
@@ -161,24 +182,19 @@ export default function CustomerBookings() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group" onClick={handleTotalClientsClick}>
+        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group" onClick={handleTotalClientsClick}>
           <CardContent className="p-6 flex items-center gap-4">
             <div className="rounded-xl bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><Users className="h-6 w-6"/></div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Clients</p>
-              <p className="text-2xl font-bold">{custRes?.pagination?.total ?? processedCustomers.length ?? 0}</p>
-            </div>
+            <div><p className="text-sm text-muted-foreground">Total Clients</p><p className="text-2xl font-bold">{custRes?.pagination?.total ?? processedCustomers.length ?? 0}</p></div>
           </CardContent>
         </Card>
-        
-        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group" onClick={() => setAllBookingsOpen(true)}>
+        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group" onClick={() => setAllBookingsOpen(true)}>
           <CardContent className="p-6 flex items-center gap-4">
             <div className="rounded-xl bg-accent/10 p-3 text-accent group-hover:bg-accent group-hover:text-white transition-colors"><Calendar className="h-6 w-6"/></div>
             <div><p className="text-sm text-muted-foreground">Recent Bookings</p><p className="text-2xl font-bold">{snapshotBookings.length}</p></div>
           </CardContent>
         </Card>
-
-        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group">
+        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
           <CardContent className="p-6 flex items-center gap-4">
             <div className="rounded-xl bg-success/10 p-3 text-success group-hover:bg-success group-hover:text-white transition-colors"><IndianRupee className="h-6 w-6"/></div>
             <div><p className="text-sm text-muted-foreground">Recent Revenue</p><p className="text-2xl font-bold">₹{(totalRevenue / 100000).toFixed(2)} L</p></div>
@@ -186,6 +202,7 @@ export default function CustomerBookings() {
         </Card>
       </div>
 
+      {/* RESTORED PERFORMANCE SECTION */}
       <div className="my-8">
         <CustomerGroupInsights customers={processedCustomers} allBookings={snapshotBookings} />
       </div>
@@ -196,24 +213,21 @@ export default function CustomerBookings() {
             <TabsTrigger value="bookings">Client Cards</TabsTrigger>
             <TabsTrigger value="manage">Manage Registry</TabsTrigger>
           </TabsList>
-
           <div className="mt-6">
             <div className="relative max-w-md mb-6">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search company..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
             </div>
-
             <TabsContent value="bookings" className="space-y-4 m-0">
               {loadingCust ? <div className="py-20 text-center">Syncing records...</div> : (
                 <>
                   {processedCustomers.map((customer) => (
                     <CustomerCard key={customer.id} customer={customer} bookings={snapshotBookings.filter(b => (b.customerId?._id || b.customerId) === customer.id)} onViewBooking={setViewBooking} />
                   ))}
-                  <PaginationControls currentPage={clientPage} totalPages={custRes?.pagination?.totalPages || 1} onPageChange={setClientPage} totalItems={custRes?.pagination?.total} pageSize={itemsPerPage} />
+                  <PaginationControls currentPage={clientPage} totalPages={custRes?.pagination?.totalPages || 1} onPageChange={setClientPage} totalItems={custRes?.pagination?.total} pageSize={10} />
                 </>
               )}
             </TabsContent>
-
             <TabsContent value="manage" className="m-0">
               <Card className="bg-card/50">
                 <CardContent className="p-0">
@@ -234,7 +248,7 @@ export default function CustomerBookings() {
                     </TableBody>
                   </Table>
                   <div className="p-4 border-t">
-                    <PaginationControls currentPage={clientPage} totalPages={custRes?.pagination?.totalPages || 1} onPageChange={setClientPage} totalItems={custRes?.pagination?.total} pageSize={itemsPerPage} />
+                    <PaginationControls currentPage={clientPage} totalPages={custRes?.pagination?.totalPages || 1} onPageChange={setClientPage} totalItems={custRes?.pagination?.total} pageSize={10} />
                   </div>
                 </CardContent>
               </Card>
@@ -255,7 +269,7 @@ export default function CustomerBookings() {
       />
 
       {viewBooking && <ViewBookingDialog booking={viewBooking} open={!!viewBooking} onOpenChange={() => setViewBooking(null)} />}
-      {editBooking && <EditBookingDialog booking={editBooking} open={!!editBooking} onOpenChange={() => setEditBooking(null)} onSave={(u: Booking) => updateBookingMutation.mutate({ id: u._id || u.id, data: u })} />}
+      {editBooking && <EditBookingDialog booking={editBooking} open={!!editBooking} onOpenChange={() => setEditBooking(null)} onSave={handleUpdateBooking} />}
       {deleteBooking && <DeleteBookingDialog booking={deleteBooking} open={!!deleteBooking} onOpenChange={() => setDeleteBooking(null)} onConfirm={(id: string) => deleteBookingMutation.mutate(id)} />}
       <AddCustomerDialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen} availableGroups={initialGroups} onAddGroup={() => {}} onCustomerAdded={() => {}} />
       {editCustomer && <EditCustomerDialog customer={editCustomer} open={!!editCustomer} onOpenChange={() => setEditCustomer(null)} availableGroups={initialGroups} onCustomerUpdated={() => {}} onAddGroup={() => {}} />}
