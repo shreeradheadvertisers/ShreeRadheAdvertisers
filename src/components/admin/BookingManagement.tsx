@@ -85,7 +85,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
         <DialogHeader><DialogTitle>Edit Booking</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground uppercase">Status</label>
+            <label className="text-xs font-medium text-muted-foreground uppercase">Manual Status Override</label>
             <Select 
               value={formData.status} 
               onValueChange={(val) => setFormData({...formData, status: val})}
@@ -94,7 +94,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
                 <SelectValue placeholder="Select Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Active">Active (Booked)</SelectItem>
                 <SelectItem value="Upcoming">Upcoming</SelectItem>
                 <SelectItem value="Completed">Completed</SelectItem>
                 <SelectItem value="Cancelled">Cancelled</SelectItem>
