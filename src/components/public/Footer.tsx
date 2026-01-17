@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Linkedin, Twitter, Instagram } from "lucide-react";
+import { Mail, Phone, MapPin, Linkedin, Facebook, Instagram } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 export function Footer() {
@@ -15,13 +15,30 @@ export function Footer() {
               Premium outdoor advertising platform connecting brands with strategic billboard and media locations across India.
             </p>
             <div className="flex items-center gap-3">
-              <a href="#" className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors">
+              {/* LinkedIn: Updated to navigate to home and scroll to top */}
+              <Link 
+                to="/" 
+                onClick={() => window.scrollTo(0, 0)}
+                className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
+              >
                 <Linkedin className="h-4 w-4" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors">
-                <Twitter className="h-4 w-4" />
-              </a>
-              <a href="#" className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors">
+              </Link>
+              
+              {/* Facebook: Updated to navigate to home and scroll to top */}
+              <Link 
+                to="/" 
+                onClick={() => window.scrollTo(0, 0)}
+                className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
+              >
+                <Facebook className="h-4 w-4" />
+              </Link>
+              
+              <a 
+                href="https://www.instagram.com/shreeradheadvertisers" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
+              >
                 <Instagram className="h-4 w-4" />
               </a>
             </div>
@@ -33,40 +50,39 @@ export function Footer() {
               <li><Link to="/" className="hover:text-primary transition-colors">Home</Link></li>
               <li><Link to="/explore" className="hover:text-primary transition-colors">Explore Media</Link></li>
               <li><Link to="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
-              {/* Admin Portal Link Removed */}
             </ul>
           </div>
 
           <div>
-  <h4 className="font-semibold mb-4">Media Types</h4>
-  <ul className="space-y-2 text-sm text-muted-foreground">
-    <li>
-      <Link to="/explore" state={{ filter: "Unipoles" }} className="hover:text-primary transition-colors">
-        Unipoles
-      </Link>
-    </li>
-    <li>
-      <Link to="/explore" state={{ filter: "Hoardings" }} className="hover:text-primary transition-colors">
-        Hoardings
-      </Link>
-    </li>
-    <li>
-      <Link to="/explore" state={{ filter: "Digital LED" }} className="hover:text-primary transition-colors">
-        Digital LED
-      </Link>
-    </li>
-    <li>
-      <Link to="/explore" state={{ filter: "Gantries" }} className="hover:text-primary transition-colors">
-        Gantries
-      </Link>
-    </li>
-    <li>
-      <Link to="/explore" state={{ filter: "Kiosks" }} className="hover:text-primary transition-colors">
-        Kiosks
-      </Link>
-    </li>
-  </ul>
-</div>
+            <h4 className="font-semibold mb-4">Media Types</h4>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li>
+                <Link to="/explore" state={{ filter: "Unipoles" }} className="hover:text-primary transition-colors">
+                  Unipoles
+                </Link>
+              </li>
+              <li>
+                <Link to="/explore" state={{ filter: "Hoardings" }} className="hover:text-primary transition-colors">
+                  Hoardings
+                </Link>
+              </li>
+              <li>
+                <Link to="/explore" state={{ filter: "Digital LED" }} className="hover:text-primary transition-colors">
+                  Digital LED
+                </Link>
+              </li>
+              <li>
+                <Link to="/explore" state={{ filter: "Gantries" }} className="hover:text-primary transition-colors">
+                  Gantries
+                </Link>
+              </li>
+              <li>
+                <Link to="/explore" state={{ filter: "Kiosks" }} className="hover:text-primary transition-colors">
+                  Kiosks
+                </Link>
+              </li>
+            </ul>
+          </div>
 
           <div>
             <h4 className="font-semibold mb-4">Contact</h4>
@@ -92,7 +108,7 @@ export function Footer() {
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary" />
                 <a 
-                  href="https://www.google.com/maps/search/?api=1&query=Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump,+Durg,+Chhattisgarh+491001" 
+                  href="https://www.google.com/maps/dir/?api=1&destination=Shree+Radhe+Advertisers,+Station+Road,+Durg,+Chhattisgarh+491001" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors text-left"
