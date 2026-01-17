@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, MapPin, PlusCircle, Upload, Loader2, FileSpreadsheet, FileText, FileBox } from "lucide-react"; 
+import { Search, MapPin, PlusCircle, Upload, Loader2, FileSpreadsheet, FileText, FileBox } from "lucide-react"; 
 import { useNavigate } from "react-router-dom"; 
 import { MediaTable } from "@/components/admin/MediaTable";
 import { mediaTypes } from "@/lib/data"; 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,24 +36,38 @@ const MediaManagement = () => {
   const navigate = useNavigate();
   const { activeState, districts } = useLocationData();
   
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
+  // --- PERSISTENCE LOGIC: Initialize state from sessionStorage ---
+  const [searchQuery, setSearchQuery] = useState(() => sessionStorage.getItem('media_filter_search') || "");
+  const [districtFilter, setDistrictFilter] = useState(() => sessionStorage.getItem('media_filter_district') || "all");
+  const [typeFilter, setTypeFilter] = useState(() => sessionStorage.getItem('media_filter_type') || "all");
+  const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem('media_filter_status') || "all");
+  const [currentPage, setCurrentPage] = useState(() => Number(sessionStorage.getItem('media_filter_page')) || 1);
+  
   const itemsPerPage = 12;
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [districtFilter, setDistrictFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MediaLocation | null>(null);
 
-  // Reset to page 1 whenever filters change
+  // --- PERSISTENCE LOGIC: Save filters to sessionStorage whenever they change ---
   useEffect(() => {
+    sessionStorage.setItem('media_filter_search', searchQuery);
+    sessionStorage.setItem('media_filter_district', districtFilter);
+    sessionStorage.setItem('media_filter_type', typeFilter);
+    sessionStorage.setItem('media_filter_status', statusFilter);
+    sessionStorage.setItem('media_filter_page', String(currentPage));
+  }, [searchQuery, districtFilter, typeFilter, statusFilter, currentPage]);
+
+  // --- Reset to page 1 ONLY when filters change after initial mount ---
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     setCurrentPage(1);
   }, [searchQuery, districtFilter, typeFilter, statusFilter, activeState]);
 
   // Fetch media with explicit pagination parameters
-  const { data: mediaResponse, isLoading, isError } = useMedia({
+  const { data: mediaResponse, isLoading } = useMedia({
     state: activeState,
     district: districtFilter === "all" ? undefined : districtFilter,
     type: typeFilter === "all" ? undefined : (typeFilter as MediaType),
@@ -66,7 +80,6 @@ const MediaManagement = () => {
   const deleteMedia = useDeleteMedia();
   const updateMedia = useUpdateMedia();
 
-  // Export Logic
   const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
     const dataToExport = mediaResponse?.data || [];
     if (dataToExport.length === 0) {
@@ -95,7 +108,7 @@ const MediaManagement = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast({ title: "Export Successful", description: `Data exported as ${format.toUpperCase()}.` });
+    toast({ title: "Export Successful" });
   };
 
   const handleSoftDelete = async () => {
@@ -130,26 +143,16 @@ const MediaManagement = () => {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <Upload className="h-4 w-4 mr-2" /> Export
-              </Button>
+              <Button variant="outline"><Upload className="h-4 w-4 mr-2" /> Export</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExport('csv')}>
-                <FileBox className="h-4 w-4 mr-2" /> Download CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('excel')}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" /> Download Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                <FileText className="h-4 w-4 mr-2" /> Print PDF
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('csv')}><FileBox className="h-4 w-4 mr-2" /> Download CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('excel')}><FileSpreadsheet className="h-4 w-4 mr-2" /> Download Excel</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')}><FileText className="h-4 w-4 mr-2" /> Print PDF</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button onClick={() => navigate('/admin/media/new')}>
-            <PlusCircle className="h-4 w-4 mr-2" /> Add Media
-          </Button>
+          <Button onClick={() => navigate('/admin/media/new')}><PlusCircle className="h-4 w-4 mr-2" /> Add Media</Button>
         </div>
       </div>
 
@@ -185,6 +188,7 @@ const MediaManagement = () => {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Available">Available</SelectItem>
                 <SelectItem value="Booked">Booked</SelectItem>
+                <SelectItem value="Maintenance">Maintenance</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -201,10 +205,11 @@ const MediaManagement = () => {
           ) : (
             <MediaTable 
               data={(mediaResponse?.data || []) as any} 
-              pagination={mediaResponse?.pagination} // Pass pagination data to Table
-              onPageChange={setCurrentPage}         // Pass page change handler
+              pagination={mediaResponse?.pagination} 
+              onPageChange={setCurrentPage}         
               onDelete={(id) => {
-                const item = mediaResponse?.data.find(m => m._id === id);
+                // Robust check: try to find by database _id OR custom id
+                const item = mediaResponse?.data.find(m => m._id === id || m.id === id);
                 if (item) setItemToDelete(item);
               }}
               onEdit={(id) => navigate(`/admin/media/edit/${id}`)}

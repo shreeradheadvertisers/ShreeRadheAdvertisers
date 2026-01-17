@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { ArrowLeft, Save, Upload, Loader2 } from "lucide-react";
 import { useMediaById, useUpdateMedia, useUploadMediaImage } from "@/hooks/api/useMedia";
 import { isBackendConfigured } from "@/lib/api/config";
 import { useLocationData } from "@/contexts/LocationDataContext";
+import { MediaType } from "@/lib/api/types";
 
 const EditMedia = () => {
   const { id } = useParams();
@@ -22,11 +23,13 @@ const EditMedia = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
+  // FIX: Initialization guard to prevent cascading resets
+  const isPopulated = useRef(false);
+  
   const { data: media, isLoading } = useMediaById(id || "");
   const updateMedia = useUpdateMedia();
   const uploadImage = useUploadMediaImage();
   
-  // HOOK: Pull cascading location logic
   const { states, getCitiesForDistrict, getDistrictsForState } = useLocationData();
   
   const [formData, setFormData] = useState({
@@ -35,7 +38,7 @@ const EditMedia = () => {
     type: '',
     state: '',
     district: '',
-    city: '', // This acts as our Town/Tehsil selector
+    city: '', 
     address: '',
     size: '',
     lighting: '',
@@ -45,22 +48,24 @@ const EditMedia = () => {
   });
 
   useEffect(() => {
-    if (media) {
+    // Only populate form data if we have media and haven't populated yet
+    if (media && !isPopulated.current) {
       setFormData({
-        customId: media.id || '',
-        name: media.name || '',
+        customId: (media.id || '').trim(),
+        name: (media.name || '').trim(),
         type: media.type || '',
-        state: media.state || '',
-        district: media.district || '',
-        city: media.city || '',
-        address: media.address || '',
-        size: media.size || '',
+        state: (media.state || '').trim(),
+        district: (media.district || '').trim(),
+        city: (media.city || '').trim(),
+        address: (media.address || '').trim(),
+        size: (media.size || '').trim(),
         lighting: media.lighting || '',
-        facing: media.facing || '',
+        facing: (media.facing || '').trim(),
         pricePerMonth: String(media.pricePerMonth || ''),
         imageUrl: media.imageUrl || '', 
       });
       setPreviewUrl(media.imageUrl || null);
+      isPopulated.current = true;
     }
   }, [media]);
 
@@ -69,16 +74,16 @@ const EditMedia = () => {
   const availableTehsils = getCitiesForDistrict(formData.district);
 
   const handleStateChange = (state: string) => {
-  if (state !== formData.state) { // Only clear if it's a NEW state
-    setFormData({ ...formData, state, district: '', city: '' });
-  }
-};
+    if (state !== formData.state) {
+      setFormData(prev => ({ ...prev, state, district: '', city: '' }));
+    }
+  };
 
   const handleDistrictChange = (district: string) => {
-  if (district !== formData.district) { // Only clear if it's a NEW district
-    setFormData({ ...formData, district, city: '' });
-  }
-};
+    if (district !== formData.district) {
+      setFormData(prev => ({ ...prev, district, city: '' }));
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,10 +96,14 @@ const EditMedia = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.district || !formData.city) {
+    const cleanCustomId = formData.customId.trim();
+    const cleanDistrict = formData.district.trim();
+    const cleanCity = formData.city.trim();
+
+    if (!cleanDistrict || !cleanCity) {
       toast({
         title: "Location Required",
-        description: "Please select a valid District and Town/Tehsil from the managed list.",
+        description: "Please select a valid District and Town/Tehsil.",
         variant: "destructive"
       });
       return;
@@ -105,34 +114,33 @@ const EditMedia = () => {
     try {
       let finalImageUrl = formData.imageUrl || media?.imageUrl;
 
-      // 1. Organized Cloudinary Upload
       if (selectedFile && isBackendConfigured()) {
         const uploadResponse: any = await uploadImage.mutateAsync({ 
           file: selectedFile, 
-          customId: formData.customId, // Filename strategy
-          district: formData.district  // Folder organization
+          customId: cleanCustomId,
+          district: cleanDistrict
         });
         finalImageUrl = uploadResponse.url; 
       }
 
       if (isBackendConfigured() && media) {
-        // 2. Database Sync
+        // Database Sync with TRIMMED data
         await updateMedia.mutateAsync({
           id: (media._id || id)!,
           data: {
-            id: formData.customId,
-            name: formData.name,
-            type: formData.type as any,
-            state: formData.state,
-            district: formData.district,
-            city: formData.city, // Saves the clean Tehsil string
-            address: formData.address,
-            size: formData.size,
+            id: cleanCustomId,
+            name: formData.name.trim(),
+            type: formData.type as MediaType, // FIX: TypeScript cast to MediaType
+            state: formData.state.trim(),
+            district: cleanDistrict,
+            city: cleanCity,
+            address: formData.address.trim(),
+            size: formData.size.trim(),
             lighting: formData.lighting as any,
-            facing: formData.facing,
+            facing: formData.facing.trim(),
             pricePerMonth: Number(formData.pricePerMonth),
             imageUrl: finalImageUrl,
-            landmark: formData.customId
+            landmark: cleanCustomId
           }
         });
       }
@@ -159,15 +167,6 @@ const EditMedia = () => {
     );
   }
 
-  if (!media && !isLoading) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold mb-4">Media record not found</h1>
-        <Button onClick={() => navigate('/admin/media')}>Back to Media List</Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -190,7 +189,6 @@ const EditMedia = () => {
                   <Label htmlFor="customId">Media ID *</Label>
                   <Input 
                     id="customId"
-                    placeholder="e.g., SRA-DURG-001"
                     value={formData.customId}
                     onChange={(e) => setFormData({ ...formData, customId: e.target.value })}
                     required
@@ -211,9 +209,7 @@ const EditMedia = () => {
                     value={formData.type}
                     onValueChange={(v) => setFormData({ ...formData, type: v })}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                     <SelectContent>
                       {mediaTypes.map(type => (
                         <SelectItem key={type} value={type}>{type}</SelectItem>
@@ -247,6 +243,10 @@ const EditMedia = () => {
                   >
                     <SelectTrigger><SelectValue placeholder="Select district" /></SelectTrigger>
                     <SelectContent>
+                      {/* Safety: Add current value if not in list yet to prevent auto-deselect */}
+                      {formData.district && !availableDistricts.includes(formData.district) && (
+                        <SelectItem value={formData.district}>{formData.district}</SelectItem>
+                      )}
                       {availableDistricts.map(district => (
                         <SelectItem key={district} value={district}>{district}</SelectItem>
                       ))}
@@ -256,21 +256,21 @@ const EditMedia = () => {
                 <div className="space-y-2">
                   <Label>Town / Tehsil *</Label>
                   <Select 
-  value={formData.city} 
-  onValueChange={(v) => setFormData({ ...formData, city: v })}
-  disabled={!formData.district}
->
-  <SelectTrigger><SelectValue placeholder="Select Town/Tehsil" /></SelectTrigger>
-  <SelectContent>
-    {/* If the current city isn't in the list yet, add it manually so it stays selected */}
-    {formData.city && !availableTehsils.includes(formData.city) && (
-      <SelectItem value={formData.city}>{formData.city}</SelectItem>
-    )}
-    {availableTehsils.map(tehsil => (
-      <SelectItem key={tehsil} value={tehsil}>{tehsil}</SelectItem>
-    ))}
-  </SelectContent>
-</Select>
+                    value={formData.city} 
+                    onValueChange={(v) => setFormData({ ...formData, city: v })}
+                    disabled={!formData.district}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select Town/Tehsil" /></SelectTrigger>
+                    <SelectContent>
+                      {/* Safety: Add current city if not in the list to prevent auto-deselect */}
+                      {formData.city && !availableTehsils.includes(formData.city) && (
+                        <SelectItem value={formData.city}>{formData.city}</SelectItem>
+                      )}
+                      {availableTehsils.map(tehsil => (
+                        <SelectItem key={tehsil} value={tehsil}>{tehsil}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="mt-5 space-y-2">
@@ -279,7 +279,6 @@ const EditMedia = () => {
                   id="address"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Enter complete address"
                 />
               </div>
             </Card>
@@ -293,7 +292,6 @@ const EditMedia = () => {
                     id="size"
                     value={formData.size}
                     onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                    placeholder="e.g. 40x20 ft"
                   />
                 </div>
                 <div className="space-y-2">
@@ -311,13 +309,12 @@ const EditMedia = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="facing">Facing Direction</Label>
                   <Input
                     id="facing"
                     value={formData.facing}
                     onChange={(e) => setFormData({ ...formData, facing: e.target.value })}
-                    placeholder="e.g. Towards Civil Lines"
                   />
                 </div>
               </div>
@@ -327,19 +324,14 @@ const EditMedia = () => {
           <div className="space-y-6">
             <Card className="p-6 bg-card border-border/50">
               <h3 className="font-semibold mb-4">Media Photography</h3>
-              <input type="file" id="media-image" accept="image/*" onChange={handleFileChange} className="hidden" />
-              <label htmlFor="media-image">
-                <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 cursor-pointer group transition-colors">
-                  {previewUrl ? (
-                    <img src={previewUrl} alt="Preview" className="w-full aspect-video object-cover rounded mb-2" />
-                  ) : (
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground group-hover:text-primary" />
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {selectedFile ? selectedFile.name : 'Click to change billboard image'}
-                  </p>
-                </div>
-              </label>
+              <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary/50 cursor-pointer group transition-colors">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Preview" className="w-full aspect-video object-cover rounded mb-2" />
+                ) : (
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground group-hover:text-primary" />
+                )}
+                <Input type="file" accept="image/*" onChange={handleFileChange} className="mt-2" />
+              </div>
             </Card>
 
             <Card className="p-6 bg-card border-border/50">
@@ -359,7 +351,7 @@ const EditMedia = () => {
             <div className="space-y-3">
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving Changes...</>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
                 ) : (
                   <><Save className="h-4 w-4 mr-2" /> Update Media</>
                 )}

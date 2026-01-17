@@ -12,10 +12,14 @@ cloudinary.config({
  */
 exports.uploadToCloudinary = async (localPath, customId, district = 'General', type = 'media') => {
   try {
-    const folderPath = `ShreeRadhe/Districts/${district.trim()}/${type === 'media' ? 'Images' : 'Documents'}`;
+    // FIX: Trim whitespace from parameters to prevent "public_id must not end with whitespace" error
+    const cleanId = String(customId).trim();
+    const cleanDistrict = String(district).trim();
+    
+    const folderPath = `ShreeRadhe/Districts/${cleanDistrict}/${type === 'media' ? 'Images' : 'Documents'}`;
     
     const result = await cloudinary.uploader.upload(localPath, {
-      public_id: customId,
+      public_id: cleanId, // Use the trimmed customId
       folder: folderPath,
       resource_type: 'auto',
       

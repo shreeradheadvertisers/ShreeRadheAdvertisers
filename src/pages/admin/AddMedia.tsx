@@ -69,7 +69,19 @@ const AddMedia = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.id || !formData.name || !formData.type || !formData.state || !formData.district || !formData.city || !formData.pricePerMonth) {
+    // --- CLEAN DATA START ---
+    // Trim all inputs to prevent Cloudinary/DB whitespace errors
+    const cleanId = formData.id.trim();
+    const cleanName = formData.name.trim();
+    const cleanDistrict = formData.district.trim();
+    const cleanCity = formData.city.trim();
+    const cleanAddress = formData.address.trim();
+    const cleanSize = formData.size.trim();
+    const cleanFacing = formData.facing.trim();
+    const cleanState = formData.state.trim();
+    // --- CLEAN DATA END ---
+    
+    if (!cleanId || !cleanName || !formData.type || !cleanState || !cleanDistrict || !cleanCity || !formData.pricePerMonth) {
       toast({
         title: "Missing Fields",
         description: "Please fill all required fields including Town/Tehsil selection.",
@@ -83,39 +95,39 @@ const AddMedia = () => {
     try {
       let permanentImageUrl = '';
 
-      // 1. Upload to Cloudinary with organization metadata
+      // 1. Upload to Cloudinary with TRIMMED metadata
       if (selectedFile && isBackendConfigured()) {
         const uploadResponse: any = await uploadImage.mutateAsync({ 
           file: selectedFile,
-          customId: formData.id,     // Organized naming (e.g. SRA-101)
-          district: formData.district // Organized folder (e.g. Raipur)
+          customId: cleanId,     // Organized naming (e.g. SRA-101)
+          district: cleanDistrict // Organized folder (e.g. Raipur)
         } as any);
         permanentImageUrl = uploadResponse.url; 
       }
 
       if (isBackendConfigured()) {
-        // 2. Submit Media Data
+        // 2. Submit Media Data with TRIMMED values
         await createMedia.mutateAsync({
-          id: formData.id,
-          name: formData.name,
+          id: cleanId,
+          name: cleanName,
           type: formData.type as any,
-          state: formData.state,
-          district: formData.district,
-          city: formData.city, // Stores the Town/Tehsil string
-          address: formData.address,
-          size: formData.size,
+          state: cleanState,
+          district: cleanDistrict,
+          city: cleanCity, // Stores the Town/Tehsil string
+          address: cleanAddress,
+          size: cleanSize,
           lighting: formData.lighting as any,
-          facing: formData.facing,
+          facing: cleanFacing,
           pricePerMonth: Number(formData.pricePerMonth),
           status: 'Available',
           imageUrl: permanentImageUrl,
-          landmark: formData.id
+          landmark: cleanId
         });
       }
 
       toast({
         title: "Media Added Successfully!",
-        description: `The media has been organized under ${formData.district} / ${formData.city}.`,
+        description: `The media has been organized under ${cleanDistrict} / ${cleanCity}.`,
       });
       navigate('/admin/media');
     } catch (error) {
