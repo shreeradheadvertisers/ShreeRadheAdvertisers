@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { MediaCard } from "@/components/public/MediaCard";
 import { FilterPanel } from "@/components/public/FilterPanel";
 import { mediaLocations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input"; //
+import { Input } from "@/components/ui/input";
 import { Grid, List, SlidersHorizontal, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { usePublicMedia } from "@/hooks/api/useMedia";
@@ -13,22 +13,54 @@ import { isBackendConfigured } from "@/lib/api/config";
 import { adaptMediaLocation } from "@/lib/services/dataService";
 
 const Explore = () => {
-  // 1. Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const [jumpPage, setJumpPage] = useState(""); // State for the "Go to" input box
-  const itemsPerPage = 12;
-
-  const [filters, setFilters] = useState({
-    search: '',
-    state: '',
-    district: '',
-    type: '',
-    status: '',
+  // --- 1. Persisted State Initialization ---
+  
+  const [filters, setFilters] = useState(() => {
+    const saved = sessionStorage.getItem('explore-filters');
+    return saved ? JSON.parse(saved) : {
+      search: '',
+      state: '',
+      district: '',
+      type: '',
+      status: '',
+    };
   });
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  // 2. Reset to page 1 whenever any filter or search term changes
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = sessionStorage.getItem('explore-page');
+    return saved ? parseInt(saved, 10) : 1;
+  });
+
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    const saved = sessionStorage.getItem('explore-viewmode');
+    return (saved as 'grid' | 'list') || 'grid';
+  });
+
+  const [jumpPage, setJumpPage] = useState(currentPage.toString());
+  const itemsPerPage = 12;
+  const isInitialMount = useRef(true);
+
+  // --- 2. Persistence Effects ---
+
+  // Save state to sessionStorage whenever they change
   useEffect(() => {
+    sessionStorage.setItem('explore-filters', JSON.stringify(filters));
+  }, [filters]);
+
+  useEffect(() => {
+    sessionStorage.setItem('explore-page', currentPage.toString());
+  }, [currentPage]);
+
+  useEffect(() => {
+    sessionStorage.setItem('explore-viewmode', viewMode);
+  }, [viewMode]);
+
+  // Reset to page 1 only when filters change AFTER the initial load
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     setCurrentPage(1);
     setJumpPage("1");
   }, [filters]);
@@ -38,7 +70,8 @@ const Explore = () => {
     setJumpPage(currentPage.toString());
   }, [currentPage]);
 
-  // 3. Fetch from MongoDB with pagination parameters
+  // --- 3. Data Fetching ---
+
   const { data: apiData, isLoading, isFetching } = usePublicMedia({
     state: filters.state || undefined,
     district: filters.district || undefined,
@@ -81,7 +114,6 @@ const Explore = () => {
     if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
       handlePageChange(pageNum);
     } else {
-      // Reset input to current page if invalid
       setJumpPage(currentPage.toString());
     }
   };
@@ -175,7 +207,6 @@ const Explore = () => {
                 {totalPages > 1 && (
                   <div className="flex flex-col items-center justify-center mt-12 mb-8 gap-6 border-t pt-8">
                     <div className="flex flex-wrap items-center justify-center gap-4">
-                      {/* Existing Prev/Next Buttons */}
                       <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
@@ -204,7 +235,6 @@ const Explore = () => {
                         </Button>
                       </div>
 
-                      {/* New Jump to Page Box */}
                       <form onSubmit={handleJumpToPage} className="flex items-center gap-2 border-l pl-4">
                         <span className="text-sm text-muted-foreground whitespace-nowrap">Go to:</span>
                         <Input
@@ -233,7 +263,7 @@ const Explore = () => {
                   <X className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-xl font-semibold mb-2">No results found</h3>
-                <p className="text-muted-foreground mb-6 max-w-xs mx-auto">Try adjusting your filters or search terms to find what you're looking for</p>
+                <p className="text-muted-foreground mb-6 max-w-xs mx-auto">Try adjusting your filters or search terms</p>
                 <Button 
                   variant="default" 
                   onClick={() => setFilters({ search: '', state: '', district: '', type: '', status: '' })}
