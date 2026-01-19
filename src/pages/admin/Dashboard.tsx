@@ -6,6 +6,8 @@ import { DistrictBreakdown } from "@/components/admin/DistrictBreakdown";
 import { ExpiringBookings } from "@/components/admin/ExpiringBookings";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { PaymentListDialog } from "@/components/admin/PaymentManagement";
+// ADDED: Import Dialogs for Booking details
+import { ViewBookingDialog, AllBookingsDialog } from "@/components/admin/BookingManagement";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
@@ -49,28 +51,28 @@ const Dashboard = () => {
   const { data: paymentStats } = usePaymentStatsAnalytics();
   const { data: complianceStats } = useComplianceStats();
   
-  // Fetch live recent bookings (limited to 5)
   const { data: recentBookingsRes } = useBookings({ limit: 5 });
   const recentBookings = recentBookingsRes?.data || [];
 
-  // Fetch all bookings for the Payment Management dialog
   const { data: allBookingsRes } = useBookings({ limit: 50 });
   const allBookings = allBookingsRes?.data || [];
 
-  // Mutations for updating/deleting payments
   const updateBookingMutation = useUpdateBooking();
   const deleteBookingMutation = useDeleteBooking();
 
   // --- 2. DIALOG STATES ---
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paymentFilter, setPaymentFilter] = useState<'All' | 'Pending' | 'Partially Paid' | 'Paid'>('All');
+  
+  // ADDED: Logic states for Expiring Soon Card
+  const [viewBooking, setViewBooking] = useState<any>(null);
+  const [allBookingsOpen, setAllBookingsOpen] = useState(false);
 
   const openPaymentDetails = (filter: 'All' | 'Pending' | 'Partially Paid' | 'Paid') => {
     setPaymentFilter(filter);
     setIsPaymentOpen(true);
   };
 
-  // --- 3. LOADING STATE ---
   if (statsLoading || trendLoading) {
     return (
       <div className="p-8 space-y-6">
@@ -98,7 +100,6 @@ const Dashboard = () => {
         <CreateBookingDialog />
       </div>
 
-      {/* --- Compliance Alerts Row --- */}
       <h2 className="text-sm font-semibold text-destructive uppercase tracking-wider flex items-center gap-2">
         <ShieldAlert className="h-4 w-4" /> Compliance Alerts
       </h2>
@@ -129,42 +130,16 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* --- Media Stats Row --- */}
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-2">Inventory Overview</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <StatsCard 
-          title="Total Media" 
-          value={stats?.totalMedia || 0} 
-          icon={MapPin}
-          variant="primary"
-          onClick={() => navigate('/admin/media')}
-        />
-        <StatsCard 
-          title="Available" 
-          value={stats?.available || 0} 
-          icon={CheckCircle}
-          variant="success"
-          onClick={() => navigate('/admin/media?status=Available')}
-        />
-        <StatsCard 
-          title="Booked" 
-          value={stats?.booked || 0} 
-          icon={XCircle}
-          variant="danger"
-          onClick={() => navigate('/admin/media?status=Booked')}
-        />
-        <StatsCard 
-          title="Coming Soon" 
-          value={stats?.comingSoon || 0} 
-          icon={Clock}
-          variant="warning"
-          onClick={() => navigate('/admin/media?status=Coming Soon')}
-        />
+        <StatsCard title="Total Media" value={stats?.totalMedia || 0} icon={MapPin} variant="primary" onClick={() => navigate('/admin/media')} />
+        <StatsCard title="Available" value={stats?.available || 0} icon={CheckCircle} variant="success" onClick={() => navigate('/admin/media?status=Available')} />
+        <StatsCard title="Booked" value={stats?.booked || 0} icon={XCircle} variant="danger" onClick={() => navigate('/admin/media?status=Booked')} />
+        <StatsCard title="Coming Soon" value={stats?.comingSoon || 0} icon={Clock} variant="warning" onClick={() => navigate('/admin/media?status=Coming Soon')} />
         <StatsCard title="States" value={stats?.statesCount || 0} icon={Building2} variant="default" />
         <StatsCard title="Districts" value={stats?.districtsCount || 0} icon={TrendingUp} variant="default" />
       </div>
 
-      {/* --- Financial Insights Row --- */}
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-4">Financial Insights</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatsCard 
@@ -193,10 +168,12 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Live Expiring Bookings Section */}
-      <ExpiringBookings />
+      {/* UPDATED: Connected functional handlers */}
+      <ExpiringBookings 
+        onViewBooking={setViewBooking} 
+        onViewReport={() => setAllBookingsOpen(true)}
+      />
 
-      {/* --- Live Revenue Chart --- */}
       <Card className="p-6 bg-card border-border/50">
         <h3 className="text-lg font-semibold mb-4">Revenue & Booking Trends (Live)</h3>
         <div className="h-[300px]">
@@ -206,13 +183,7 @@ const Dashboard = () => {
               <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
               <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={12} />
               <YAxis yAxisId="right" orientation="right" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--card))', 
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
-                }}
-              />
+              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
               <Legend />
               <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="hsl(var(--primary))" strokeWidth={2} name="Bookings" />
               <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="hsl(var(--success))" strokeWidth={2} name="Revenue (₹)" />
@@ -221,10 +192,8 @@ const Dashboard = () => {
         </div>
       </Card>
 
-      {/* Live District Breakdown Section */}
       <DistrictBreakdown />
 
-      {/* --- Recent Bookings Table (Live API Data) --- */}
       <Card className="p-6 bg-card border-border/50">
         <h3 className="text-lg font-semibold mb-4">Recent Bookings</h3>
         <div className="overflow-x-auto">
@@ -250,23 +219,13 @@ const Dashboard = () => {
                     onClick={() => navigate(`/admin/media/${booking.mediaId?._id || booking.mediaId}`)}
                   >
                     <td className="py-3 px-4">
-                      {/* mediaId is populated as an object by the backend */}
-                      <Badge variant="secondary" className="font-mono">
-                        {booking.mediaId?.name || "N/A"}
-                      </Badge>
+                      <Badge variant="secondary" className="font-mono">{booking.mediaId?.name || "N/A"}</Badge>
                     </td>
-                    <td className="py-3 px-4 font-medium">
-                      {/* customerId is populated as an object by the backend */}
-                      {booking.customerId?.company || booking.customerId?.name || "Unknown"}
-                    </td>
+                    <td className="py-3 px-4 font-medium">{booking.customerId?.company || booking.customerId?.name || "Unknown"}</td>
                     <td className="py-3 px-4">
-                      <Badge variant={booking.status === 'Active' ? 'default' : 'outline'}>
-                        {booking.status}
-                      </Badge>
+                      <Badge variant={booking.status === 'Active' ? 'default' : 'outline'}>{booking.status}</Badge>
                     </td>
-                    <td className="py-3 px-4 text-right font-medium">
-                      ₹{booking.amount?.toLocaleString() || 0}
-                    </td>
+                    <td className="py-3 px-4 text-right font-medium">₹{booking.amount?.toLocaleString() || 0}</td>
                   </tr>
                 ))
               )}
@@ -275,7 +234,7 @@ const Dashboard = () => {
         </div>
       </Card>
 
-      {/* Payment Management Dialog connected to Mutations */}
+      {/* Payment Management Dialog */}
       <PaymentListDialog 
         open={isPaymentOpen}
         onOpenChange={setIsPaymentOpen}
@@ -283,6 +242,30 @@ const Dashboard = () => {
         initialFilter={paymentFilter}
         onUpdateBooking={(updated: any) => updateBookingMutation.mutate({ id: updated._id, data: updated })}
         onDeleteBooking={(id: string) => deleteBookingMutation.mutate(id)}
+      />
+
+      {/* ADDED: View Details Modal for Expiring Soon */}
+      {viewBooking && (
+        <ViewBookingDialog 
+          booking={viewBooking} 
+          open={!!viewBooking} 
+          onOpenChange={() => setViewBooking(null)} 
+        />
+      )}
+
+      {/* ADDED: All Bookings Modal for Expiring Soon Report */}
+      <AllBookingsDialog 
+        open={allBookingsOpen} 
+        onOpenChange={setAllBookingsOpen} 
+        bookings={allBookings}
+        customers={[]} // Can be populated if needed for search
+        onEdit={() => {}} 
+        onDelete={() => {}}
+        onView={(b: any) => {
+          setAllBookingsOpen(false);
+          setViewBooking(b);
+        }}
+        pagination={{ currentPage: 1, totalPages: 1, onPageChange: () => {} }}
       />
     </div>
   );

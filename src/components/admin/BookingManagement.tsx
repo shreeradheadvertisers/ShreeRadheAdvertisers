@@ -8,12 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, MapPin, Pencil, Trash2, Eye, Search, ChevronLeft, ChevronRight, ListFilter, Calendar } from "lucide-react";
+import { 
+  FileText, MapPin, Pencil, Trash2, Eye, Search, 
+  ChevronLeft, ChevronRight, ListFilter, 
+  Calendar as CalendarIcon // Renamed icon to avoid conflict
+} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Booking, Customer } from "@/lib/api/types";
-import { formatIndianRupee } from "@/lib/utils";
+import { formatIndianRupee, cn } from "@/lib/utils"; // Added cn
+import { Calendar } from "@/components/ui/calendar"; // Import Calendar component
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Import Popover components
+import { format } from "date-fns"; // Import format for date manipulation
 
 // Helper: Technical 'Active' shows as 'Booked' in the UI
 export const getStatusLabel = (status: string) => {
@@ -21,20 +27,29 @@ export const getStatusLabel = (status: string) => {
   return status; 
 };
 
+// Helper: Format ISO/String date to DD/MM/YYYY for UI display
+const formatDisplayDate = (dateStr: string) => {
+  if (!dateStr) return "N/A";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "N/A";
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
   if (!booking) return null;
   const balance = (booking.amount || 0) - (booking.amountPaid || 0);
   const media = booking.mediaId || booking.media;
-  
-  // Format dates for display
-  const startDate = booking.startDate?.split('T')[0] || "N/A";
-  const endDate = booking.endDate?.split('T')[0] || "N/A";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Booking Details</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 font-medium">
+            <FileText className="h-5 w-5 text-primary" /> Booking Details
+          </DialogTitle>
           <DialogDescription>ID: {booking.id || booking._id}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -61,12 +76,14 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
             
             <Separator />
 
-            {/* Added: Booking Schedule Dates */}
+            {/* Booking Schedule with DD/MM/YYYY formatting */}
             <div className="flex gap-3">
-              <Calendar className="h-4 w-4 mt-1 text-primary" />
+              <CalendarIcon className="h-4 w-4 mt-1 text-primary" />
               <div>
                 <p className="text-[10px] font-medium uppercase text-muted-foreground">Booking Period</p>
-                <p className="text-sm font-medium text-foreground">{startDate} to {endDate}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {formatDisplayDate(booking.startDate)} to {formatDisplayDate(booking.endDate)}
+                </p>
               </div>
             </div>
 
@@ -88,6 +105,9 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
 
 export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) {
   const [formData, setFormData] = useState<any>(booking);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
+
   if (!formData) return null;
 
   const handleSubmit = (e: any) => { 
@@ -118,16 +138,73 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
               </SelectContent>
             </Select>
           </div>
+          
           <div className="grid grid-cols-2 gap-4">
+            {/* Start Date Picker with DD/MM/YYYY Display */}
             <div className="space-y-2">
               <label className="text-xs font-medium">Start Date</label>
-              <Input type="date" value={formData.startDate?.split('T')[0]} onChange={(e) => setFormData({...formData, startDate: e.target.value})} />
+              <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal bg-background",
+                      !formData.startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.startDate ? format(new Date(formData.startDate), "dd/MM/yyyy") : "DD/MM/YYYY"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.startDate ? new Date(formData.startDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        setFormData({ ...formData, startDate: date.toISOString() });
+                        setStartDateOpen(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+
+            {/* End Date Picker with DD/MM/YYYY Display */}
             <div className="space-y-2">
               <label className="text-xs font-medium">End Date</label>
-              <Input type="date" value={formData.endDate?.split('T')[0]} onChange={(e) => setFormData({...formData, endDate: e.target.value})} />
+              <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal bg-background",
+                      !formData.endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.endDate ? format(new Date(formData.endDate), "dd/MM/yyyy") : "DD/MM/YYYY"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.endDate ? new Date(formData.endDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        setFormData({ ...formData, endDate: date.toISOString() });
+                        setEndDateOpen(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
+
           <div className="space-y-2">
             <label className="text-xs font-medium">Total Amount</label>
             <Input type="number" value={formData.amount} onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})} />
@@ -147,8 +224,8 @@ export function DeleteBookingDialog({ booking, open, onOpenChange, onConfirm }: 
         <DialogHeader><DialogTitle className="font-medium">Delete Booking?</DialogTitle></DialogHeader>
         <p className="text-sm text-muted-foreground">Are you sure? This cannot be undone.</p>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button variant="destructive" onClick={() => onConfirm(booking._id || booking.id)}>Delete</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="font-normal">Cancel</Button>
+          <Button variant="destructive" onClick={() => onConfirm(booking._id || booking.id)} className="font-normal">Delete</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -183,13 +260,13 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Search by company or media..." 
-              className="pl-9" 
+              className="pl-9 font-normal" 
               value={search} 
               onChange={(e) => setSearch(e.target.value)} 
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px] font-normal">
               <ListFilter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="All Statuses" />
             </SelectTrigger>
@@ -207,11 +284,11 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
               <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Media</TableHead>
-                <TableHead>Schedule</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="font-medium">Customer</TableHead>
+                <TableHead className="font-medium">Media</TableHead>
+                <TableHead className="font-medium">Schedule</TableHead>
+                <TableHead className="font-medium">Status</TableHead>
+                <TableHead className="text-right font-medium">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -222,7 +299,10 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
                   <TableRow key={b._id || b.id}>
                     <TableCell className="font-medium">{customer?.company || "Unknown"}</TableCell>
                     <TableCell><div className="text-xs">{media?.name}</div></TableCell>
-                    <TableCell className="text-[10px]">{b.startDate?.split('T')[0]} to {b.endDate?.split('T')[0]}</TableCell>
+                    {/* Table date range in DD/MM/YYYY */}
+                    <TableCell className="text-[10px] text-muted-foreground font-medium">
+                      {formatDisplayDate(b.startDate)} to {formatDisplayDate(b.endDate)}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={b.status === 'Active' ? 'success' : 'outline'} className="text-[10px] font-normal">
                         {getStatusLabel(b.status)}
