@@ -119,10 +119,12 @@ export function useUpdateBooking() {
       return (await apiClient.put<ApiResponse<Booking>>(API_ENDPOINTS.BOOKINGS.UPDATE(id), data)).data;
     },
     onSuccess: () => {
+      // FIX: Invalidate 'analytics' instead of 'dashboard' to trigger live updates 
+      // for stats, revenue trends, and inventory overview.
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['media'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
     },
   });
 }
