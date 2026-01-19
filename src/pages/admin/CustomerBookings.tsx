@@ -4,13 +4,13 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { 
   Users, Search, Building2, Mail, Phone, MapPin, Calendar, IndianRupee,
   ChevronDown, ChevronUp, Plus, Pencil, Trash2, Eye,
-  ChevronLeft, ChevronRight, ListFilter
+  ChevronLeft, ChevronRight, ListFilter, LayoutDashboard, ShieldCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // ADDED
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +21,7 @@ import type { Customer, Booking } from "@/lib/api/types";
 import { AddCustomerDialog, EditCustomerDialog, DeleteCustomerDialog } from "@/components/admin/CustomerManagement";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { CustomerGroupInsights } from "@/components/admin/CustomerGroupInsights";
+import { ExpiringBookings } from "@/components/admin/ExpiringBookings"; 
 import { 
   EditBookingDialog, 
   ViewBookingDialog, 
@@ -34,7 +35,6 @@ import { useCustomers } from "@/hooks/api/useCustomers";
 import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
 import { useUpdateMedia } from "@/hooks/api/useMedia";
 
-// Pagination Helper
 export function PaginationControls({ currentPage, totalPages, onPageChange, totalItems, pageSize }: any) {
   if (totalPages <= 1) return null;
   return (
@@ -51,21 +51,19 @@ export function PaginationControls({ currentPage, totalPages, onPageChange, tota
   );
 }
 
-// --- UPDATED: CUSTOMER CARD WITH STATUS FILTER ---
 function CustomerCard({ customer, bookings, onViewBooking }: { customer: Customer; bookings: Booking[]; onViewBooking: (b: Booking) => void }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all"); // Added status state
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  // Filter the customer's specific bookings
   const filtered = bookings.filter((b: any) => statusFilter === "all" || b.status === statusFilter);
-  const displayBookings = filtered.slice(0, 5); // Show top 5 matches
+  const displayBookings = filtered.slice(0, 5);
   
   const totalSpent = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
   const locationDisplay = (customer as any).city || customer.address || 'N/A';
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-all duration-300">
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/30 transition-all duration-300 mb-4">
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer">
             <div className="flex items-start justify-between">
@@ -93,8 +91,6 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Recent History</h4>
-                
-                {/* STATUS FILTER FOR CUSTOMER CARD */}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[140px] h-8 text-xs bg-muted/50 border-none shadow-none">
                     <SelectValue placeholder="All Status" />
@@ -137,7 +133,6 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
   );
 }
 
-// ... rest of the CustomerBookings component remains same ...
 export default function CustomerBookings() {
   const [activeTab, setActiveTab] = useState("bookings");
   const [searchQuery, setSearchQuery] = useState("");
@@ -177,7 +172,18 @@ export default function CustomerBookings() {
       const newMediaStatus = u.status === 'Active' ? 'Booked' : 'Available';
       await updateMediaMutation.mutateAsync({ id: mediaId, data: { status: newMediaStatus } });
     }
-    toast({ title: "Booking Updated", description: "Status and media availability synchronized." });
+    toast({ title: "Booking Updated", description: "Status synchronized." });
+  };
+
+  // FIXED: Logic to handle delete with feedback and closing the dialog
+  const handleDeleteBooking = async (id: string) => {
+    try {
+      await deleteBookingMutation.mutateAsync(id);
+      toast({ title: "Booking Deleted", description: "The record has been permanently removed." });
+      setDeleteBooking(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to delete booking.", variant: "destructive" });
+    }
   };
 
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
@@ -191,37 +197,35 @@ export default function CustomerBookings() {
   useEffect(() => { setClientPage(1); }, [searchQuery]);
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+    <div className="space-y-8 pb-20 animate-in fade-in duration-700">
+      {/* 1. Header (Smaller font size) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Customer Management</h1>
-          <p className="text-muted-foreground mt-1">Detailed overview of client history and global operations.</p>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+            <LayoutDashboard className="h-7 w-7 text-primary" /> Customer Intelligence Cabinet
+          </h1>
+          <p className="text-muted-foreground text-sm">Comprehensive relationship monitoring and revenue telemetry.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setAllBookingsOpen(true)}><ListFilter className="h-4 w-4 mr-2" />Full History</Button>
-          <Button variant="outline" onClick={() => setAddCustomerOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Client</Button>
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" className="shadow-sm" onClick={() => setAllBookingsOpen(true)}><ListFilter className="h-4 w-4 mr-2" />Full History</Button>
+          <Button variant="outline" className="shadow-sm" onClick={() => setAddCustomerOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Client</Button>
           <CreateBookingDialog />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group" onClick={handleTotalClientsClick}>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="rounded-xl bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-white transition-colors"><Users className="h-6 w-6"/></div>
-            <div><p className="text-sm text-muted-foreground">Total Clients</p><p className="text-2xl font-bold">{custRes?.pagination?.total ?? processedCustomers.length ?? 0}</p></div>
-          </CardContent>
+      {/* 2. KPI Tiles (Updated labels) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="p-6 border-l-4 border-l-primary shadow-sm bg-card/50 hover:shadow-md transition-all cursor-pointer" onClick={handleTotalClientsClick}>
+          <div className="flex justify-between items-start"><p className="text-sm font-medium text-muted-foreground uppercase tracking-widest text-[10px]">Total clients</p><Users className="h-5 w-5 text-primary" /></div>
+          <div className="mt-3"><h3 className="text-2xl font-bold">{custRes?.pagination?.total ?? processedCustomers.length ?? 0}</h3></div>
         </Card>
-        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group" onClick={() => setAllBookingsOpen(true)}>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="rounded-xl bg-accent/10 p-3 text-accent group-hover:bg-accent group-hover:text-white transition-colors"><Calendar className="h-6 w-6"/></div>
-            <div><p className="text-sm text-muted-foreground">Recent Bookings</p><p className="text-2xl font-bold">{snapshotBookings.length}</p></div>
-          </CardContent>
+        <Card className="p-6 border-l-4 border-l-accent shadow-sm bg-card/50 hover:shadow-md transition-all cursor-pointer" onClick={() => setAllBookingsOpen(true)}>
+          <div className="flex justify-between items-start"><p className="text-sm font-medium text-muted-foreground uppercase tracking-widest text-[10px]">Recent bookings</p><Calendar className="h-5 w-5 text-accent" /></div>
+          <div className="mt-3"><h3 className="text-2xl font-bold">{snapshotBookings.length}</h3></div>
         </Card>
-        <Card className="bg-card/50 backdrop-blur-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="rounded-xl bg-success/10 p-3 text-success group-hover:bg-success group-hover:text-white transition-colors"><IndianRupee className="h-6 w-6"/></div>
-            <div><p className="text-sm text-muted-foreground">Recent Revenue</p><p className="text-2xl font-bold">₹{(totalRevenue / 100000).toFixed(2)} L</p></div>
-          </CardContent>
+        <Card className="p-6 border-l-4 border-l-success shadow-sm bg-card/50">
+          <div className="flex justify-between items-start"><p className="text-sm font-medium text-muted-foreground uppercase tracking-widest text-[10px]">Gross Revenue</p><IndianRupee className="h-5 w-5 text-success" /></div>
+          <div className="mt-3"><h3 className="text-2xl font-bold">₹{(totalRevenue / 100000).toFixed(2)} L</h3></div>
         </Card>
       </div>
 
@@ -229,19 +233,31 @@ export default function CustomerBookings() {
         <CustomerGroupInsights customers={processedCustomers} allBookings={snapshotBookings} />
       </div>
 
+      <div className="my-10">
+        <ExpiringBookings 
+          onViewBooking={setViewBooking} 
+          onViewReport={() => setAllBookingsOpen(true)}
+        />
+      </div>
+
       <div ref={listSectionRef}>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="bookings">Client Cards</TabsTrigger>
-            <TabsTrigger value="manage">Manage Registry</TabsTrigger>
+          {/* 5. Tabs (Medium weight, updated Registry name) */}
+          <TabsList className="bg-muted/50 p-1">
+            <TabsTrigger value="bookings" className="font-medium">Client Cards</TabsTrigger>
+            <TabsTrigger value="manage" className="font-medium">Customer Registry</TabsTrigger>
           </TabsList>
+          
           <div className="mt-6">
             <div className="relative max-w-md mb-6">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search company..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+              <Input placeholder="Search company database..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
             </div>
+
             <TabsContent value="bookings" className="space-y-4 m-0">
-              {loadingCust ? <div className="py-20 text-center">Syncing records...</div> : (
+              {loadingCust ? (
+                <div className="py-20 text-center text-muted-foreground animate-pulse">Syncing encrypted records...</div>
+              ) : (
                 <>
                   {processedCustomers.map((customer) => (
                     <CustomerCard key={customer.id} customer={customer} bookings={snapshotBookings.filter(b => (b.customerId?._id || b.customerId) === customer.id)} onViewBooking={setViewBooking} />
@@ -250,26 +266,27 @@ export default function CustomerBookings() {
                 </>
               )}
             </TabsContent>
+
             <TabsContent value="manage" className="m-0">
-              <Card className="bg-card/50">
+              <Card className="bg-card/50 border-none shadow-sm">
                 <CardContent className="p-0">
                   <Table>
-                    <TableHeader><TableRow className="bg-muted/50"><TableHead>Customer</TableHead><TableHead>Group</TableHead><TableHead>Recent Bookings</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow className="bg-muted/30"><TableHead>Customer Entity</TableHead><TableHead>Sector Group</TableHead><TableHead>Volume</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {processedCustomers.map(c => (
-                        <TableRow key={c.id}>
+                        <TableRow key={c.id} className="hover:bg-muted/20">
                           <TableCell className="font-medium">{c.company}</TableCell>
-                          <TableCell><Badge variant="outline">{c.group || 'N/A'}</Badge></TableCell>
-                          <TableCell><Badge variant="secondary">{c.totalBookings}</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className="bg-background font-normal">{c.group || 'General'}</Badge></TableCell>
+                          <TableCell><Badge variant="secondary" className="font-mono font-normal">{c.totalBookings}</Badge></TableCell>
                           <TableCell className="text-right flex justify-end gap-1">
                             <Button variant="ghost" size="icon" onClick={() => setEditCustomer(c)}><Pencil className="h-4 w-4"/></Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteCustomer(c)}><Trash2 className="h-4 w-4"/></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setDeleteBooking(c)}><Trash2 className="h-4 w-4"/></Button>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="p-4 border-t">
+                  <div className="p-4 border-t border-border/50">
                     <PaginationControls currentPage={clientPage} totalPages={custRes?.pagination?.totalPages || 1} onPageChange={setClientPage} totalItems={custRes?.pagination?.total} pageSize={10} />
                   </div>
                 </CardContent>
@@ -279,6 +296,11 @@ export default function CustomerBookings() {
         </Tabs>
       </div>
 
+      <div className="pt-8 border-t flex justify-between items-center text-[10px] text-muted-foreground uppercase font-medium tracking-widest">
+        <p><ShieldCheck className="h-3 w-3 inline mr-1" /> Secure CRM Data Stream</p>
+      </div>
+
+      {/* MODALS */}
       <AllBookingsDialog 
         open={allBookingsOpen} 
         onOpenChange={setAllBookingsOpen} 
@@ -292,7 +314,7 @@ export default function CustomerBookings() {
 
       {viewBooking && <ViewBookingDialog booking={viewBooking} open={!!viewBooking} onOpenChange={() => setViewBooking(null)} />}
       {editBooking && <EditBookingDialog booking={editBooking} open={!!editBooking} onOpenChange={() => setEditBooking(null)} onSave={handleUpdateBooking} />}
-      {deleteBooking && <DeleteBookingDialog booking={deleteBooking} open={!!deleteBooking} onOpenChange={() => setDeleteBooking(null)} onConfirm={(id: string) => deleteBookingMutation.mutate(id)} />}
+      {deleteBooking && <DeleteBookingDialog booking={deleteBooking} open={!!deleteBooking} onOpenChange={() => setDeleteBooking(null)} onConfirm={handleDeleteBooking} />}
       <AddCustomerDialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen} availableGroups={initialGroups} onAddGroup={() => {}} onCustomerAdded={() => {}} />
       {editCustomer && <EditCustomerDialog customer={editCustomer} open={!!editCustomer} onOpenChange={() => setEditCustomer(null)} availableGroups={initialGroups} onCustomerUpdated={() => {}} onAddGroup={() => {}} />}
       {deleteCustomer && <DeleteCustomerDialog customer={deleteCustomer} open={!!deleteCustomer} onOpenChange={() => setDeleteCustomer(null)} onCustomerDeleted={() => {}} />}

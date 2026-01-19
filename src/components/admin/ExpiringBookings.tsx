@@ -1,14 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Link } from "react-router-dom";
-import { AlertTriangle, Phone, Mail, Calendar, MapPin, ArrowRight } from "lucide-react";
+import { AlertTriangle, Phone, ArrowRight, TrendingDown, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useBookings } from "@/hooks/api/useBookings";
-import { format } from "date-fns";
 
-export function ExpiringBookings() {
-  // Fetch active bookings from API
+interface ExpiringBookingsProps {
+  onViewBooking?: (booking: any) => void;
+  onViewReport?: () => void;
+}
+
+export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookingsProps) {
+  // Fetch active bookings
   const { data: bookingsRes } = useBookings({ status: 'Active' });
   const allBookings = bookingsRes?.data || [];
 
@@ -27,71 +30,77 @@ export function ExpiringBookings() {
     })
     .sort((a, b) => a.daysLeft - b.daysLeft);
 
-  const getUrgencyColor = (days: number) => {
-    if (days <= 7) return 'destructive';
-    if (days <= 14) return 'warning';
-    return 'secondary';
-  };
-
-  if (expiringBookings.length === 0) return null;
-
+  // Note: Card is always rendered now to ensure it appears in the UI
   return (
-    <Card className="border-border/50 bg-card">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-warning" />
-            Expiring Soon - Follow Up Required
+    <Card className="border-none shadow-2xl bg-orange-600 text-white transition-all group overflow-hidden relative animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-150 transition-transform text-white">
+        <TrendingDown className="h-32 w-32" />
+      </div>
+      
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle className="flex items-center gap-2 text-xl tracking-tight font-medium relative z-10">
+            <AlertTriangle className="h-6 w-6" /> 
+            Expiring Soon
           </CardTitle>
-          <Badge variant="outline">{expiringBookings.length} bookings</Badge>
+          <Badge className="bg-white/20 text-white border-none font-medium backdrop-blur-sm px-3">
+            Action Required
+          </Badge>
         </div>
+        <p className="text-orange-50/80 text-sm relative z-10">
+          {expiringBookings.length > 0 
+            ? `Detecting ${expiringBookings.length} campaigns expiring within 30 days.`
+            : "No campaigns currently expiring in the next 30 days."}
+        </p>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {expiringBookings.map((booking: any) => (
-          <div key={booking._id} className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border">
-            <div className="shrink-0">
-              <Badge variant={getUrgencyColor(booking.daysLeft)}>{booking.daysLeft} days left</Badge>
-            </div>
 
-            <div className="flex-1 min-w-0 space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-sm truncate">{booking.mediaId?.name || "N/A"}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {booking.mediaId?.city}, {booking.mediaId?.district}
-                  </p>
+      {expiringBookings.length > 0 && (
+        <CardContent className="relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {expiringBookings.slice(0, 3).map((booking: any, i) => (
+              <div 
+                key={booking._id} 
+                className="flex items-center justify-between p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 hover:bg-white/20 transition-all cursor-pointer animate-in fade-in slide-in-from-right duration-500"
+                style={{ animationDelay: `${(i + 1) * 150}ms` }}
+                onClick={() => onViewBooking?.(booking)}
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center font-medium shrink-0 shadow-inner text-lg">
+                    {booking.daysLeft}d
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate uppercase tracking-tight">{booking.mediaId?.name || "Site N/A"}</p>
+                    <p className="text-xs text-white/70 truncate">{booking.customerId?.company || booking.customerId?.name}</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 shrink-0">
+                   <a 
+                     href={`tel:${booking.customerId?.phone}`} 
+                     className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/40 transition-colors"
+                     onClick={(e) => e.stopPropagation()}
+                   >
+                     <Phone className="h-4 w-4" />
+                   </a>
+                   <div className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center text-white">
+                     <ChevronRight className="h-5 w-5" />
+                   </div>
                 </div>
               </div>
-
-              <div className="p-2 rounded bg-background/50 space-y-1">
-                <p className="text-sm font-medium">{booking.customerId?.company || booking.customerId?.name}</p>
-                <div className="flex items-center gap-4 pt-1">
-                  <a href={`tel:${booking.customerId?.phone}`} className="text-xs text-primary flex items-center gap-1">
-                    <Phone className="h-3 w-3" /> {booking.customerId?.phone}
-                  </a>
-                  <a href={`mailto:${booking.customerId?.email}`} className="text-xs text-primary flex items-center gap-1">
-                    <Mail className="h-3 w-3" /> {booking.customerId?.email}
-                  </a>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                <span>{format(new Date(booking.startDate), 'dd/MM/yyyy')}</span>
-                <ArrowRight className="h-3 w-3" />
-                <span className="font-medium text-foreground">{format(new Date(booking.endDate), 'dd/MM/yyyy')}</span>
-              </div>
-            </div>
-
-            <div className="shrink-0">
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/admin/media/${booking.mediaId?._id}`}>View</Link>
-              </Button>
-            </div>
+            ))}
           </div>
-        ))}
-      </CardContent>
+          
+          <div className="mt-6 flex justify-center">
+              <Button 
+                  variant="outline" 
+                  onClick={(e) => { e.stopPropagation(); onViewReport?.(); }}
+                  className="w-full bg-white/5 border-white/20 text-white hover:bg-white/20 gap-2 py-6 rounded-xl font-medium"
+              >
+                  Generate Detailed Expiry Report <ArrowRight className="h-4 w-4" />
+              </Button>
+          </div>
+        </CardContent>
+      )}
     </Card>
   );
 }

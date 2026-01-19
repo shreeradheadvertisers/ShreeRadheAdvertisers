@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, MapPin, Pencil, Trash2, Eye, Search, ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
+import { FileText, MapPin, Pencil, Trash2, Eye, Search, ChevronLeft, ChevronRight, ListFilter, Calendar } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +25,10 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
   if (!booking) return null;
   const balance = (booking.amount || 0) - (booking.amountPaid || 0);
   const media = booking.mediaId || booking.media;
+  
+  // Format dates for display
+  const startDate = booking.startDate?.split('T')[0] || "N/A";
+  const endDate = booking.endDate?.split('T')[0] || "N/A";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,34 +40,47 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4 bg-muted/50 p-3 rounded-lg border">
             <div>
-              <span className="text-[10px] font-bold uppercase text-muted-foreground block">Status</span>
-              <Badge variant={booking.status === 'Active' ? 'success' : 'outline'}>
+              <span className="text-[10px] font-medium uppercase text-muted-foreground block">Status</span>
+              <Badge variant={booking.status === 'Active' ? 'success' : 'outline'} className="font-normal">
                 {getStatusLabel(booking.status)}
               </Badge>
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-bold uppercase text-muted-foreground block">Payment</span>
-              <Badge variant={booking.paymentStatus === 'Paid' ? 'success' : 'warning'}>{booking.paymentStatus}</Badge>
+              <span className="text-[10px] font-medium uppercase text-muted-foreground block">Payment</span>
+              <Badge variant={booking.paymentStatus === 'Paid' ? 'success' : 'warning'} className="font-normal">{booking.paymentStatus}</Badge>
             </div>
           </div>
           <div className="space-y-3">
             <div className="flex gap-3">
               <MapPin className="h-4 w-4 mt-1 text-primary" />
               <div>
-                <p className="text-sm font-bold">{media?.name || "N/A"}</p>
+                <p className="text-sm font-medium">{media?.name || "N/A"}</p>
                 <p className="text-xs text-muted-foreground">{media?.city}</p>
               </div>
             </div>
+            
             <Separator />
+
+            {/* Added: Booking Schedule Dates */}
+            <div className="flex gap-3">
+              <Calendar className="h-4 w-4 mt-1 text-primary" />
+              <div>
+                <p className="text-[10px] font-medium uppercase text-muted-foreground">Booking Period</p>
+                <p className="text-sm font-medium text-foreground">{startDate} to {endDate}</p>
+              </div>
+            </div>
+
+            <Separator />
+            
             <div className="bg-muted/30 p-3 rounded-md space-y-2">
-              <div className="flex justify-between text-sm font-bold italic">
+              <div className="flex justify-between text-sm font-medium italic">
                 <span>Balance Due:</span>
                 <span className={balance > 0 ? "text-destructive" : "text-success"}>₹{formatIndianRupee(balance)}</span>
               </div>
             </div>
           </div>
         </div>
-        <DialogFooter><Button onClick={() => onOpenChange(false)} className="w-full">Close</Button></DialogFooter>
+        <DialogFooter><Button onClick={() => onOpenChange(false)} className="w-full font-normal">Close</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -82,7 +99,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <DialogHeader><DialogTitle>Edit Booking</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-medium">Edit Booking</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase">Manual Status Override</label>
@@ -115,7 +132,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
             <label className="text-xs font-medium">Total Amount</label>
             <Input type="number" value={formData.amount} onChange={(e) => setFormData({...formData, amount: Number(e.target.value)})} />
           </div>
-          <DialogFooter><Button type="submit" className="w-full">Update Booking</Button></DialogFooter>
+          <DialogFooter><Button type="submit" className="w-full font-medium">Update Booking</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -127,7 +144,7 @@ export function DeleteBookingDialog({ booking, open, onOpenChange, onConfirm }: 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Delete Booking?</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-medium">Delete Booking?</DialogTitle></DialogHeader>
         <p className="text-sm text-muted-foreground">Are you sure? This cannot be undone.</p>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -138,7 +155,6 @@ export function DeleteBookingDialog({ booking, open, onOpenChange, onConfirm }: 
   );
 }
 
-// --- UPDATED: ALL BOOKINGS DIALOG WITH STATUS FILTER ---
 export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onEdit, onDelete, onView, pagination }: any) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -204,11 +220,11 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
                 const media = b.mediaId || b.media;
                 return (
                   <TableRow key={b._id || b.id}>
-                    <TableCell className="font-bold">{customer?.company || "Unknown"}</TableCell>
+                    <TableCell className="font-medium">{customer?.company || "Unknown"}</TableCell>
                     <TableCell><div className="text-xs">{media?.name}</div></TableCell>
                     <TableCell className="text-[10px]">{b.startDate?.split('T')[0]} to {b.endDate?.split('T')[0]}</TableCell>
                     <TableCell>
-                      <Badge variant={b.status === 'Active' ? 'success' : 'outline'} className="text-[10px]">
+                      <Badge variant={b.status === 'Active' ? 'success' : 'outline'} className="text-[10px] font-normal">
                         {getStatusLabel(b.status)}
                       </Badge>
                     </TableCell>
@@ -230,11 +246,11 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
             </TableBody>
           </Table>
         </ScrollArea>
-        <div className="flex items-center justify-between py-4 border-t px-2 bg-background mt-auto">
-          <p className="text-xs text-muted-foreground">Page <strong>{pagination.currentPage}</strong> of {pagination.totalPages}</p>
+        <div className="flex items-center justify-between py-4 border-t px-2 bg-background mt-auto text-xs text-muted-foreground">
+          <p>Page <strong>{pagination.currentPage}</strong> of {pagination.totalPages}</p>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={pagination.currentPage === 1} onClick={() => pagination.onPageChange(pagination.currentPage - 1)}><ChevronLeft className="h-4 w-4 mr-1" /> Previous</Button>
-            <Button variant="outline" size="sm" disabled={pagination.currentPage === pagination.totalPages} onClick={() => pagination.onPageChange(pagination.currentPage + 1)}>Next <ChevronRight className="h-4 w-4 ml-1" /></Button>
+            <Button variant="outline" size="sm" disabled={pagination.currentPage === 1} onClick={() => pagination.onPageChange(pagination.currentPage - 1)} className="font-normal"><ChevronLeft className="h-4 w-4 mr-1" /> Previous</Button>
+            <Button variant="outline" size="sm" disabled={pagination.currentPage === pagination.totalPages} onClick={() => pagination.onPageChange(pagination.currentPage + 1)} className="font-normal">Next <ChevronRight className="h-4 w-4 ml-1" /></Button>
           </div>
         </div>
       </DialogContent>
