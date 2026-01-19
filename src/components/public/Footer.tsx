@@ -3,31 +3,31 @@ import { Mail, Phone, MapPin, Linkedin, Facebook, Instagram } from "lucide-react
 import logo from "@/assets/logo.png";
 
 export function Footer() {
+  const scrollToTop = () => window.scrollTo(0, 0);
+
   return (
     <footer className="bg-card border-t border-border">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" onClick={scrollToTop} className="flex items-center gap-2">
               <img src={logo} alt="Shree Radhe Advertisers" className="h-12 w-auto" />
             </Link>
             <p className="text-sm text-muted-foreground">
               Premium outdoor advertising platform connecting brands with strategic billboard and media locations across India.
             </p>
             <div className="flex items-center gap-3">
-              {/* LinkedIn: Updated to navigate to home and scroll to top */}
               <Link 
                 to="/" 
-                onClick={() => window.scrollTo(0, 0)}
+                onClick={scrollToTop}
                 className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 <Linkedin className="h-4 w-4" />
               </Link>
               
-              {/* Facebook: Updated to navigate to home and scroll to top */}
               <Link 
                 to="/" 
-                onClick={() => window.scrollTo(0, 0)}
+                onClick={scrollToTop}
                 className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 <Facebook className="h-4 w-4" />
@@ -47,38 +47,44 @@ export function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link to="/" className="hover:text-primary transition-colors">Home</Link></li>
-              <li><Link to="/explore" className="hover:text-primary transition-colors">Explore Media</Link></li>
-              <li><Link to="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
+              <li><Link to="/" onClick={scrollToTop} className="hover:text-primary transition-colors">Home</Link></li>
+              <li><Link to="/explore" onClick={scrollToTop} className="hover:text-primary transition-colors">Explore Media</Link></li>
+              <li><Link to="/contact" onClick={scrollToTop} className="hover:text-primary transition-colors">Contact Us</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold mb-4">Media Types</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
+              {/* Corrected mapping from plural display names to singular filter types */}
               <li>
-                <Link to="/explore" state={{ filter: "Unipoles" }} className="hover:text-primary transition-colors">
+                <Link to="/explore" state={{ filterType: "Unipole" }} onClick={scrollToTop} className="hover:text-primary transition-colors">
                   Unipoles
                 </Link>
               </li>
               <li>
-                <Link to="/explore" state={{ filter: "Hoardings" }} className="hover:text-primary transition-colors">
+                <Link to="/explore" state={{ filterType: "Hoarding" }} onClick={scrollToTop} className="hover:text-primary transition-colors">
                   Hoardings
                 </Link>
               </li>
               <li>
-                <Link to="/explore" state={{ filter: "Digital LED" }} className="hover:text-primary transition-colors">
+                <Link to="/explore" state={{ filterType: "Digital LED" }} onClick={scrollToTop} className="hover:text-primary transition-colors">
                   Digital LED
                 </Link>
               </li>
               <li>
-                <Link to="/explore" state={{ filter: "Gantries" }} className="hover:text-primary transition-colors">
+                <Link to="/explore" state={{ filterType: "Gantry" }} onClick={scrollToTop} className="hover:text-primary transition-colors">
                   Gantries
                 </Link>
               </li>
               <li>
-                <Link to="/explore" state={{ filter: "Kiosks" }} className="hover:text-primary transition-colors">
+                <Link to="/explore" state={{ filterType: "Kiosk" }} onClick={scrollToTop} className="hover:text-primary transition-colors">
                   Kiosks
+                </Link>
+              </li>
+              <li>
+                <Link to="/explore" state={{ filterType: "Bus Shelter" }} onClick={scrollToTop} className="hover:text-primary transition-colors">
+                  Bus Shelters
                 </Link>
               </li>
             </ul>
@@ -108,7 +114,7 @@ export function Footer() {
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary" />
                 <a 
-                  href="https://www.google.com/maps/dir/?api=1&destination=Shree+Radhe+Advertisers,+Station+Road,+Durg,+Chhattisgarh+491001" 
+                  href="https://www.google.com/maps/search/Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump+Durg,+Chhattisgarh+491001" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors text-left"

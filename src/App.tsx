@@ -9,7 +9,7 @@ import { RecycleBinProvider } from "@/contexts/RecycleBinContext"; // Added Impo
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
-
+import ScrollToTop from "./components/ScrollToTop"; // Import the new component
 
 // Public Pages
 import Index from "./pages/Index";
@@ -51,6 +51,7 @@ const App = () => (
                 v7_relativeSplatPath: true,
               }}
             >
+              <ScrollToTop /> {/* Added ScrollToTop here inside BrowserRouter */}
               <Routes>
                 {/* Public Routes */}
                 <Route element={<PublicLayout />}>

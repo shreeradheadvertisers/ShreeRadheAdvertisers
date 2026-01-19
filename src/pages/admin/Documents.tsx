@@ -53,9 +53,11 @@ const Documents = () => {
   const [taxes, setTaxes] = useState<TaxRecord[]>([]);
   const [editingAgreement, setEditingAgreement] = useState<TenderAgreement | null>(null);
   
+  // Updated to include upcomingTaxes to fix type error
   const [stats, setStats] = useState<ComplianceStats>({
     expiringTenders: 0,
     pendingTaxes: 0,
+    upcomingTaxes: 0, 
     overdueTaxes: 0,
     totalActiveTenders: 0,
     totalTaxLiability: 0,
@@ -94,6 +96,9 @@ const Documents = () => {
   // --- STATS CALCULATION ---
   useEffect(() => {
     const today = new Date();
+    const next10Days = new Date();
+    next10Days.setDate(today.getDate() + 10);
+
     const activeAgreements = agreements.filter(a => !a.deleted);
     const activeTaxes = taxes.filter(t => !t.deleted);
     
@@ -111,9 +116,16 @@ const Documents = () => {
       .filter(t => t.status !== 'Paid')
       .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
 
+    // Calculate Upcoming Taxes (due in next 10 days)
+    const upcomingCount = activeTaxes.filter(t => {
+      const dueDate = new Date(t.dueDate);
+      return t.status === 'Pending' && dueDate >= today && dueDate <= next10Days;
+    }).length;
+
     setStats({
       expiringTenders: expiring,
       pendingTaxes: activeTaxes.filter(t => t.status === 'Pending').length,
+      upcomingTaxes: upcomingCount, 
       overdueTaxes: activeTaxes.filter(t => t.status === 'Overdue' || (t.status !== 'Paid' && new Date(t.dueDate) < today)).length,
       totalActiveTenders: activeAgreements.filter(t => t.status === 'Active').length,
       totalTaxLiability: totalUnpaid,
@@ -200,9 +212,6 @@ const Documents = () => {
 
     try {
       if (editingAgreement) {
-        // If editing and a file is selected, we need to upload the new file first or use a multipart update mutation
-        // For simplicity, we use updateAgreementMutation for metadata. 
-        // Note: If you want to replace the file on edit, your useUpdateAgreement hook must support FormData or handle file upload.
         await updateAgreementMutation.mutateAsync({ 
           id: editingAgreement.id, 
           data: { ...payload, file: selectedFile } 
@@ -348,23 +357,31 @@ const Documents = () => {
         </div>
       </div>
 
-      {/* --- CLICKABLE STATS CARDS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* --- CLICKABLE STATS CARDS (Updated to 5 columns) --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card className="cursor-pointer hover:border-primary/50 transition-all active:scale-[0.98]" onClick={() => { setActiveTab("agreements"); setAgreementStatusFilter("Active"); }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Active Agreements</CardTitle><FileText className="h-4 w-4 text-muted-foreground" /></CardHeader>
           <CardContent><div className="text-2xl font-bold">{stats.totalActiveTenders}</div></CardContent>
         </Card>
+
+        <Card className="cursor-pointer hover:border-amber-500/50 transition-all active:scale-[0.98]" onClick={() => { setActiveTab("taxes"); setTaxStatusFilter("Pending"); }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Upcoming (10 Days)</CardTitle><Clock className="h-4 w-4 text-amber-500" /></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{stats.upcomingTaxes}</div></CardContent>
+        </Card>
+
         <Card className="cursor-pointer hover:border-orange-500/50 transition-all active:scale-[0.98]" onClick={() => { setActiveTab("taxes"); setTaxStatusFilter("Pending"); }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Current Liability</CardTitle><AlertCircle className="h-4 w-4 text-orange-500" /></CardHeader>
           <CardContent><div className="text-2xl font-bold">₹{stats.totalTaxLiability.toLocaleString('en-IN')}</div></CardContent>
         </Card>
+
+        <Card className="cursor-pointer hover:border-destructive/50 transition-all active:scale-[0.98]" onClick={() => { setActiveTab("taxes"); setTaxStatusFilter("Overdue"); }}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Overdue Taxes</CardTitle><AlertCircle className="h-4 w-4 text-destructive" /></CardHeader>
+          <CardContent><div className="text-2xl font-bold text-destructive">{stats.overdueTaxes}</div></CardContent>
+        </Card>
+
         <Card className="cursor-pointer hover:border-green-500/50 transition-all active:scale-[0.98]" onClick={() => { setActiveTab("taxes"); setTaxStatusFilter("Paid"); }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Tax Paid</CardTitle><CheckCircle2 className="h-4 w-4 text-green-500" /></CardHeader>
           <CardContent><div className="text-2xl font-bold">₹{stats.totalTaxPaid.toLocaleString('en-IN')}</div></CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:border-destructive/50 transition-all active:scale-[0.98]" onClick={() => { setActiveTab("taxes"); setTaxStatusFilter("Overdue"); }}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Overdue Taxes</CardTitle><Clock className="h-4 w-4 text-destructive" /></CardHeader>
-          <CardContent><div className="text-2xl font-bold text-destructive">{stats.overdueTaxes}</div></CardContent>
         </Card>
       </div>
 
@@ -479,7 +496,7 @@ const Documents = () => {
         </TabsContent>
       </Tabs>
 
-      {/* --- AGREEMENT DIALOG (Fixed Edit PDF Option) --- */}
+      {/* --- AGREEMENT DIALOG --- */}
       <Dialog open={isAgreementDialogOpen} onOpenChange={(val) => { setIsAgreementDialogOpen(val); if(!val) setEditingAgreement(null); }}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -529,7 +546,6 @@ const Documents = () => {
                 </div>
              </div>
              
-             {/* File Upload (Always visible, mandatory for new, optional for edit) */}
              <div className="space-y-2">
                 <Label>Agreement PDF {editingAgreement && "(Optional - upload to replace)"}</Label>
                 <div className="border-2 border-dashed rounded-lg p-6 text-center relative hover:bg-muted/50 cursor-pointer">

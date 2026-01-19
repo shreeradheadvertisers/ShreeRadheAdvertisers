@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { 
   TenderAgreement, 
   TaxRecord, 
@@ -7,7 +5,7 @@ import {
 } from './api/types';
 import { type BookingStatus } from './api/types';
 
-export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED';
+export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED' | 'Bus Shelter';
 export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon' | 'Maintenance';
 export type PaymentStatus = 'Paid' | 'Pending' | 'Partially Paid';
 export type PaymentMode = 'Cash' | 'Cheque' | 'Online' | 'Bank Transfer';
@@ -69,7 +67,7 @@ export const states: string[] = [];
 export const districts: Record<string, string[]> = {};
 export const cities: Record<string, string[]> = {};
 
-export const mediaTypes: MediaType[] = ['Unipole', 'Hoarding', 'Gantry', 'Kiosk', 'Digital LED'];
+export const mediaTypes: MediaType[] = ['Unipole', 'Hoarding', 'Gantry', 'Kiosk', 'Digital LED', 'Bus Shelter'];
 export const customerGroups = ['Corporate', 'Government', 'Agency', 'Startup', 'Non-Profit'];
 
 // Empty media locations - data from backend
@@ -214,8 +212,12 @@ export const tenders: TenderAgreement[] = [];
 // Empty tax records - data from backend
 export const taxRecords: TaxRecord[] = [];
 
+// ... existing imports
+
 export const getComplianceStats = (): ComplianceStats => {
   const today = new Date();
+  const next10Days = new Date();
+  next10Days.setDate(today.getDate() + 10);
   
   const expiringTenders = tenders.filter(t => {
     if (t.status === 'Expired') return false;
@@ -228,9 +230,16 @@ export const getComplianceStats = (): ComplianceStats => {
   const pendingTaxes = taxRecords.filter(t => t.status === 'Pending').length;
   const overdueTaxes = taxRecords.filter(t => t.status === 'Overdue').length;
 
+  // Added calculation for Upcoming Taxes (due in next 10 days)
+  const upcomingTaxes = taxRecords.filter(t => {
+    const dueDate = new Date(t.dueDate);
+    return t.status === 'Pending' && dueDate >= today && dueDate <= next10Days;
+  }).length;
+
   return {
     expiringTenders,
     pendingTaxes,
+    upcomingTaxes, // Added to match ComplianceStats interface
     overdueTaxes,
     totalActiveTenders: tenders.filter(t => t.status === 'Active').length,
     totalTaxLiability: taxRecords.filter(t => t.status !== 'Paid').reduce((sum, t) => sum + t.amount, 0),

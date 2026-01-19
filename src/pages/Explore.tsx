@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom"; 
 import { MediaCard } from "@/components/public/MediaCard";
 import { FilterPanel } from "@/components/public/FilterPanel";
 import { mediaLocations } from "@/lib/data";
@@ -13,9 +15,24 @@ import { isBackendConfigured } from "@/lib/api/config";
 import { adaptMediaLocation } from "@/lib/services/dataService";
 
 const Explore = () => {
-  // --- 1. Persisted State Initialization ---
+  const location = useLocation();
+
+  // --- 1. Persisted & State Initialization ---
   
   const [filters, setFilters] = useState(() => {
+    // Priority 1: Check for navigation state (passed from Home page categories or Footer)
+    const navState = location.state as any;
+    if (navState?.filterType) {
+      return {
+        search: '',
+        state: '',
+        district: '',
+        type: navState.filterType,
+        status: '',
+      };
+    }
+
+    // Priority 2: Fallback to sessionStorage
     const saved = sessionStorage.getItem('explore-filters');
     return saved ? JSON.parse(saved) : {
       search: '',
@@ -40,7 +57,23 @@ const Explore = () => {
   const itemsPerPage = 12;
   const isInitialMount = useRef(true);
 
-  // --- 2. Persistence Effects ---
+  // --- 2. Persistence & Navigation Effects ---
+
+  // Handle internal navigation (when clicking footer links while already on Explore page)
+  useEffect(() => {
+    const navState = location.state as any;
+    if (navState?.filterType && navState.filterType !== filters.type) {
+      setFilters({
+        search: '',
+        state: '',
+        district: '',
+        type: navState.filterType,
+        status: '',
+      });
+      setCurrentPage(1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [location.state]);
 
   // Save state to sessionStorage whenever they change
   useEffect(() => {
@@ -237,13 +270,13 @@ const Explore = () => {
 
                       <form onSubmit={handleJumpToPage} className="flex items-center gap-2 border-l pl-4">
                         <span className="text-sm text-muted-foreground whitespace-nowrap">Go to:</span>
-                        <Input
+                        <input
                           type="number"
                           min="1"
                           max={totalPages}
                           value={jumpPage}
                           onChange={(e) => setJumpPage(e.target.value)}
-                          className="w-16 h-9 text-center"
+                          className="w-16 h-9 text-center border rounded-md"
                         />
                         <Button type="submit" size="sm" variant="ghost" className="h-9 px-3">
                           Go

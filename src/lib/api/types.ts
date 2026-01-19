@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ============= ENUMS =============
-export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED';
+export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED' | 'Bus Shelter';
 export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon' | 'Maintenance';
 export type LightingType = 'Front Lit' | 'Back Lit' | 'Non-Lit' | 'Digital';
 export type PaymentStatus = 'Paid' | 'Pending' | 'Partially Paid';
