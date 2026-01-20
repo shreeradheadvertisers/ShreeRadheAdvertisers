@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, MapPin, PlusCircle, Upload, Loader2, FileSpreadsheet, FileText, FileBox } from "lucide-react"; 
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate, useSearchParams } from "react-router-dom"; 
 import { MediaTable } from "@/components/admin/MediaTable";
 import { mediaTypes } from "@/lib/data"; 
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,29 +34,32 @@ import { MediaLocation, MediaType, MediaStatus } from "@/lib/api/types";
 
 const MediaManagement = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { activeState, districts } = useLocationData();
   
-  // --- PERSISTENCE LOGIC: Initialize state from sessionStorage ---
-  const [searchQuery, setSearchQuery] = useState(() => sessionStorage.getItem('media_filter_search') || "");
-  const [districtFilter, setDistrictFilter] = useState(() => sessionStorage.getItem('media_filter_district') || "all");
-  const [typeFilter, setTypeFilter] = useState(() => sessionStorage.getItem('media_filter_type') || "all");
-  const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem('media_filter_status') || "all");
-  const [currentPage, setCurrentPage] = useState(() => Number(sessionStorage.getItem('media_filter_page')) || 1);
+  // --- UPDATED: Initialize state with default values (No sessionStorage) ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [districtFilter, setDistrictFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   
   const itemsPerPage = 12;
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MediaLocation | null>(null);
 
-  // --- PERSISTENCE LOGIC: Save filters to sessionStorage whenever they change ---
+  // --- SYNC URL PARAMETERS (Dashboard clicks: Available / Booked) ---
   useEffect(() => {
-    sessionStorage.setItem('media_filter_search', searchQuery);
-    sessionStorage.setItem('media_filter_district', districtFilter);
-    sessionStorage.setItem('media_filter_type', typeFilter);
-    sessionStorage.setItem('media_filter_status', statusFilter);
-    sessionStorage.setItem('media_filter_page', String(currentPage));
-  }, [searchQuery, districtFilter, typeFilter, statusFilter, currentPage]);
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      setStatusFilter(statusParam);
+      setCurrentPage(1);
+      // Clean up URL so the filter doesn't "stick" on next visit
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
-  // --- Reset to page 1 ONLY when filters change after initial mount ---
+  // --- Reset to page 1 when filters change ---
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
@@ -208,7 +211,6 @@ const MediaManagement = () => {
               pagination={mediaResponse?.pagination} 
               onPageChange={setCurrentPage}         
               onDelete={(id) => {
-                // Robust check: try to find by database _id OR custom id
                 const item = mediaResponse?.data.find(m => m._id === id || m.id === id);
                 if (item) setItemToDelete(item);
               }}

@@ -2,14 +2,16 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LocationDataProvider } from "@/contexts/LocationDataContext";
-import { RecycleBinProvider } from "@/contexts/RecycleBinContext"; // Added Import
+import { RecycleBinProvider } from "@/contexts/RecycleBinContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import ScrollToTop from "./components/ScrollToTop"; // Import the new component
+import ScrollToTop from "./components/ScrollToTop";
+import { useEffect } from "react";
+import { logPageView } from "./lib/analytics";
 
 // Public Pages
 import Index from "./pages/Index";
@@ -37,10 +39,21 @@ import Documents from "./pages/admin/Documents";
 
 const queryClient = new QueryClient();
 
+// Google Analytics Route Tracker
+const RouteTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    logPageView(); // Sends page view to Google every time URL changes
+  }, [location]);
+
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <RecycleBinProvider> {/* Wrapped with RecycleBinProvider to fix context error */}
+      <RecycleBinProvider>
         <LocationDataProvider>
           <TooltipProvider>
             <Toaster />
@@ -51,7 +64,8 @@ const App = () => (
                 v7_relativeSplatPath: true,
               }}
             >
-              <ScrollToTop /> {/* Added ScrollToTop here inside BrowserRouter */}
+              <RouteTracker />
+              <ScrollToTop />
               <Routes>
                 {/* Public Routes */}
                 <Route element={<PublicLayout />}>
