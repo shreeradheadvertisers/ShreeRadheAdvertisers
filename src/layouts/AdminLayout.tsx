@@ -101,11 +101,27 @@ function AdminLayoutContent() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
-        <AdminSidebar />
-        <SidebarInset className="flex flex-col flex-1 transition-all duration-300">
-          <AdminHeader onOpenBin={() => setRecycleBinOpen(true)} binCount={deletedItems.length} />
-          <main className="p-6">
+      {/* Changes for Print:
+        1. print:h-auto -> Allows height to grow beyond screen
+        2. print:block -> Disables flex layout which can trap content
+        3. print:overflow-visible -> Ensures content isn't clipped
+      */}
+      <div className="flex min-h-screen w-full bg-background print:h-auto print:block print:overflow-visible">
+        
+        {/* Hide Sidebar on print */}
+        <div className="print:hidden">
+          <AdminSidebar />
+        </div>
+        
+        <SidebarInset className="flex flex-col flex-1 transition-all duration-300 print:h-auto print:overflow-visible print:block">
+          
+          {/* Hide Header on print */}
+          <div className="print:hidden">
+            <AdminHeader onOpenBin={() => setRecycleBinOpen(true)} binCount={deletedItems.length} />
+          </div>
+          
+          {/* Remove padding/margins on print */}
+          <main className="p-6 print:p-0 print:m-0 print:h-auto print:overflow-visible">
             <Outlet />
           </main>
         </SidebarInset>
