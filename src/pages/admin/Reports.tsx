@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom"; 
+import { useNavigate } from "react-router-dom"; // IMPORTED
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function Reports() {
   const { user } = useAuth();
+  const navigate = useNavigate(); // INITIALIZED HOOK
   const [activeTab, setActiveTab] = useState("inventory");
   
   // Pagination & Print State
@@ -283,7 +285,6 @@ export default function Reports() {
   };
 
   return (
-    // FIX: print:pb-32 adds padding at bottom to prevent footer overlap
     <div className="space-y-6 print:space-y-0 print:pb-32 relative"> 
       
       {/* GLOBAL STYLES FOR PRINT */}
@@ -294,31 +295,21 @@ export default function Reports() {
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            
-            /* WATERMARK FIX: Tiled Background Pattern on Body */
             body {
               background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'><text x='150' y='150' fill='rgba(0,0,0,0.05)' font-size='24' font-family='Arial' font-weight='bold' transform='rotate(-45 150 150)' text-anchor='middle' dominant-baseline='middle'>CONFIDENTIAL</text></svg>") !important;
               background-repeat: repeat !important;
               background-position: center !important;
             }
-
-            /* Make backgrounds transparent so watermark shows */
             .bg-card, .bg-background, .bg-white, table, tr, td, th {
               background-color: transparent !important;
             }
-
-            /* INK SAVING: Remove all outer borders and shadows */
             .shadow-sm, .shadow-md, .shadow-lg, .border, .border-b-2 {
               box-shadow: none !important;
               border: none !important;
             }
-
-            /* INK SAVING: Keep only a very light separator for rows */
             tr {
-              border-bottom: 1px solid #f3f4f6 !important; 
+              border-bottom: 1px solid #e5e7eb !important; 
             }
-            
-            /* Clean Header Separator */
             thead tr {
               border-bottom: 1px solid #000 !important;
             }
@@ -381,7 +372,6 @@ export default function Reports() {
           <p className="text-muted-foreground">Generate and export detailed insights about your inventory and bookings.</p>
         </div>
         <div className="flex gap-2">
-          {/* UPDATED BUTTONS */}
           <Button variant="outline" onClick={() => setIsPrinting(true)} disabled={isPrinting}>
             <Printer className="h-4 w-4 mr-2" /> {isPrinting ? "Preparing..." : "Print / PDF"}
           </Button>
@@ -463,7 +453,11 @@ export default function Reports() {
                   </TableHeader>
                   <TableBody>
                     {getCurrentPageData(inventoryData).map((media) => (
-                      <TableRow key={media.id} className="print:border-b print:border-gray-200">
+                      <TableRow 
+                        key={media.id} 
+                        className="print:border-b print:border-gray-200 cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/admin/media/${media.id}`)}
+                      >
                         <TableCell className="font-mono text-xs">{media.id}</TableCell>
                         <TableCell className="font-medium">{media.name}</TableCell>
                         <TableCell>{media.type}</TableCell>
