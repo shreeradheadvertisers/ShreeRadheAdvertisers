@@ -1,12 +1,13 @@
-import { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mediaLocations, bookings, states, districts, mediaTypes, customers, customerGroups } from "@/lib/data";
-import { FileDown, Printer, Filter, Building2, Check, ChevronsUpDown, Briefcase, IndianRupee } from "lucide-react";
+import { mediaTypes, customerGroups } from "@/lib/data";
+import { FileDown, Printer, Filter, Building2, Check, ChevronsUpDown, Briefcase, IndianRupee, ChevronLeft, ChevronRight } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -23,17 +24,35 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis
+} from "@/components/ui/pagination";
+
+// --- IMPORT API HOOKS ---
+import { useMedia } from "@/hooks/api/useMedia";
+import { useBookings } from "@/hooks/api/useBookings";
+import { useCustomers } from "@/hooks/api/useCustomers";
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState("inventory");
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   // General Filters
   const [stateFilter, setStateFilter] = useState("all");
   const [districtFilter, setDistrictFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   
-  // NEW: Payment Status Filter
+  // Payment Status Filter
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
 
   // Combobox Open States
@@ -50,9 +69,50 @@ export default function Reports() {
   // Date Filters
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
-  const availableDistricts = stateFilter !== "all" ? districts[stateFilter] || [] : [];
+  // Reset pagination when filters or tab change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, stateFilter, districtFilter, statusFilter, typeFilter, paymentStatusFilter, customerFilter, groupFilter, dateRange]);
 
-  // 1. Inventory Report Data (No Payment filter relevant here)
+  // --- FETCH LIVE DATA ---
+  const { data: mediaResponse } = useMedia({ limit: 2000 });
+  const { data: bookingsResponse } = useBookings({ limit: 2000 });
+  const { data: customersResponse } = useCustomers({ limit: 2000 });
+
+  // --- MEMOIZE DATA SOURCES ---
+  const mediaLocations = useMemo(() => mediaResponse?.data || [], [mediaResponse]);
+  const bookings = useMemo(() => bookingsResponse?.data || [], [bookingsResponse]);
+  const customers = useMemo(() => customersResponse?.data || [], [customersResponse]);
+
+  // --- CALCULATE DYNAMIC LISTS ---
+  const { states, districts } = useMemo(() => {
+    const uniqueStates = Array.from(new Set(mediaLocations.map(m => m.state).filter(Boolean))).sort();
+    const districtMap: Record<string, string[]> = {};
+    
+    mediaLocations.forEach(m => {
+      if (m.state && m.district) {
+        if (!districtMap[m.state]) {
+          districtMap[m.state] = [];
+        }
+        if (!districtMap[m.state].includes(m.district)) {
+          districtMap[m.state].push(m.district);
+        }
+      }
+    });
+
+    Object.keys(districtMap).forEach(key => districtMap[key].sort());
+
+    return { states: uniqueStates, districts: districtMap };
+  }, [mediaLocations]);
+
+  const availableDistricts = useMemo(() => {
+    if (stateFilter === "all") {
+        return Array.from(new Set(mediaLocations.map(m => m.district).filter(Boolean))).sort();
+    }
+    return districts[stateFilter] || [];
+  }, [stateFilter, districts, mediaLocations]);
+
+  // 1. Inventory Report Data
   const getInventoryData = () => {
     return mediaLocations.filter(item => {
       if (stateFilter !== "all" && item.state !== stateFilter) return false;
@@ -69,10 +129,7 @@ export default function Reports() {
       if (stateFilter !== "all" && item.media?.state !== stateFilter) return false;
       if (districtFilter !== "all" && item.media?.district !== districtFilter) return false;
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
-      
-      // Payment Status Filter
       if (paymentStatusFilter !== "all" && item.paymentStatus !== paymentStatusFilter) return false;
-
       if (dateRange.start && new Date(item.startDate) < new Date(dateRange.start)) return false;
       if (dateRange.end && new Date(item.endDate) > new Date(dateRange.end)) return false;
       return true;
@@ -85,10 +142,7 @@ export default function Reports() {
       if (customerFilter !== "all" && item.customerId !== customerFilter) return false;
       if (typeFilter !== "all" && item.media?.type !== typeFilter) return false;
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
-      
-      // Payment Status Filter
       if (paymentStatusFilter !== "all" && item.paymentStatus !== paymentStatusFilter) return false;
-
       if (dateRange.start && new Date(item.startDate) < new Date(dateRange.start)) return false;
       if (dateRange.end && new Date(item.endDate) > new Date(dateRange.end)) return false;
       return true;
@@ -97,7 +151,6 @@ export default function Reports() {
 
   // 4. Group Report Data
   const getGroupReportData = () => {
-    // First find all customers belonging to the selected group(s)
     const targetCustomers = customers.filter(c => {
       if (groupFilter !== "all" && (c.group || "Uncategorized") !== groupFilter) return false;
       return true;
@@ -105,15 +158,11 @@ export default function Reports() {
     
     const targetCustomerIds = targetCustomers.map(c => c.id);
 
-    // Filter bookings belonging to these customers
     return bookings.filter(item => {
       if (!targetCustomerIds.includes(item.customerId)) return false;
       if (typeFilter !== "all" && item.media?.type !== typeFilter) return false;
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
-
-      // Payment Status Filter
       if (paymentStatusFilter !== "all" && item.paymentStatus !== paymentStatusFilter) return false;
-
       if (dateRange.start && new Date(item.startDate) < new Date(dateRange.start)) return false;
       if (dateRange.end && new Date(item.endDate) > new Date(dateRange.end)) return false;
       return true;
@@ -125,9 +174,50 @@ export default function Reports() {
   const customerData = getCustomerReportData();
   const groupData = getGroupReportData();
 
-  // --- Export Functions ---
+  // --- Helper for Current Page Data ---
+  const getCurrentPageData = (data: any[]) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderPagination = (totalItems: number) => {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="py-4 flex items-center justify-between border-t mt-4">
+        <div className="text-sm text-muted-foreground">
+           Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} entries
+        </div>
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+            
+            <PaginationItem>
+               <div className="flex items-center gap-2 px-4 text-sm font-medium">
+                 Page {currentPage} of {totalPages}
+               </div>
+            </PaginationItem>
+
+            <PaginationItem>
+              <PaginationNext 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+    );
+  };
+
+  // --- Export Functions ---
   const downloadCSV = (data: any[], filename: string) => {
     if (data.length === 0) return;
     const headers = Object.keys(data[0]).filter(key => typeof data[0][key] !== 'object');
@@ -164,7 +254,6 @@ export default function Reports() {
         EndDate: b.endDate, 
         BookingStatus: b.status, 
         ContractAmount: b.amount,
-        // Added Payment Details
         PaymentStatus: b.paymentStatus,
         PaidAmount: b.amountPaid,
         BalanceDue: b.amount - b.amountPaid,
@@ -173,7 +262,6 @@ export default function Reports() {
       downloadCSV(cleanData, "Booking_History_Report");
     } else if (activeTab === "customers") {
       const cleanData = customerData.map(b => {
-        // Changed to use Company Name
         const custCompany = customers.find(c => c.id === b.customerId)?.company || "Unknown";
         return {
           Client: custCompany, 
@@ -183,7 +271,6 @@ export default function Reports() {
           StartDate: b.startDate, 
           EndDate: b.endDate, 
           BookingStatus: b.status, 
-          // Added Payment Details
           ContractAmount: b.amount,
           PaymentStatus: b.paymentStatus,
           PaidAmount: b.amountPaid,
@@ -200,7 +287,6 @@ export default function Reports() {
           BookingID: b.id,
           MediaType: b.media?.type,
           BookingStatus: b.status,
-          // Added Payment Details
           ContractAmount: b.amount,
           PaymentStatus: b.paymentStatus,
           PaidAmount: b.amountPaid,
@@ -298,7 +384,7 @@ export default function Reports() {
                 </div>
               )}
 
-              {/* State Search (Not on Customers or Groups Tab) */}
+              {/* State Search */}
               {activeTab !== "customers" && activeTab !== "groups" && (
                 <div className="space-y-2 flex flex-col">
                   <Label>State</Label>
@@ -331,7 +417,7 @@ export default function Reports() {
                 </div>
               )}
 
-              {/* District Search (Not on Customers or Groups Tab) */}
+              {/* District Search */}
               {activeTab !== "customers" && activeTab !== "groups" && (
                 <div className="space-y-2 flex flex-col">
                   <Label>District</Label>
@@ -342,7 +428,7 @@ export default function Reports() {
                         role="combobox" 
                         aria-expanded={districtOpen} 
                         className="w-full justify-between font-normal"
-                        disabled={stateFilter === "all"}
+                        disabled={false}
                       >
                         {districtFilter !== "all" ? districtFilter : "All Districts"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -408,7 +494,7 @@ export default function Reports() {
                 </Select>
               </div>
 
-              {/* NEW: Payment Status Filter (Only when not in inventory) */}
+              {/* Payment Status Filter */}
               {activeTab !== "inventory" && (
                 <div className="space-y-2">
                   <Label>Payment Status</Label>
@@ -462,7 +548,7 @@ export default function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {inventoryData.slice(0, 50).map((media) => (
+                    {getCurrentPageData(inventoryData).map((media) => (
                       <TableRow key={media.id}>
                         <TableCell className="font-mono text-xs">{media.id}</TableCell>
                         <TableCell className="font-medium">{media.name}</TableCell>
@@ -479,6 +565,8 @@ export default function Reports() {
                   </TableBody>
                 </Table>
               </div>
+              {/* Pagination Controls */}
+              {renderPagination(inventoryData.length)}
             </CardContent>
           </Card>
         </TabsContent>
@@ -498,13 +586,12 @@ export default function Reports() {
                       <TableHead>Media</TableHead>
                       <TableHead>Duration</TableHead>
                       <TableHead>Status</TableHead>
-                      {/* Added Payment Columns */}
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Paid / Balance</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bookingData.slice(0, 50).map((booking) => {
+                    {getCurrentPageData(bookingData).map((booking) => {
                       const balance = booking.amount - booking.amountPaid;
                       return (
                         <TableRow key={booking.id}>
@@ -519,7 +606,6 @@ export default function Reports() {
                           </TableCell>
                           <TableCell><Badge variant={booking.status === 'Active' ? 'success' : 'outline'}>{booking.status}</Badge></TableCell>
                           
-                          {/* Payment Data */}
                           <TableCell>
                             <Badge 
                               variant={
@@ -541,6 +627,7 @@ export default function Reports() {
                   </TableBody>
                 </Table>
               </div>
+              {renderPagination(bookingData.length)}
             </CardContent>
           </Card>
         </TabsContent>
@@ -572,7 +659,6 @@ export default function Reports() {
                       <TableHead>Client (Company)</TableHead>
                       <TableHead>Media</TableHead>
                       <TableHead>Status</TableHead>
-                      {/* Added Payment Columns */}
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Paid / Total</TableHead>
                     </TableRow>
@@ -583,13 +669,12 @@ export default function Reports() {
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No bookings found for the selected criteria.</TableCell>
                       </TableRow>
                     ) : (
-                      customerData.slice(0, 50).map((booking) => {
+                      getCurrentPageData(customerData).map((booking) => {
                          const customer = customers.find(c => c.id === booking.customerId);
                          return (
                           <TableRow key={booking.id}>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
-                                {/* Changed Icon to Building2 and Displayed Company Name */}
                                 <Building2 className="h-3 w-3 text-muted-foreground" />
                                 {customer?.company || "Unknown"}
                               </div>
@@ -601,7 +686,6 @@ export default function Reports() {
                             </TableCell>
                             <TableCell><Badge variant={booking.status === 'Active' ? 'success' : booking.status === 'Completed' ? 'secondary' : 'outline'}>{booking.status}</Badge></TableCell>
                             
-                            {/* Payment Data */}
                             <TableCell>
                               <Badge 
                                 variant={
@@ -624,6 +708,7 @@ export default function Reports() {
                   </TableBody>
                 </Table>
               </div>
+              {renderPagination(customerData.length)}
             </CardContent>
           </Card>
         </TabsContent>
@@ -659,7 +744,6 @@ export default function Reports() {
                       <TableHead>Group</TableHead>
                       <TableHead>Media Type</TableHead>
                       <TableHead>Status</TableHead>
-                      {/* Added Payment Columns */}
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Paid / Balance</TableHead>
                     </TableRow>
@@ -670,7 +754,7 @@ export default function Reports() {
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No bookings found for the selected group.</TableCell>
                       </TableRow>
                     ) : (
-                      groupData.slice(0, 50).map((booking) => {
+                      getCurrentPageData(groupData).map((booking) => {
                          const customer = customers.find(c => c.id === booking.customerId);
                          const balance = booking.amount - booking.amountPaid;
                          return (
@@ -682,7 +766,6 @@ export default function Reports() {
                             <TableCell>{booking.media?.type}</TableCell>
                             <TableCell><Badge variant={booking.status === 'Active' ? 'success' : booking.status === 'Completed' ? 'secondary' : 'outline'}>{booking.status}</Badge></TableCell>
                             
-                            {/* Payment Data */}
                             <TableCell>
                               <Badge 
                                 variant={
@@ -705,6 +788,7 @@ export default function Reports() {
                   </TableBody>
                 </Table>
               </div>
+              {renderPagination(groupData.length)}
             </CardContent>
           </Card>
         </TabsContent>
