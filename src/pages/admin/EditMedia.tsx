@@ -69,9 +69,9 @@ const EditMedia = () => {
     }
   }, [media]);
 
-  // Logic for cascading dropdowns
-  const availableDistricts = getDistrictsForState(formData.state);
-  const availableTehsils = getCitiesForDistrict(formData.district);
+  // Logic for cascading dropdowns - Added safety fallback to empty array
+  const availableDistricts = getDistrictsForState(formData.state) || [];
+  const availableTehsils = getCitiesForDistrict(formData.district) || [];
 
   const handleStateChange = (state: string) => {
     if (state !== formData.state) {
@@ -130,7 +130,7 @@ const EditMedia = () => {
           data: {
             id: cleanCustomId,
             name: formData.name.trim(),
-            type: formData.type as MediaType, // FIX: TypeScript cast to MediaType
+            type: formData.type as MediaType,
             state: formData.state.trim(),
             district: cleanDistrict,
             city: cleanCity,
@@ -225,7 +225,12 @@ const EditMedia = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label>State *</Label>
-                  <Select value={formData.state} onValueChange={handleStateChange}>
+                  {/* FIX: Added key to force re-render when data loads */}
+                  <Select 
+                    key={`state-${formData.state}`}
+                    value={formData.state} 
+                    onValueChange={handleStateChange}
+                  >
                     <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
                     <SelectContent>
                       {states.map(state => (
@@ -236,7 +241,9 @@ const EditMedia = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>District *</Label>
+                  {/* FIX: Added key to force re-render */}
                   <Select
+                    key={`district-${formData.state}-${formData.district}`}
                     value={formData.district}
                     onValueChange={handleDistrictChange}
                     disabled={!formData.state}
@@ -255,7 +262,9 @@ const EditMedia = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Town / Tehsil *</Label>
+                  {/* CRITICAL FIX: The key prop forces this component to re-initialize when data loads */}
                   <Select 
+                    key={`city-${formData.district}-${formData.city}`}
                     value={formData.city} 
                     onValueChange={(v) => setFormData({ ...formData, city: v })}
                     disabled={!formData.district}
