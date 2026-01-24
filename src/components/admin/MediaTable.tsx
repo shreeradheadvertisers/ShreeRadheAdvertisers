@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch"; // Ensure Switch is imported
+import { Switch } from "@/components/ui/switch"; 
 import {
     Table,
     TableBody,
@@ -33,7 +33,7 @@ interface MediaTableProps {
     onDelete: (id: string) => void;
     onEdit: (id: string) => void;
     onToggleStatus: (id: string, currentStatus: string) => void;
-    onToggleVisibility: (id: string, currentVal: boolean) => void; // Added Prop
+    onToggleVisibility: (id: string, currentVal: boolean) => void; 
 }
 
 export function MediaTable({
@@ -43,7 +43,7 @@ export function MediaTable({
     onDelete,
     onEdit,
     onToggleStatus,
-    onToggleVisibility, // Destructure the new prop
+    onToggleVisibility, 
 }: MediaTableProps) {
     const navigate = useNavigate();
 
@@ -64,7 +64,8 @@ export function MediaTable({
                             <TableHead>Location</TableHead>
                             <TableHead>City / District</TableHead>
                             <TableHead>Type</TableHead>
-                            {/* Added Public Column Header */}
+                            {/* Added Price Column */}
+                            <TableHead>Price</TableHead>
                             <TableHead>Public</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right pr-6">Actions</TableHead>
@@ -73,7 +74,6 @@ export function MediaTable({
                     <TableBody>
                         {data.map((media) => {
                             const itemId = media._id || media.id;
-                            // Check visibility (default to true if undefined)
                             const isPublic = (media as any).isPublic !== false;
 
                             return (
@@ -96,7 +96,11 @@ export function MediaTable({
                                         </Badge>
                                     </TableCell>
                                     
-                                    {/* Added Toggle Cell */}
+                                    {/* Added Price Cell */}
+                                    <TableCell className="text-sm font-medium">
+                                        ₹{media.pricePerMonth?.toLocaleString() || "0"}
+                                    </TableCell>
+
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <Switch
@@ -160,7 +164,7 @@ export function MediaTable({
                         {data.length === 0 && (
                             <TableRow>
                                 <TableCell
-                                    colSpan={7} // Adjusted colspan to match new column count
+                                    colSpan={8} // Updated from 7 to 8 to match new column count
                                     className="text-center py-12 text-muted-foreground italic"
                                 >
                                     No records found on this page.
