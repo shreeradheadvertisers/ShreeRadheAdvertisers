@@ -34,6 +34,9 @@ const MediaSchema = new mongoose.Schema({
   pricePerMonth: { type: Number, required: true },
   imageUrl: { type: String }, // Stores Cloudinary secure_url
 
+  // Show / Hide Toggle
+  isPublic: { type: Boolean, default: true },
+
   // Performance Metrics
   occupancyRate: { type: Number, default: 0 },
   totalDaysBooked: { type: Number, default: 0 },

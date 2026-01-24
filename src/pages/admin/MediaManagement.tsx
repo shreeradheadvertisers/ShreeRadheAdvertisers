@@ -132,6 +132,12 @@ const MediaManagement = () => {
     updateMedia.mutate({ id, data: { status: nextStatus as MediaStatus } });
   };
 
+  // --- NEW: Handle Public Visibility Toggle ---
+  const handleVisibilityToggle = (id: string, isVisible: boolean) => {
+    // Cast to any to bypass strict type checking until interface is updated
+    updateMedia.mutate({ id, data: { isPublic: isVisible } as any });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -216,6 +222,7 @@ const MediaManagement = () => {
               }}
               onEdit={(id) => navigate(`/admin/media/edit/${id}`)}
               onToggleStatus={handleStatusToggle}
+              onToggleVisibility={handleVisibilityToggle} // Pass the new handler
             />
           )}
         </CardContent>

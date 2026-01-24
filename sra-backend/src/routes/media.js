@@ -78,7 +78,7 @@ router.get('/public', async (req, res) => {
   try {
     const { state, district, city, type, status, search, page = 1, limit = 12 } = req.query;
     
-    const filter = { deleted: false };
+    const filter = { deleted: false, isPublic: { $ne: false } };
     if (state && state !== 'all') filter.state = state;
     if (district && district !== 'all') filter.district = district;
     if (city && city !== 'all') filter.city = city;
