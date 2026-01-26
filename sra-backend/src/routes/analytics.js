@@ -36,8 +36,9 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
     const statesCount = await Media.distinct('state', { deleted: false });
     const districtsCount = await Media.distinct('district', { deleted: false });
 
+    // FIX: Exclude Cancelled bookings from Revenue Calculation
     const revenueAgg = await Booking.aggregate([
-      { $match: { deleted: false } },
+      { $match: { deleted: false, status: { $ne: 'Cancelled' } } },
       { $group: { _id: null, totalRevenue: { $sum: '$amountPaid' }, pendingPayments: { $sum: { $subtract: ['$amount', '$amountPaid'] } } } }
     ]);
 
@@ -132,8 +133,9 @@ router.get('/vacant-sites/:city', authMiddleware, async (req, res) => {
 // Monthly Revenue Trend
 router.get('/revenue-trend', authMiddleware, async (req, res) => {
   try {
+    // FIX: Exclude Cancelled bookings
     const trend = await Booking.aggregate([
-      { $match: { deleted: false } },
+      { $match: { deleted: false, status: { $ne: 'Cancelled' } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m', date: '$startDate' } },
@@ -165,8 +167,9 @@ router.get('/revenue-trend', authMiddleware, async (req, res) => {
 // State Revenue Distribution
 router.get('/state-revenue', authMiddleware, async (req, res) => {
   try {
+    // FIX: Exclude Cancelled bookings
     const stateRevenue = await Booking.aggregate([
-      { $match: { deleted: false } },
+      { $match: { deleted: false, status: { $ne: 'Cancelled' } } },
       {
         $lookup: {
           from: 'media',

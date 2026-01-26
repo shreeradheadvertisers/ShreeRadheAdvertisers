@@ -89,11 +89,44 @@ export default function Reports() {
 
   // --- DATA ENRICHMENT ---
   const bookings = useMemo(() => {
-    return rawBookings.map((booking) => {
-      const media = mediaLocations.find((m) => m.id === booking.mediaId) || booking.media || { name: "", type: "", district: "", city: "", state: "" };
-      const customer = customers.find((c) => c.id === booking.customerId) || booking.customer || { company: "", group: "" };
+    // Sort bookings by creation date (oldest first) to ensure stable sequential IDs
+    const sortedBookings = [...rawBookings].sort((a, b) => 
+        new Date(a.createdAt || a.startDate).getTime() - new Date(b.createdAt || b.startDate).getTime()
+    );
+
+    return sortedBookings.map((booking, index) => {
+      const mediaIdStr = typeof booking.mediaId === 'object' ? booking.mediaId?._id : booking.mediaId;
+      const customerIdStr = typeof booking.customerId === 'object' ? booking.customerId?._id : booking.customerId;
+
+      const media = mediaLocations.find((m) => m._id === mediaIdStr || m.id === mediaIdStr) 
+                    || (typeof booking.mediaId === 'object' ? booking.mediaId : null)
+                    || booking.media 
+                    || { name: "", type: "", district: "", city: "", state: "" };
+
+      const customer = customers.find((c) => c._id === customerIdStr || c.id === customerIdStr) 
+                       || (typeof booking.customerId === 'object' ? booking.customerId : null)
+                       || booking.customer 
+                       || { company: "", group: "" };
+
+      // --- NEW: Generate Sequential ID (SRA/MMYY/1000 + Index) ---
+      let displayId = "N/A";
+      const dateSource = booking.startDate || booking.createdAt;
+      
+      if (dateSource) {
+          const d = new Date(dateSource);
+          if (!isNaN(d.getTime())) {
+              const mm = String(d.getMonth() + 1).padStart(2, '0');
+              const yy = String(d.getFullYear()).slice(-2);
+              // Start counting from 1000 + index to get 1001, 1002...
+              const seqNum = 1000 + index + 1;
+              displayId = `SRA/${mm}${yy}/${seqNum}`;
+          }
+      }
+
       return { 
         ...booking, 
+        // Attach the generated sequential ID to the object
+        displayId, 
         media: {
            ...media,
            name: media.name || "Unknown Media",
@@ -150,7 +183,7 @@ export default function Reports() {
   });
 
   const getCustomerReportData = () => bookings.filter(item => {
-    if (customerFilter !== "all" && item.customerId !== customerFilter) return false;
+    if (customerFilter !== "all" && (item.customerId === customerFilter || item.customer?._id === customerFilter)) return false;
     if (typeFilter !== "all" && item.media?.type !== typeFilter) return false;
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
     if (paymentStatusFilter !== "all" && item.paymentStatus !== paymentStatusFilter) return false;
@@ -164,9 +197,12 @@ export default function Reports() {
       if (groupFilter !== "all" && (c.group || "Uncategorized") !== groupFilter) return false;
       return true;
     });
-    const targetCustomerIds = targetCustomers.map(c => c.id);
+    const targetCustomerIds = new Set(targetCustomers.flatMap(c => [c._id, c.id]));
+    
     return bookings.filter(item => {
-      if (!targetCustomerIds.includes(item.customerId)) return false;
+      const cId = typeof item.customerId === 'object' ? item.customerId?._id : item.customerId;
+      if (!targetCustomerIds.has(cId)) return false;
+      
       if (typeFilter !== "all" && item.media?.type !== typeFilter) return false;
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
       if (paymentStatusFilter !== "all" && item.paymentStatus !== paymentStatusFilter) return false;
@@ -185,6 +221,17 @@ export default function Reports() {
   const getCurrentPageData = (data: any[]) => {
     if (isPrinting) return data; 
     return data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -208,9 +255,13 @@ export default function Reports() {
     return filters.length > 0 ? filters.join(" | ") : "None (All Records)";
   };
 
+  // --- NAVIGATION HANDLER ---
+  const handleEditClick = (id: string) => {
+    // Navigate to Customer Bookings page
+    navigate(`/admin/bookings`);
+  };
+
   // --- EXPORT FUNCTIONS ---
-  
-  // 1. STANDARD CSV (Plain Text, Good for Backups)
   const handleDownloadCSV = () => {
     const getData = () => {
        if (activeTab === "inventory") return inventoryData.map((m, i) => ({ 
@@ -221,13 +272,37 @@ export default function Reports() {
          District: m.district, 
          Status: m.status, 
          Price: m.pricePerMonth,
-         // Full URL text for plain CSV
          "View Link": `${window.location.origin}/media/${m.id}`
        }));
        
-       if (activeTab === "bookings") return bookingData.map(b => ({ ID: b.id, Media: b.media?.name || "Unknown", Start: b.startDate, End: b.endDate, Status: b.status, Payment: b.paymentStatus, Amount: b.amount, Paid: b.amountPaid }));
-       if (activeTab === "customers") return customerData.map(b => ({ Client: b.customer?.company || "Unknown", Media: b.media?.type || "Unknown", Status: b.status, Payment: b.paymentStatus, Total: b.amount }));
-       return groupData.map(b => ({ Company: b.customer?.company || "Unknown", Group: b.customer?.group, Media: b.media?.type, Status: b.status, Payment: b.paymentStatus, Balance: b.amount - b.amountPaid }));
+       if (activeTab === "bookings") return bookingData.map(b => ({ 
+         ID: b.displayId,  // Uses Sequential ID
+         Media: b.media?.name || "Unknown", 
+         Start: formatDate(b.startDate), 
+         End: formatDate(b.endDate), 
+         Status: b.status, 
+         Payment: b.paymentStatus, 
+         Amount: b.amount, 
+         Paid: b.amountPaid 
+       }));
+       if (activeTab === "customers") return customerData.map(b => ({ 
+         ID: b.displayId, 
+         Client: b.customer?.company || "Unknown", 
+         Media: `${b.media?.name || ''} (${b.media?.type || ''})`, 
+         Location: `${b.media?.city}, ${b.media?.district}`, 
+         Status: b.status, 
+         Payment: b.paymentStatus, 
+         Total: b.amount 
+       }));
+       return groupData.map(b => ({ 
+         ID: b.displayId, 
+         Company: b.customer?.company || "Unknown", 
+         Group: b.customer?.group, 
+         Media: `${b.media?.name} - ${b.media?.type}`, 
+         Status: b.status, 
+         Payment: b.paymentStatus, 
+         Balance: b.amount - b.amountPaid 
+       }));
     };
     
     const data = getData();
@@ -255,7 +330,6 @@ export default function Reports() {
     link.click();
   };
 
-  // 2. EXCEL / SHEETS COMPATIBLE (Uses Formulas for Links)
   const handleDownloadExcel = () => {
     const getData = () => {
        if (activeTab === "inventory") return inventoryData.map((m, i) => ({ 
@@ -266,20 +340,43 @@ export default function Reports() {
          District: m.district, 
          Status: m.status, 
          Price: m.pricePerMonth,
-         // =HYPERLINK formula works in Google Sheets & Excel
          View: `=HYPERLINK("${window.location.origin}/media/${m.id}", "View")`
        }));
 
-       if (activeTab === "bookings") return bookingData.map(b => ({ ID: b.id, Media: b.media?.name || "Unknown", Start: b.startDate, End: b.endDate, Status: b.status, Payment: b.paymentStatus, Amount: b.amount, Paid: b.amountPaid }));
-       if (activeTab === "customers") return customerData.map(b => ({ Client: b.customer?.company || "Unknown", Media: b.media?.type || "Unknown", Status: b.status, Payment: b.paymentStatus, Total: b.amount }));
-       return groupData.map(b => ({ Company: b.customer?.company || "Unknown", Group: b.customer?.group, Media: b.media?.type, Status: b.status, Payment: b.paymentStatus, Balance: b.amount - b.amountPaid }));
+       if (activeTab === "bookings") return bookingData.map(b => ({ 
+         ID: b.displayId, 
+         Media: b.media?.name || "Unknown", 
+         Start: formatDate(b.startDate), 
+         End: formatDate(b.endDate), 
+         Status: b.status, 
+         Payment: b.paymentStatus, 
+         Amount: b.amount, 
+         Paid: b.amountPaid 
+       }));
+       if (activeTab === "customers") return customerData.map(b => ({ 
+         ID: b.displayId, 
+         Client: b.customer?.company || "Unknown", 
+         Media: `${b.media?.name} (${b.media?.type})`, 
+         Location: `${b.media?.city}, ${b.media?.district}`, 
+         Status: b.status, 
+         Payment: b.paymentStatus, 
+         Total: b.amount 
+       }));
+       return groupData.map(b => ({ 
+         ID: b.displayId, 
+         Company: b.customer?.company || "Unknown", 
+         Group: b.customer?.group, 
+         Media: `${b.media?.name} - ${b.media?.type}`, 
+         Status: b.status, 
+         Payment: b.paymentStatus, 
+         Balance: b.amount - b.amountPaid 
+       }));
     };
     
     const data = getData();
     if(data.length === 0) return;
     const keys = Object.keys(data[0]);
 
-    // Build standard CSV content but with formulas intact
     const headerRows = [
       ["SHREE RADHE ADVERTISERS - OFFICIAL REPORT"],
       [`Generated On: ${new Date().toLocaleString()}`],
@@ -293,13 +390,11 @@ export default function Reports() {
       keys.join(","),
       ...data.map(row => keys.map(k => {
         const val = String((row as any)[k] || '');
-        // If it starts with =, it's a formula, don't escape double quotes the standard way or it breaks the formula parsing in some versions
-        // Standard CSV string escaping: "val"
+        if (val.startsWith('=')) return val;
         return `"${val.replace(/"/g, '""')}"`;
       }).join(","))
     ].join("\n");
 
-    // Save as .csv to force spreadsheet applications to parse it as data
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -562,9 +657,10 @@ export default function Reports() {
                 <Table>
                   <TableHeader>
                     <TableRow className="print:bg-transparent print:text-black print:border-b-2 print:border-black">
-                      <TableHead>ID</TableHead>
+                      {/* FIX: Set fixed widths for ID and Duration */}
+                      <TableHead className="w-[120px] print:w-[80px]">Booking ID</TableHead>
                       <TableHead>Media</TableHead>
-                      <TableHead>Duration</TableHead>
+                      <TableHead className="w-[150px] print:w-[100px]">Duration</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Paid / Balance</TableHead>
@@ -574,14 +670,28 @@ export default function Reports() {
                     {getCurrentPageData(bookingData).map((booking) => {
                       const balance = booking.amount - booking.amountPaid;
                       return (
-                        <TableRow key={booking.id} className="print:border-b print:border-gray-200 print:p-0">
-                          <TableCell className="font-mono text-xs print:text-[10px] print:p-1">{booking.id || "N/A"}</TableCell>
+                        <TableRow 
+                          key={booking.id} 
+                          className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleEditClick(booking.id || booking._id)}
+                        >
+                          {/* FIX: Professional Formatted Sequential ID */}
+                          <TableCell className="font-mono text-xs print:text-[10px] print:p-1 text-primary font-medium">
+                            {booking.displayId}
+                          </TableCell>
+                          
                           {/* UPDATED: Uses enriched booking.media object */}
                           <TableCell className="print:p-1">
                             <div className="font-medium print:text-[10px] print:whitespace-normal">{booking.media?.name || "Unknown"}</div>
                             <div className="text-xs text-muted-foreground print:text-[9px] print:whitespace-normal">{booking.media?.district || "Unknown"}</div>
                           </TableCell>
-                          <TableCell className="print:p-1"><div className="text-xs print:text-[10px]">{booking.startDate}</div><div className="text-xs text-muted-foreground print:text-[9px]">{booking.endDate}</div></TableCell>
+                          
+                          {/* FIX: Use helper to format dates cleanly */}
+                          <TableCell className="print:p-1 whitespace-nowrap">
+                            <div className="text-xs print:text-[10px]">{formatDate(booking.startDate)}</div>
+                            <div className="text-xs text-muted-foreground print:text-[9px]">{formatDate(booking.endDate)}</div>
+                          </TableCell>
+                          
                           <TableCell className="print:p-1">{getStatusBadge(booking.status)}</TableCell><TableCell className="print:p-1">{getStatusBadge(booking.paymentStatus)}</TableCell>
                           <TableCell className="text-right print:p-1"><div className="text-xs font-medium text-success print:text-[10px]">₹{booking.amountPaid.toLocaleString()}</div>{balance > 0 && <div className="text-xs text-destructive print:text-[10px]">Due: ₹{balance.toLocaleString()}</div>}</TableCell>
                         </TableRow>
@@ -603,7 +713,7 @@ export default function Reports() {
                   <TableHeader>
                     <TableRow className="print:bg-transparent print:text-black print:border-b-2 print:border-black">
                       <TableHead>Client (Company)</TableHead>
-                      <TableHead>Media</TableHead>
+                      <TableHead className="w-[30%]">Media Details</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Paid / Total</TableHead>
@@ -616,12 +726,34 @@ export default function Reports() {
                       </TableRow>
                     ) : (
                       getCurrentPageData(customerData).map((booking) => (
-                          <TableRow key={booking.id} className="print:border-b print:border-gray-200 print:p-0">
+                          <TableRow 
+                            key={booking.id} 
+                            className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleEditClick(booking.id || booking._id)}
+                          >
                              {/* UPDATED: Uses enriched booking.customer object */}
-                            <TableCell className="font-medium print:p-1 print:text-[10px]"><div className="flex items-center gap-2"><Building2 className="h-3 w-3 text-muted-foreground print:hidden" />{booking.customer?.company || "Unknown"}</div><div className="text-xs text-muted-foreground ml-5 print:ml-0 print:text-[9px]">{booking.id}</div></TableCell>
-                            <TableCell className="print:p-1"><div className="text-sm print:text-[10px]">{booking.media?.type || "Unknown"}</div><div className="text-xs text-muted-foreground print:text-[9px] print:whitespace-normal">{booking.media?.city || "Unknown"}</div></TableCell>
-                            <TableCell className="print:p-1">{getStatusBadge(booking.status)}</TableCell><TableCell className="print:p-1">{getStatusBadge(booking.paymentStatus)}</TableCell>
-                            <TableCell className="text-right print:p-1"><div className="font-medium print:text-[10px]">₹{booking.amountPaid.toLocaleString()}</div><div className="text-xs text-muted-foreground print:text-[9px]">of ₹{booking.amount.toLocaleString()}</div></TableCell>
+                            <TableCell className="font-medium print:p-1 print:text-[10px] align-top">
+                              <div className="flex items-center gap-2"><Building2 className="h-3 w-3 text-muted-foreground print:hidden" />{booking.customer?.company || "Unknown"}</div>
+                              <div className="text-xs text-muted-foreground ml-5 print:ml-0 print:text-[9px] font-mono">{booking.displayId}</div>
+                            </TableCell>
+                            
+                            {/* UPDATED: Detailed Media Cell */}
+                            <TableCell className="print:p-1 align-top">
+                              <div className="font-medium text-sm print:text-[10px] whitespace-normal leading-snug mb-1">
+                                {booking.media?.name || "Unknown Media"}
+                              </div>
+                              <div className="text-xs text-muted-foreground print:text-[9px] whitespace-normal">
+                                <Badge variant="outline" className="mr-1.5 px-1 py-0 h-auto font-normal text-[10px] border-muted-foreground/30">{booking.media?.type || "N/A"}</Badge>
+                                {booking.media?.city}, {booking.media?.district}
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="print:p-1 align-top">{getStatusBadge(booking.status)}</TableCell>
+                            <TableCell className="print:p-1 align-top">{getStatusBadge(booking.paymentStatus)}</TableCell>
+                            <TableCell className="text-right print:p-1 align-top">
+                              <div className="font-medium print:text-[10px]">₹{booking.amountPaid.toLocaleString()}</div>
+                              <div className="text-xs text-muted-foreground print:text-[9px]">of ₹{booking.amount.toLocaleString()}</div>
+                            </TableCell>
                           </TableRow>
                         ))
                     )}
@@ -642,7 +774,7 @@ export default function Reports() {
                     <TableRow className="print:bg-transparent print:text-black print:border-b-2 print:border-black">
                       <TableHead>Company</TableHead>
                       <TableHead>Group</TableHead>
-                      <TableHead>Media Type</TableHead>
+                      <TableHead>Media Details</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Paid / Balance</TableHead>
@@ -657,14 +789,36 @@ export default function Reports() {
                       getCurrentPageData(groupData).map((booking) => {
                          const balance = booking.amount - booking.amountPaid;
                          return (
-                          <TableRow key={booking.id} className="print:border-b print:border-gray-200 print:p-0">
+                          <TableRow 
+                            key={booking.id} 
+                            className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleEditClick(booking.id || booking._id)}
+                          >
                              {/* UPDATED: Uses enriched booking.customer object */}
-                            <TableCell className="font-medium print:p-1 print:text-[10px]">{booking.customer?.company || "Unknown"}</TableCell>
-                            <TableCell className="print:p-1">
+                            <TableCell className="font-medium print:p-1 print:text-[10px] align-top">
+                              {booking.customer?.company || "Unknown"}
+                              <div className="text-[10px] text-muted-foreground font-mono mt-1">{booking.displayId}</div>
+                            </TableCell>
+                            <TableCell className="print:p-1 align-top">
                                 <Badge variant="outline" className="font-normal print:text-[9px]">{booking.customer?.group || "N/A"}</Badge>
                             </TableCell>
-                            <TableCell className="print:p-1 print:text-[10px]">{booking.media?.type}</TableCell><TableCell className="print:p-1">{getStatusBadge(booking.status)}</TableCell><TableCell className="print:p-1">{getStatusBadge(booking.paymentStatus)}</TableCell>
-                            <TableCell className="text-right print:p-1"><div className="text-xs font-medium print:text-[10px]">₹{booking.amountPaid.toLocaleString()}</div>{balance > 0 && <div className="text-xs text-destructive print:text-[10px]">Bal: ₹{balance.toLocaleString()}</div>}</TableCell>
+                            
+                            {/* UPDATED: Detailed Media Cell */}
+                            <TableCell className="print:p-1 align-top">
+                              <div className="font-medium text-sm print:text-[10px] whitespace-normal leading-snug mb-1">
+                                {booking.media?.name || "Unknown Media"}
+                              </div>
+                              <div className="text-xs text-muted-foreground print:text-[9px] whitespace-normal">
+                                <span className="font-medium">{booking.media?.type}</span> • {booking.media?.city}
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="print:p-1 align-top">{getStatusBadge(booking.status)}</TableCell>
+                            <TableCell className="print:p-1 align-top">{getStatusBadge(booking.paymentStatus)}</TableCell>
+                            <TableCell className="text-right print:p-1 align-top">
+                              <div className="text-xs font-medium print:text-[10px]">₹{booking.amountPaid.toLocaleString()}</div>
+                              {balance > 0 && <div className="text-xs text-destructive print:text-[10px]">Bal: ₹{balance.toLocaleString()}</div>}
+                            </TableCell>
                           </TableRow>
                         );
                       })

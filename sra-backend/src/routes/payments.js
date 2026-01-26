@@ -106,7 +106,8 @@ router.get('/stats/summary', authMiddleware, async (req, res) => {
     const pendingBookings = await Booking.aggregate([
       { 
         $match: { 
-          deleted: false, 
+          deleted: false,
+          status: { $ne: 'Cancelled' }, // FIX: Exclude Cancelled bookings
           paymentStatus: { $in: ['Pending', 'Partially Paid'] } 
         } 
       },

@@ -33,12 +33,18 @@ router.get('/', authMiddleware, async (req, res) => {
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: parseInt(limit) },
-      // Join with Bookings to calculate stats on the fly
+      // FIX: Advanced Lookup to exclude 'Cancelled' bookings from stats
       {
         $lookup: {
           from: 'bookings',
-          localField: '_id',
-          foreignField: 'customerId',
+          let: { customerId: "$_id" },
+          pipeline: [
+            { $match: {
+                $expr: { $eq: ["$customerId", "$$customerId"] },
+                deleted: false,
+                status: { $ne: 'Cancelled' } // Exclude cancelled from sum
+            }}
+          ],
           as: 'bookings_data'
         }
       },
@@ -46,7 +52,7 @@ router.get('/', authMiddleware, async (req, res) => {
       {
         $addFields: {
           totalBookings: { $size: "$bookings_data" },
-          totalSpent: { $sum: "$bookings_data.amount" } // Calculates total value of bookings
+          totalSpent: { $sum: "$bookings_data.amount" } // Calculates total value of valid bookings only
         }
       },
       // Remove the heavy bookings array from result
@@ -72,11 +78,18 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     const customerData = await Customer.aggregate([
       { $match: { _id: customerId, deleted: false } },
+      // FIX: Advanced Lookup here as well
       {
         $lookup: {
           from: 'bookings',
-          localField: '_id',
-          foreignField: 'customerId',
+          let: { customerId: "$_id" },
+          pipeline: [
+            { $match: {
+                $expr: { $eq: ["$customerId", "$$customerId"] },
+                deleted: false,
+                status: { $ne: 'Cancelled' } // Exclude cancelled from sum
+            }}
+          ],
           as: 'bookings_data'
         }
       },
