@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query"; 
+import { useLocation } from "react-router-dom"; 
 import { 
   Users, Search, Building2, Mail, Phone, MapPin, Calendar, IndianRupee,
   ChevronDown, ChevronUp, Plus, Pencil, Trash2, Eye,
@@ -36,7 +37,7 @@ import { useCustomers } from "@/hooks/api/useCustomers";
 import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
 import { useUpdateMedia } from "@/hooks/api/useMedia";
 
-// --- PAGINATION HELPER (Preserved non-bold) ---
+// --- PAGINATION HELPER ---
 export function PaginationControls({ currentPage, totalPages, onPageChange, totalItems, pageSize }: any) {
   if (totalPages <= 1) return null;
   return (
@@ -137,6 +138,8 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
 
 export default function CustomerBookings() {
   const queryClient = useQueryClient(); 
+  const location = useLocation(); // Hook to access navigation state
+  
   const [activeTab, setActiveTab] = useState("bookings");
   const [searchQuery, setSearchQuery] = useState("");
   const [clientPage, setClientPage] = useState(1);
@@ -150,6 +153,41 @@ export default function CustomerBookings() {
   const updateBookingMutation = useUpdateBooking();
   const updateMediaMutation = useUpdateMedia();
   const deleteBookingMutation = useDeleteBooking();
+
+  // Dialog States
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [createBookingOpen, setCreateBookingOpen] = useState(false); // State for Create Dialog
+  const [bookingPrefill, setBookingPrefill] = useState<any>(null); // State for Pre-fill Data
+  const [allBookingsOpen, setAllBookingsOpen] = useState(false);
+  const [viewBooking, setViewBooking] = useState<Booking | null>(null);
+  const [editBooking, setEditBooking] = useState<Booking | null>(null);
+  const [deleteBooking, setDeleteBooking] = useState<Booking | null>(null);
+  const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
+  const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
+
+  // --- AUTOMATICALLY OPEN DIALOG FROM AVAILABILITY PAGE ---
+  useEffect(() => {
+    // 1. Check State (Preferred)
+    if (location.state?.openCreateDialog) {
+      setCreateBookingOpen(true);
+      if (location.state.prefill) {
+        setBookingPrefill(location.state.prefill);
+      }
+      window.history.replaceState({}, document.title); // Clear state
+    } 
+    // 2. Check Query Params (Fallback for direct link)
+    else {
+      const params = new URLSearchParams(location.search);
+      if (params.get('action') === 'create') {
+        setCreateBookingOpen(true);
+        setBookingPrefill({
+          mediaId: params.get('mediaId'),
+          startDate: params.get('start'),
+          endDate: params.get('end')
+        });
+      }
+    }
+  }, [location]);
 
   const snapshotBookings = useMemo(() => statsRes?.data || [], [statsRes]);
   const customersData = custRes?.data || [];
@@ -170,20 +208,16 @@ export default function CustomerBookings() {
     }, 200);
   };
 
-  // --- REFINED: THE "FORCED REFRESH" UPDATE LOGIC ---
   const handleUpdateBooking = async (u: Booking) => {
     try {
-      // 1. Perform the update on the server
       await updateBookingMutation.mutateAsync({ id: u._id || u.id, data: u });
       
-      // 2. Synchronize Media status (Essential for Cancelled/Completed logic)
       const mediaId = typeof u.mediaId === 'object' ? u.mediaId?._id : u.mediaId;
       if (mediaId) {
         const newMediaStatus = u.status === 'Active' ? 'Booked' : 'Available';
         await updateMediaMutation.mutateAsync({ id: mediaId, data: { status: newMediaStatus } });
       }
 
-      // 3. CRITICAL: Wipe and Refresh all relevant cached data for the Dashboard
       await queryClient.invalidateQueries({ queryKey: ['bookings'] });
       await queryClient.invalidateQueries({ queryKey: ['media'] });
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -205,19 +239,11 @@ export default function CustomerBookings() {
     }
   };
 
-  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
-  const [allBookingsOpen, setAllBookingsOpen] = useState(false);
-  const [viewBooking, setViewBooking] = useState<Booking | null>(null);
-  const [editBooking, setEditBooking] = useState<Booking | null>(null);
-  const [deleteBooking, setDeleteBooking] = useState<Booking | null>(null);
-  const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
-  const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
-
   useEffect(() => { setClientPage(1); }, [searchQuery]);
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-700 font-normal">
-      {/* 1. Header (Reduced size to text-2xl, Non-bold) */}
+      {/* 1. Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
@@ -228,7 +254,18 @@ export default function CustomerBookings() {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="shadow-sm font-normal" onClick={() => setAllBookingsOpen(true)}><ListFilter className="h-4 w-4 mr-2" />All Bookings</Button>
           <Button variant="outline" className="shadow-sm font-normal" onClick={() => setAddCustomerOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Client</Button>
-          <CreateBookingDialog />
+          
+          {/* UPDATED: Manual Button + Dialog Component */}
+          <Button className="shadow-sm font-medium" onClick={() => setCreateBookingOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Booking
+          </Button>
+
+          <CreateBookingDialog 
+            open={createBookingOpen} 
+            onOpenChange={setCreateBookingOpen} 
+            initialData={bookingPrefill} // Passing the prefill data
+          />
         </div>
       </div>
 

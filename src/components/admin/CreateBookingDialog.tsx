@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,7 +8,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,11 +33,10 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useCustomers } from "@/hooks/api/useCustomers";
-import { useMedia } from "@/hooks/api/useMedia";
+import { useMedia, useMediaById } from "@/hooks/api/useMedia"; // Added useMediaById
 import { useCreateBooking, useBookings } from "@/hooks/api/useBookings"; 
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus,
   Check,
   ChevronsUpDown,
   Trash2,
@@ -66,8 +64,17 @@ interface BookingItem {
   paymentStatus: string;
 }
 
-export function CreateBookingDialog() {
-  const [open, setOpen] = useState(false);
+interface CreateBookingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialData?: {
+    mediaId?: string;
+    startDate?: string;
+    endDate?: string;
+  } | null;
+}
+
+export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateBookingDialogProps) {
   const { toast } = useToast();
 
   const { data: customerRes } = useCustomers();
@@ -76,11 +83,9 @@ export function CreateBookingDialog() {
   
   const createBookingMutation = useCreateBooking();
 
-  // --- FIX: Wrap data extraction in useMemo to prevent unstable dependencies ---
   const customers = useMemo(() => customerRes?.data || [], [customerRes?.data]);
   const mediaLocations = useMemo(() => mediaRes?.data || [], [mediaRes?.data]);
   const existingBookings = useMemo(() => existingBookingsRes?.data || [], [existingBookingsRes?.data]);
-  // ---------------------------------------------------------------------------
 
   const [customerId, setCustomerId] = useState("");
   const [bookingQueue, setBookingQueue] = useState<BookingItem[]>([]);
@@ -101,8 +106,40 @@ export function CreateBookingDialog() {
     paymentStatus: "Pending",
   });
 
+  // --- NEW: Fetch specific media details if ID is present ---
+  // This ensures we get the Name and Price even if it's not in the 'mediaLocations' list
+  const { data: prefilledMedia } = useMediaById(currentItem.mediaId || "");
+
+  // Resolve the current media object (Prefer specific fetch, fallback to list)
+  const currentMedia = useMemo(() => {
+    return prefilledMedia || mediaLocations.find((m: any) => getId(m) === currentItem.mediaId);
+  }, [prefilledMedia, mediaLocations, currentItem.mediaId]);
+
+  // --- EFFECT: Handle Initial Data & Price Update ---
+  useEffect(() => {
+    if (open && initialData) {
+        setCurrentItem(prev => ({
+            ...prev,
+            mediaId: initialData.mediaId || "",
+            startDate: initialData.startDate || "",
+            endDate: initialData.endDate || "",
+            paymentStatus: "Pending"
+        }));
+    }
+  }, [open, initialData]);
+
+  // --- EFFECT: Update Price when Media Loads ---
+  // If we have a media object but no amount yet, set the price
+  useEffect(() => {
+    if (currentMedia && !currentItem.amount && open) {
+        setCurrentItem(prev => ({
+            ...prev,
+            amount: currentMedia.pricePerMonth?.toString() || ""
+        }));
+    }
+  }, [currentMedia, open]); // Removed currentItem.amount dependency to avoid loop
+
   const selectedCustomer = customers.find((c: any) => getId(c) === customerId);
-  const currentMedia = mediaLocations.find((m: any) => getId(m) === currentItem.mediaId);
 
   // Optimized Filtering
   const filteredCustomers = useMemo(() => {
@@ -196,16 +233,16 @@ export function CreateBookingDialog() {
       return;
     }
 
-    const media = mediaLocations.find((m: any) => getId(m) === currentItem.mediaId);
-    if (!media) return;
+    // Use the resolved currentMedia which might come from useMediaById
+    if (!currentMedia) return;
 
     const autoStatus = calculateStatus(currentItem.startDate, currentItem.endDate);
 
     const newItem: BookingItem = {
       tempId: Math.random().toString(36).substring(7),
-      mediaId: getId(media),
-      mediaName: media.name,
-      mediaType: media.type,
+      mediaId: getId(currentMedia),
+      mediaName: currentMedia.name,
+      mediaType: currentMedia.type,
       startDate: currentItem.startDate,
       endDate: currentItem.endDate,
       amount: currentItem.amount,
@@ -232,7 +269,6 @@ export function CreateBookingDialog() {
 
     try {
       for (const item of bookingQueue) {
-        // Logic to determine paid amount
         const paidAmount = item.paymentStatus === 'Paid' ? Number(item.amount) : 0;
 
         const payload = {
@@ -255,7 +291,7 @@ export function CreateBookingDialog() {
       setBookingQueue([]);
       setCustomerId("");
       resetCurrentItem();
-      setOpen(false);
+      onOpenChange(false);
 
     } catch (error: any) {
       console.error("❌ API Error:", error.response?.data || error);
@@ -270,13 +306,7 @@ export function CreateBookingDialog() {
   const displayStatus = (s: string) => s === "Upcoming" ? "Confirmed" : s;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Create Booking
-        </Button>
-      </DialogTrigger>
-      
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
         className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto flex flex-col"
         aria-describedby="booking-desc"
@@ -344,6 +374,7 @@ export function CreateBookingDialog() {
                 <Popover open={mediaOpen} onOpenChange={setMediaOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" className="w-full justify-between font-normal bg-background mt-1">
+                      {/* FIX: Use currentMedia which now correctly resolves via useMediaById */}
                       {currentMedia ? currentMedia.name : "Search media..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
@@ -380,6 +411,7 @@ export function CreateBookingDialog() {
                 </Popover>
               </div>
 
+              {/* ... (Rest of the component remains unchanged) ... */}
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground uppercase">Start Date</Label>
                 <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
@@ -508,7 +540,7 @@ export function CreateBookingDialog() {
         </div>
 
         <DialogFooter className="mt-auto pt-4 border-t">
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={bookingQueue.length === 0 || createBookingMutation.isPending}>
             {createBookingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Confirm Bookings
           </Button>
