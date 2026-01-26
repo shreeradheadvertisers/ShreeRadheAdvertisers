@@ -28,12 +28,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { cn, formatIndianRupee } from "@/lib/utils";
 import { toast } from "sonner";
+import logo from "@/assets/logo.png"; // Import Logo
 
-// --- 1. IMPORT LIVE API HOOKS ---
+// --- 1. IMPORT LIVE API HOOKS & CONTEXT ---
 import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
 import { useCustomers } from "@/hooks/api/useCustomers";
 import { Booking, PaymentStatus, PaymentMode } from "@/lib/api/types";
 import { customerGroups } from "@/lib/data";
+import { useAuth } from "@/contexts/AuthContext"; // Import Auth for Report User
 
 // --- 2. IMPORT HELPERS & DIALOGS ---
 import { 
@@ -43,6 +45,8 @@ import {
 import { generateBookingId } from "@/lib/utils";
 
 const Payments = () => {
+  const { user } = useAuth(); // Get current user for report footer
+  
   // Filters State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'All'>('All');
@@ -170,6 +174,24 @@ const Payments = () => {
 
   const hasActiveFilters = groupFilter !== 'All' || modeFilter !== 'All' || dateRange.start || dateRange.end;
 
+  // --- 5.1 HELPER: Get Filter Context for Report ---
+  const getFilterContext = () => {
+    const filters = [];
+    if (statusFilter !== 'All') filters.push(`Status: ${statusFilter}`);
+    if (modeFilter !== 'All') filters.push(`Mode: ${modeFilter}`);
+    if (groupFilter !== 'All') filters.push(`Group: ${groupFilter}`);
+    if (dateRange.start || dateRange.end) filters.push(`Date: ${dateRange.start || 'Start'} to ${dateRange.end || 'End'}`);
+    if (search) filters.push(`Search: "${search}"`);
+    return filters.length > 0 ? filters.join(" | ") : "None (All Records)";
+  };
+
+  // --- 5.2 HELPER: Get Totals for Report ---
+  const getReportTotals = () => {
+    const revenue = filteredBookings.reduce((acc, b) => acc + (b.amountPaid || 0), 0);
+    const pending = filteredBookings.reduce((acc, b) => acc + ((b.amount || 0) - (b.amountPaid || 0)), 0);
+    return { revenue, pending };
+  };
+
   // --- 6. HANDLERS ---
   const handleBookingClick = (booking: any) => {
     setSelectedBookingForEdit(booking);
@@ -229,6 +251,8 @@ const Payments = () => {
       toast.error("No records found to export.");
       return;
     }
+    
+    // UPDATED: PDF now triggers system print which uses the @media print styles
     if (format === 'pdf') {
       window.print();
       return;
@@ -264,9 +288,100 @@ const Payments = () => {
     );
   }
 
+  const { revenue: reportRevenue, pending: reportPending } = getReportTotals();
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 print:space-y-0 print:block">
+      {/* GLOBAL STYLES FOR PRINT */}
+      <style>
+        {`
+          @media print {
+            @page {
+              margin: 10mm;
+              size: auto;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body {
+              background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'><text x='150' y='150' fill='rgba(0,0,0,0.05)' font-size='24' font-family='Arial' font-weight='bold' transform='rotate(-45 150 150)' text-anchor='middle' dominant-baseline='middle'>CONFIDENTIAL</text></svg>") !important;
+              background-repeat: repeat !important;
+              background-position: center !important;
+            }
+            .bg-card, .bg-background, .bg-white, table, tr, td, th {
+              background-color: transparent !important;
+            }
+            .shadow-sm, .shadow-md, .shadow-lg, .border, .border-b-2 {
+              box-shadow: none !important;
+              border: none !important;
+            }
+            tr {
+              border-bottom: 1px solid #e5e7eb !important; 
+              break-inside: avoid;
+            }
+            thead tr {
+              border-bottom: 2px solid #000 !important;
+            }
+            th, td {
+               padding: 4px !important;
+               font-size: 10px !important;
+               vertical-align: top;
+            }
+            /* Hide scrolling containers for print */
+            .overflow-hidden, .overflow-x-auto {
+               overflow: visible !important;
+            }
+          }
+        `}
+      </style>
+
+      {/* --- PROFESSIONAL REPORT HEADER (Print Only) --- */}
+      <div className="hidden print:block mb-6 w-full pb-4">
+        <div className="flex justify-between items-start mb-6">
+           <div className="flex items-center gap-4">
+            <img src={logo} alt="Company Logo" className="h-16 w-auto object-contain" />
+            <div>
+              <h1 className="text-2xl font-bold text-black uppercase tracking-tight">Shree Radhe Advertisers</h1>
+              <p className="text-gray-600 font-medium mt-1">Payment & Invoice Report</p>
+            </div>
+           </div>
+           
+           <div className="text-right">
+             <div className="mb-2">
+               <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Generated On</p>
+               <p className="font-mono text-sm font-bold text-black">
+                 {new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+               </p>
+             </div>
+             <div>
+               <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Generated By</p>
+               <p className="font-medium text-black text-sm">{user?.name || user?.email || "System Admin"}</p>
+             </div>
+           </div>
+        </div>
+
+        <div className="flex justify-between items-end bg-gray-100 p-3 rounded print:bg-transparent">
+          <div>
+            <h2 className="text-xl font-bold text-black uppercase">Financial Report</h2>
+            <p className="text-xs text-gray-600 mt-1 font-medium">
+              <span className="font-bold text-black">Active Filters:</span> {getFilterContext()}
+            </p>
+          </div>
+          <div className="text-right flex gap-6">
+            <div>
+               <span className="text-xs text-gray-500 uppercase font-bold">Total Revenue</span>
+               <p className="text-lg font-bold text-success leading-none">₹{formatIndianRupee(reportRevenue)}</p>
+            </div>
+            <div>
+               <span className="text-xs text-gray-500 uppercase font-bold">Outstanding</span>
+               <p className="text-lg font-bold text-destructive leading-none">₹{formatIndianRupee(reportPending)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Wallet className="h-6 w-6 text-primary" />
@@ -274,7 +389,7 @@ const Payments = () => {
           </h1>
           <p className="text-muted-foreground">Manage billing, track payments, and edit transaction details.</p>
         </div>
-        <div className="flex gap-2 print:hidden">
+        <div className="flex gap-2">
            <Button onClick={() => setIsNewPaymentOpen(true)}>
              <Plus className="mr-2 h-4 w-4" /> Record Payment
            </Button>
@@ -293,15 +408,15 @@ const Payments = () => {
                 <FileSpreadsheet className="h-4 w-4 mr-2" /> Download Excel
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                <FileText className="h-4 w-4 mr-2" /> Print PDF
+                <FileText className="h-4 w-4 mr-2" /> Print PDF Report
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Summary Cards - Hidden in Print */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         {summaryCards.map((card) => (
           <Card 
             key={card.title} 
@@ -324,8 +439,8 @@ const Payments = () => {
         ))}
       </div>
 
-      <Card className="p-6 border-border/50 bg-card">
-        {/* Toolbar */}
+      <Card className="p-6 border-border/50 bg-card print:border-none print:p-0 print:shadow-none">
+        {/* Toolbar - Hidden in Print */}
         <div className="flex flex-col xl:flex-row justify-between gap-4 mb-6 print:hidden">
           <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto items-start sm:items-center">
              <div className="relative w-full sm:w-64">
@@ -411,13 +526,14 @@ const Payments = () => {
         </div>
 
         {/* Table */}
-        <div className="rounded-md border overflow-hidden">
+        <div className="rounded-md border overflow-hidden print:border-none print:overflow-visible">
           <Table>
-            <TableHeader><TableRow className="bg-muted/50">
-              <TableHead>Booking ID</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Contract Value</TableHead>
-              <TableHead>Status</TableHead>
+            <TableHeader>
+              <TableRow className="bg-muted/50 print:bg-transparent print:text-black print:border-b-2 print:border-black">
+              <TableHead className="print:text-black print:font-bold">Booking ID</TableHead>
+              <TableHead className="print:text-black print:font-bold">Company</TableHead>
+              <TableHead className="print:text-black print:font-bold">Contract Value</TableHead>
+              <TableHead className="print:text-black print:font-bold">Status</TableHead>
               <TableHead className="text-right print:hidden">Actions</TableHead>
             </TableRow></TableHeader>
             <TableBody>
@@ -436,30 +552,33 @@ const Payments = () => {
                   const customId = generateBookingId(booking, originalIndex);
 
                   return (
-                    <TableRow key={booking._id || booking.id} className="group transition-colors">
+                    <TableRow key={booking._id || booking.id} className="group transition-colors print:border-b print:border-gray-200">
                       <TableCell 
-                        className="font-mono font-medium text-primary cursor-pointer hover:underline"
+                        className="font-mono font-medium text-primary cursor-pointer hover:underline print:text-xs print:no-underline print:text-black"
                         onClick={() => handleBookingClick(booking)}
                       >
                         <div>{customId}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground print:text-[10px]">
                           {new Date(booking.startDate).toLocaleDateString('en-IN')}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="print:text-xs">
                         <div className="font-medium">{customer?.company || "Unknown"}</div>
-                        <Badge variant="outline" className="text-[10px]">{customer?.group || "N/A"}</Badge>
+                        <Badge variant="outline" className="text-[10px] print:border-gray-400 print:text-gray-600">{customer?.group || "N/A"}</Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="print:text-xs">
                         <div className="font-medium">₹{booking.amount.toLocaleString('en-IN')}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Due: <span className={(booking.amount - booking.amountPaid) > 0 ? "text-destructive" : "text-success"}>
+                        <div className="text-xs text-muted-foreground print:text-[10px]">
+                          Due: <span className={(booking.amount - booking.amountPaid) > 0 ? "text-destructive print:text-black print:font-bold" : "text-success print:text-black"}>
                             ₹{formatIndianRupee(booking.amount - booking.amountPaid)}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant={booking.paymentStatus === 'Paid' ? 'success' : booking.paymentStatus === 'Partially Paid' ? 'warning' : 'destructive'}>
+                      <TableCell className="print:text-xs">
+                        <Badge 
+                          variant={booking.paymentStatus === 'Paid' ? 'success' : booking.paymentStatus === 'Partially Paid' ? 'warning' : 'destructive'}
+                          className="print:bg-transparent print:text-black print:border print:border-black print:px-1"
+                        >
                            {booking.paymentStatus}
                         </Badge>
                       </TableCell>
@@ -477,7 +596,6 @@ const Payments = () => {
                             size="icon" 
                             variant="ghost" 
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            // TRIGGER DELETE
                             onClick={() => handleDeleteClick(booking._id || booking.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -538,6 +656,12 @@ const Payments = () => {
           onConfirm={handleDeleteConfirm} 
         />
       )}
+
+      {/* --- PRINT FOOTER (Sticky) --- */}
+      <div className="hidden print:flex fixed bottom-0 left-0 w-full justify-between items-center text-[10px] text-gray-500 border-t border-gray-200 pt-2 bg-white pb-4 z-50">
+        <p>© {new Date().getFullYear()} Shree Radhe Advertisers. All rights reserved.</p>
+        <p>CONFIDENTIAL: For internal use only.</p>
+      </div>
     </div>
   );
 };
