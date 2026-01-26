@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, Fragment, useMemo } from "react";
-import { useNavigate } from "react-router-dom"; //
+import { useNavigate } from "react-router-dom";
 import { useMedia } from "@/hooks/api/useMedia";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function DistrictBreakdown() {
-  const navigate = useNavigate(); //
+  const navigate = useNavigate();
   const [selectedState, setSelectedState] = useState<string>('all');
   const [expandedDistrict, setExpandedDistrict] = useState<string | null>(null);
 
@@ -144,27 +144,39 @@ export function DistrictBreakdown() {
                             <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                                <MapPin className="h-3 w-3" /> List of Assets in {stat.district}
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-2">
                               {stat.locations.map((loc: any) => (
                                 <div 
                                   key={loc._id || loc.id} 
-                                  // UPDATED: Added cursor-pointer, hover effect, and onClick navigation
-                                  className="flex items-center justify-between p-3 rounded-lg bg-background border border-border/50 hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-all shadow-sm group"
+                                  className="flex items-start justify-between p-3 rounded-lg bg-background border border-border/50 hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-all shadow-sm group"
                                   onClick={(e) => {
-                                    e.stopPropagation(); // Prevent toggling the district row
-                                    navigate(`/admin/media/${loc._id || loc.id}`); //
+                                    e.stopPropagation(); 
+                                    navigate(`/admin/media/${loc._id || loc.id}`); 
                                   }}
                                 >
-                                  <div className="min-w-0 pr-2">
-                                    <div className="text-sm font-medium truncate leading-none mb-1 group-hover:text-primary transition-colors flex items-center gap-1.5">
-                                      {loc.name}
-                                      <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-50" />
+                                  <div className="min-w-0 flex-1 pr-3">
+                                    <div className="text-sm font-medium leading-snug mb-1.5 group-hover:text-primary transition-colors">
+                                      {loc.name} <ExternalLink className="inline h-3 w-3 ml-1 opacity-0 group-hover:opacity-50 -mt-0.5" />
                                     </div>
-                                    <div className="text-[10px] text-muted-foreground truncate">{loc.address || loc.landmark || loc.city}</div>
+                                    
+                                    <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                                        {/* Added Media ID */}
+                                        <span className="font-mono text-xs font-medium text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10 whitespace-nowrap">
+                                            {loc.id}
+                                        </span>
+                                        
+                                        <span className="font-semibold text-foreground/80 bg-muted px-1.5 py-0.5 rounded border border-border/50 whitespace-nowrap">
+                                            {loc.type}
+                                        </span>
+                                        <span className="text-muted-foreground truncate opacity-80 max-w-full">
+                                            {loc.address || loc.landmark || loc.city}
+                                        </span>
+                                    </div>
                                   </div>
+
                                   <Badge 
                                     variant={loc.status === 'Available' ? 'success' : 'destructive'}
-                                    className="text-[9px] uppercase font-bold tracking-tighter px-1.5 h-5 flex-shrink-0"
+                                    className="text-[9px] uppercase font-bold tracking-tighter px-1.5 h-5 flex-shrink-0 mt-0.5"
                                   >
                                     {loc.status}
                                   </Badge>
