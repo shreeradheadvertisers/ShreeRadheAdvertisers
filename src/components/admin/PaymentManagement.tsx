@@ -24,12 +24,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-// Import real types instead of mock types
 import { Booking, PaymentMode, PaymentStatus } from "@/lib/api/types";
 import { IndianRupee, CreditCard, Pencil, Calculator, ChevronsUpDown, Check, Trash2, Search, AlertTriangle, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
-import { cn, formatIndianRupee } from "@/lib/utils";
+import { cn, formatIndianRupee, generateBookingId } from "@/lib/utils"; // Import generateBookingId
 import {
   Command,
   CommandEmpty,
@@ -44,15 +43,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-// --- 1. RECORD PAYMENT DIALOG (Incremental) ---
+// --- 1. RECORD PAYMENT DIALOG ---
 interface RecordPaymentDialogProps {
   booking: Booking | null;
+  customId?: string; // NEW PROP
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPaymentRecorded: (bookingId: string, newAmountPaid: number, status: PaymentStatus, mode: PaymentMode) => void;
 }
 
-export function RecordPaymentDialog({ booking, open, onOpenChange, onPaymentRecorded }: RecordPaymentDialogProps) {
+export function RecordPaymentDialog({ booking, customId, open, onOpenChange, onPaymentRecorded }: RecordPaymentDialogProps) {
   const [amountToPay, setAmountToPay] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
   
@@ -90,7 +90,6 @@ export function RecordPaymentDialog({ booking, open, onOpenChange, onPaymentReco
       newStatus = 'Partially Paid';
     }
 
-    // Use _id for backend mutations
     onPaymentRecorded(booking._id || booking.id, newTotalPaid, newStatus, paymentMode);
     toast.success(`Payment of ₹${formatIndianRupee(payAmount)} recorded successfully.`);
     onOpenChange(false);
@@ -98,12 +97,15 @@ export function RecordPaymentDialog({ booking, open, onOpenChange, onPaymentReco
 
   if (!booking) return null;
 
+  // Use passed customId or fallback to ID
+  const displayId = customId || booking.id || booking._id;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
-          <DialogDescription>Add a new transaction for Booking {booking.id || booking._id}</DialogDescription>
+          <DialogDescription>Add a new transaction for Booking <span className="font-mono font-bold text-primary">{displayId}</span></DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -180,9 +182,20 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
   const [amountToPay, setAmountToPay] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
 
-  // Filter out cancelled bookings from selection
-  const activeBookings = bookings.filter(b => b.status !== 'Cancelled');
-  const selectedBooking = activeBookings.find(b => (b._id === selectedBookingId || b.id === selectedBookingId));
+  // 1. Sort bookings to ensure correct IDs
+  const sortedBookings = [...bookings].sort((a, b) => 
+    new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
+  );
+
+  // 2. Filter active bookings and map to include Custom ID
+  const activeBookingOptions = sortedBookings
+    .map((b, index) => ({
+      ...b,
+      customId: generateBookingId(b, index) // Generate correct ID
+    }))
+    .filter(b => b.status !== 'Cancelled');
+
+  const selectedBooking = activeBookingOptions.find(b => (b._id === selectedBookingId || b.id === selectedBookingId));
 
   useEffect(() => {
     if (!open) {
@@ -246,24 +259,24 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
                   )}
                 >
                   {selectedBookingId && selectedBooking
-                    ? `${selectedBooking.id || selectedBooking._id} - ${selectedBooking.customerId?.company || selectedBooking.customerId?.name || 'Unknown'}`
+                    ? `${selectedBooking.customId} - ${selectedBooking.customerId?.company || selectedBooking.customerId?.name || 'Unknown'}`
                     : "Search booking by ID or Client..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0" align="start">
                 <Command>
-                  <CommandInput placeholder="Search booking..." />
+                  <CommandInput placeholder="Search ID, Client..." />
                   <CommandList>
                     <CommandEmpty>No active booking found.</CommandEmpty>
                     <CommandGroup>
-                      {activeBookings.map((booking) => {
+                      {activeBookingOptions.map((booking) => {
                          const clientName = booking.customerId?.company || booking.customerId?.name || "N/A";
                          const bId = booking.id || booking._id;
                          return (
                            <CommandItem
                              key={bId}
-                             value={`${bId} ${clientName}`}
+                             value={`${booking.customId} ${clientName}`}
                              onSelect={() => {
                                setSelectedBookingId(bId);
                                setOpenCombobox(false);
@@ -276,7 +289,7 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
                                )}
                              />
                              <div className="flex flex-col">
-                               <span className="font-medium">{bId}</span>
+                               <span className="font-medium">{booking.customId}</span>
                                 <span className="text-xs text-muted-foreground">
                                   {clientName} • ₹{formatIndianRupee(booking.amount)}
                                 </span>
@@ -353,12 +366,13 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
 // --- 3. EDIT PAYMENT DETAILS DIALOG (Absolute Edit) ---
 interface EditPaymentDialogProps {
   booking: Booking | null;
+  customId?: string; // NEW PROP
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (bookingId: string, newAmountPaid: number, status: PaymentStatus, mode: PaymentMode) => void;
 }
 
-export function EditPaymentDialog({ booking, open, onOpenChange, onSave }: EditPaymentDialogProps) {
+export function EditPaymentDialog({ booking, customId, open, onOpenChange, onSave }: EditPaymentDialogProps) {
   const [formData, setFormData] = useState({
     amountPaid: 0,
     status: 'Pending' as PaymentStatus,
@@ -404,6 +418,7 @@ export function EditPaymentDialog({ booking, open, onOpenChange, onSave }: EditP
   if (!booking) return null;
 
   const balance = booking.amount - formData.amountPaid;
+  const displayId = customId || booking.id || booking._id;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -414,7 +429,7 @@ export function EditPaymentDialog({ booking, open, onOpenChange, onSave }: EditP
             Edit Payment Details
           </DialogTitle>
           <DialogDescription>
-            Modify payment records for Booking <span className="font-mono text-xs">{booking.id || booking._id}</span>
+            Modify payment records for Booking <span className="font-mono text-xs font-bold text-primary">{displayId}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -516,6 +531,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
   const [filter, setFilter] = useState<PaymentStatus | 'All' | 'Cancelled'>(initialFilter);
   const [search, setSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [selectedBookingCustomId, setSelectedBookingCustomId] = useState<string>(""); // Store Custom ID
   const [isRecordOpen, setIsRecordOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -524,7 +540,18 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
     if (open) setFilter(initialFilter);
   }, [open, initialFilter]);
 
-  const filteredBookings = (bookings || []).filter(b => {
+  // 1. Sort bookings globally to ensure ID consistency
+  const sortedBookings = [...(bookings || [])].sort((a, b) => 
+    new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
+  );
+
+  // 2. Prepare bookings with Custom IDs
+  const bookingsWithIds = sortedBookings.map((b, index) => ({
+    ...b,
+    customId: generateBookingId(b, index)
+  }));
+
+  const filteredBookings = bookingsWithIds.filter(b => {
     const isCancelled = b.status === 'Cancelled' || b.paymentStatus === 'Cancelled';
 
     let matchesFilter = true;
@@ -533,13 +560,13 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
     } else if (filter === 'Cancelled') {
       matchesFilter = isCancelled;
     } else {
-      // For 'Pending', 'Paid', etc., usually we want to see active bookings matching that payment status
       matchesFilter = !isCancelled && b.paymentStatus === filter;
     }
     
     const searchLower = (search || "").toLowerCase();
     
-    const bookingIdStr = (b.id || b._id || "").toString().toLowerCase();
+    // Search using the Custom ID now
+    const bookingIdStr = b.customId.toLowerCase();
     const mediaName = (b.mediaId?.name || b.media?.name || "").toLowerCase();
     const customerCompany = (b.customerId?.company || "").toLowerCase();
     const customerName = (b.customerId?.name || "").toLowerCase();
@@ -625,15 +652,15 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                     const customerName = booking.customerId?.company || booking.customerId?.name || "N/A";
                     const mediaName = booking.mediaId?.name || booking.media?.name || "N/A";
                     const isFullyPaid = booking.paymentStatus === 'Paid';
-                    // Check if cancelled (either via paymentStatus or booking status)
                     const isCancelled = booking.status === 'Cancelled' || booking.paymentStatus === 'Cancelled';
 
                     return (
                       <TableRow key={booking._id || booking.id} className="group hover:bg-muted/30">
                         <TableCell>
                           <div className="flex items-center gap-2">
+                             {/* SHOW CUSTOM ID HERE */}
                              <div className={cn("font-mono text-xs font-bold", isCancelled ? "text-muted-foreground line-through" : "text-primary")}>
-                               {booking.id || booking._id}
+                               {booking.customId}
                              </div>
                              {isCancelled && <Badge variant="secondary" className="text-[10px] h-4">Cancelled</Badge>}
                           </div>
@@ -671,6 +698,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                               disabled={isFullyPaid || isCancelled}
                               onClick={() => {
                                 setSelectedBooking(booking);
+                                setSelectedBookingCustomId(booking.customId); // Save for dialog
                                 setIsRecordOpen(true);
                               }}
                             >
@@ -683,6 +711,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                               disabled={isCancelled}
                               onClick={() => {
                                 setSelectedBooking(booking);
+                                setSelectedBookingCustomId(booking.customId); // Save for dialog
                                 setIsEditOpen(true);
                               }}
                             >
@@ -721,8 +750,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
               Delete Payment Record?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove the payment record for booking #{deleteConfirm?.slice(-6)}. 
-              This action cannot be undone.
+              This will permanently remove the payment record. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -744,6 +772,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
 
       <RecordPaymentDialog 
         booking={selectedBooking}
+        customId={selectedBookingCustomId} // Pass Custom ID
         open={isRecordOpen}
         onOpenChange={setIsRecordOpen}
         onPaymentRecorded={handleUpdate}
@@ -751,6 +780,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
 
       <EditPaymentDialog 
         booking={selectedBooking}
+        customId={selectedBookingCustomId} // Pass Custom ID
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         onSave={handleUpdate}
