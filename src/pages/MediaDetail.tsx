@@ -3,35 +3,45 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton"; // Added for loading state
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   ArrowLeft, 
   MapPin, 
   Maximize, 
   Lightbulb, 
   Compass, 
-  Calendar,
+  Calendar as CalendarIcon,
   Mail,
   Loader2
 } from "lucide-react";
 
-// --- UPDATED IMPORTS ---
 import { useMediaById } from "@/hooks/api/useMedia";
+import { useBookings } from "@/hooks/api/useBookings";
 import { adaptMediaLocation } from "@/lib/services/dataService";
-import { isBackendConfigured } from "@/lib/api/config";
+import { isWithinInterval, parseISO, startOfDay } from "date-fns";
+import { useMemo } from "react";
 
 const MediaDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // 1. FETCH FROM API (MongoDB)
-  const { data: apiMedia, isLoading } = useMediaById(id || '');
+  // Fetch data from MongoDB
+  const { data: apiMedia, isLoading: isLoadingMedia } = useMediaById(id || '');
+  const { data: bookingsData } = useBookings({ mediaId: id, limit: 100 });
 
-  // 2. ADAPT DATA (Ensures database fields match your UI names like 'image')
   const media = apiMedia ? adaptMediaLocation(apiMedia) : null;
 
-  // 3. LOADING STATE
-  if (isLoading) {
+  // Process booked dates for the public calendar
+  const bookedDays = useMemo(() => {
+    if (!bookingsData?.data) return [];
+    return bookingsData.data.map(booking => ({
+      from: startOfDay(parseISO(booking.startDate)),
+      to: startOfDay(parseISO(booking.endDate))
+    }));
+  }, [bookingsData]);
+
+  if (isLoadingMedia) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -39,7 +49,6 @@ const MediaDetail = () => {
     );
   }
 
-  // 4. NOT FOUND STATE
   if (!media) {
     return (
       <div className="pt-24 pb-16">
@@ -67,7 +76,6 @@ const MediaDetail = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            {/* Image Section */}
             <div className="relative aspect-video rounded-xl overflow-hidden bg-muted">
               <img 
                 src={media.imageUrl || (media as any).image} 
@@ -81,7 +89,6 @@ const MediaDetail = () => {
               </div>
             </div>
 
-            {/* Attributes Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <Card className="p-4 bg-card border-border/50">
                 <div className="flex items-center gap-3">
@@ -114,7 +121,6 @@ const MediaDetail = () => {
               </Card>
             </div>
 
-            {/* Location Details */}
             <Card className="p-6 bg-card border-border/50">
               <h3 className="text-lg font-semibold mb-4">Location Details</h3>
               <div className="space-y-3 text-sm">
@@ -134,7 +140,6 @@ const MediaDetail = () => {
             </Card>
           </div>
 
-          {/* Sidebar Info */}
           <div className="space-y-6">
             <Card className="p-6 bg-card border-border/50 sticky top-24">
               <div className="mb-6">
@@ -162,9 +167,86 @@ const MediaDetail = () => {
                   <Button className="w-full" size="lg" onClick={() => navigate('/contact')}>
                     <Mail className="h-4 w-4 mr-2" /> Inquire Now
                   </Button>
-                  <Button variant="outline" className="w-full" size="lg">
-                    <Calendar className="h-4 w-4 mr-2" /> Check Availability
-                  </Button>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full" size="lg">
+                        <CalendarIcon className="h-4 w-4 mr-2" /> Check Availability
+                      </Button>
+                    </PopoverTrigger>
+                    
+                    {/* WHITE Background for Calendar Container */}
+                    <PopoverContent className="w-auto p-0 border shadow-xl rounded-xl bg-white" align="end">
+                      
+                      {/* White Header with Status Legend */}
+                      <div className="p-3 border-b bg-muted/20 flex justify-between items-center text-xs">
+                        <span className="font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
+                        <div className="flex gap-4">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-md bg-emerald-600 shadow-sm"></div>
+                            <span className="text-[10px] text-muted-foreground font-medium">Available</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-md bg-red-700 shadow-sm"></div>
+                            <span className="text-[10px] text-muted-foreground font-medium">Booked</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-3">
+                        <Calendar
+                          mode="single"
+                          showOutsideDays={true} // Display next/prev month dates to fill grid
+                          fixedWeeks={false}     // Do NOT force an extra 6th row if not needed
+                          fromDate={new Date()}  // Prevent navigation to previous months
+                          disabled={{ before: new Date() }} // Disable interaction with past dates
+                          modifiers={{
+                            booked: (date) => bookedDays.some(range => 
+                              isWithinInterval(startOfDay(date), { start: range.from, end: range.to })
+                            )
+                          }}
+                          modifiersStyles={{
+                            booked: { 
+                              // DARK RED for Booked
+                              backgroundColor: '#b91c1c', // red-700
+                              color: 'white',
+                              textDecoration: 'line-through',
+                              cursor: 'not-allowed',
+                              border: '1px solid #991b1b',
+                              opacity: 0.9,
+                              fontWeight: '600'
+                            }
+                          }}
+                          classNames={{
+                            // Layout spacing
+                            months: "space-y-4",
+                            month: "space-y-4",
+                            caption: "flex justify-center pt-1 relative items-center mb-2",
+                            caption_label: "text-sm font-semibold",
+                            nav: "space-x-1 flex items-center",
+                            
+                            // Header (Days of week)
+                            head_cell: "text-muted-foreground rounded-md w-10 font-medium text-[0.8rem]",
+                            
+                            // Cells - p-1 provides the GAP between dates
+                            cell: "h-10 w-10 text-center p-1 relative focus-within:relative focus-within:z-20",
+                            
+                            // Day Button - DARK GREEN for Available
+                            day: "h-full w-full p-0 font-medium aria-selected:opacity-100 bg-emerald-600 text-white hover:bg-emerald-700 rounded-md transition-all shadow-sm",
+                            
+                            // Today's Date - Ring highlight
+                            day_today: "ring-2 ring-yellow-500 ring-offset-2 font-bold",
+                            
+                            // Outside Days - Visible but Low Opacity (Dimmed)
+                            day_outside: "text-zinc-400 opacity-40 bg-transparent hover:bg-transparent",
+                            
+                            // Disabled (Past dates) - Grayed out & Ghost
+                            day_disabled: "text-muted-foreground opacity-30 bg-transparent hover:bg-transparent text-gray-400 shadow-none",
+                          }}
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </Card>
