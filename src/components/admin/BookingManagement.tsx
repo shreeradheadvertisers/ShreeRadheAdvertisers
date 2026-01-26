@@ -11,15 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   FileText, MapPin, Pencil, Trash2, Eye, Search, 
   ChevronLeft, ChevronRight, ListFilter, 
-  Calendar as CalendarIcon // Renamed icon to avoid conflict
+  Calendar as CalendarIcon 
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { formatIndianRupee, cn } from "@/lib/utils"; // Added cn
-import { Calendar } from "@/components/ui/calendar"; // Import Calendar component
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; // Import Popover components
-import { format } from "date-fns"; // Import format for date manipulation
+import { formatIndianRupee, cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 // Helper: Technical 'Active' shows as 'Booked' in the UI
 export const getStatusLabel = (status: string) => {
@@ -36,6 +36,31 @@ const formatDisplayDate = (dateStr: string) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
+};
+
+// Helper: Generate Custom Booking ID (SRA/AY/XXXX)
+export const generateBookingId = (booking: any, index: number) => {
+  if (!booking) return "N/A";
+  const dateSource = booking.startDate || booking.createdAt;
+  let ay = "0000";
+  if (dateSource) {
+      const d = new Date(dateSource);
+      if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = d.getMonth();
+          let startYear, endYear;
+          if (month < 3) {
+             startYear = year - 1;
+             endYear = year;
+          } else {
+             startYear = year;
+             endYear = year + 1;
+          }
+          ay = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
+      }
+  }
+  const sequence = 1000 + index + 1;
+  return `SRA/${ay}/${sequence}`;
 };
 
 export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
@@ -140,7 +165,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
           </div>
           
           <div className="grid grid-cols-2 gap-4">
-            {/* Start Date Picker with DD/MM/YYYY Display */}
+            {/* Start Date Picker */}
             <div className="space-y-2">
               <label className="text-xs font-medium">Start Date</label>
               <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
@@ -172,7 +197,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
               </Popover>
             </div>
 
-            {/* End Date Picker with DD/MM/YYYY Display */}
+            {/* End Date Picker */}
             <div className="space-y-2">
               <label className="text-xs font-medium">End Date</label>
               <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
@@ -236,12 +261,18 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const filteredBookings = (bookings || []).filter((b: any) => {
+  // Sort by date to make IDs consistent
+  const sortedBookings = [...(bookings || [])].sort((a: any, b: any) => 
+    new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
+  );
+
+  const filteredBookings = sortedBookings.filter((b: any) => {
     const s = search.toLowerCase();
     const media = b.mediaId || b.media;
     const customer = customers.find((c: any) => c.id === b.customerId || c._id === b.customerId) || (typeof b.customerId === 'object' ? b.customerId : null);
     
-    const matchesSearch = (media?.name || "").toLowerCase().includes(s) || (customer?.company || "").toLowerCase().includes(s);
+    const matchesSearch = (media?.name || "").toLowerCase().includes(s) || 
+                          (customer?.company || "").toLowerCase().includes(s);
     const matchesStatus = statusFilter === "all" || b.status === statusFilter;
     
     return matchesSearch && matchesStatus;
@@ -284,6 +315,7 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
           <Table>
             <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
               <TableRow>
+                <TableHead className="w-[140px] font-medium">Booking ID</TableHead>
                 <TableHead className="font-medium">Customer</TableHead>
                 <TableHead className="font-medium">Media</TableHead>
                 <TableHead className="font-medium">Schedule</TableHead>
@@ -292,14 +324,23 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredBookings.map((b: any) => {
+              {filteredBookings.map((b: any, index: number) => {
                 const customer = customers.find((c: any) => c.id === b.customerId || c._id === b.customerId) || (typeof b.customerId === 'object' ? b.customerId : null);
                 const media = b.mediaId || b.media;
+                const customId = generateBookingId(b, index);
+
                 return (
-                  <TableRow key={b._id || b.id}>
+                  <TableRow 
+                    key={b._id || b.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => onEdit(b)}
+                  >
+                    {/* CUSTOM ID COLUMN */}
+                    <TableCell className="font-mono text-xs font-medium text-primary">
+                        {customId}
+                    </TableCell>
                     <TableCell className="font-medium">{customer?.company || "Unknown"}</TableCell>
                     <TableCell><div className="text-xs">{media?.name}</div></TableCell>
-                    {/* Table date range in DD/MM/YYYY */}
                     <TableCell className="text-[10px] text-muted-foreground font-medium">
                       {formatDisplayDate(b.startDate)} to {formatDisplayDate(b.endDate)}
                     </TableCell>
@@ -308,7 +349,7 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
                         {getStatusLabel(b.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onView(b)}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(b)}><Pencil className="h-4 w-4" /></Button>
@@ -320,12 +361,13 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
               })}
               {filteredBookings.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">No bookings found for the selected criteria.</TableCell>
+                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No bookings found for the selected criteria.</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </ScrollArea>
+        {/* Pagination controls... */}
         <div className="flex items-center justify-between py-4 border-t px-2 bg-background mt-auto text-xs text-muted-foreground">
           <p>Page <strong>{pagination.currentPage}</strong> of {pagination.totalPages}</p>
           <div className="flex gap-2">

@@ -1,11 +1,11 @@
 /**
- * Customer Routes - Updated with Dynamic Stats Aggregation
+ * Customer Routes
  */
 
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
-const Booking = require('../models/Booking'); // Import Booking model
+const Booking = require('../models/Booking'); 
 const { authMiddleware } = require('../middleware/auth');
 const mongoose = require('mongoose');
 
@@ -27,13 +27,12 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Dynamic Aggregation to get real-time stats
     const aggregationPipeline = [
       { $match: matchStage },
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: parseInt(limit) },
-      // FIX: Advanced Lookup to exclude 'Cancelled' bookings from stats
+      // JOIN with Bookings
       {
         $lookup: {
           from: 'bookings',
@@ -42,7 +41,7 @@ router.get('/', authMiddleware, async (req, res) => {
             { $match: {
                 $expr: { $eq: ["$customerId", "$$customerId"] },
                 deleted: false,
-                status: { $ne: 'Cancelled' } // Exclude cancelled from sum
+                status: { $ne: 'Cancelled' } // <--- CRITICAL FIX: Exclude Cancelled
             }}
           ],
           as: 'bookings_data'
@@ -52,10 +51,9 @@ router.get('/', authMiddleware, async (req, res) => {
       {
         $addFields: {
           totalBookings: { $size: "$bookings_data" },
-          totalSpent: { $sum: "$bookings_data.amount" } // Calculates total value of valid bookings only
+          totalSpent: { $sum: "$bookings_data.amount" } 
         }
       },
-      // Remove the heavy bookings array from result
       { $project: { bookings_data: 0 } }
     ];
 
@@ -78,7 +76,6 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     const customerData = await Customer.aggregate([
       { $match: { _id: customerId, deleted: false } },
-      // FIX: Advanced Lookup here as well
       {
         $lookup: {
           from: 'bookings',
@@ -87,7 +84,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
             { $match: {
                 $expr: { $eq: ["$customerId", "$$customerId"] },
                 deleted: false,
-                status: { $ne: 'Cancelled' } // Exclude cancelled from sum
+                status: { $ne: 'Cancelled' } // <--- CRITICAL FIX
             }}
           ],
           as: 'bookings_data'
@@ -113,7 +110,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Create customer (protected)
+// ... [Keep Create/Update/Delete routes unchanged] ...
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const customer = new Customer(req.body);
@@ -124,7 +121,6 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Update customer (protected)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -135,7 +131,6 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Delete customer (protected)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(

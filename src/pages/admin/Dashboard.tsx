@@ -6,7 +6,6 @@ import { DistrictBreakdown } from "@/components/admin/DistrictBreakdown";
 import { ExpiringBookings } from "@/components/admin/ExpiringBookings";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { PaymentListDialog } from "@/components/admin/PaymentManagement";
-// UPDATED: Added EditBookingDialog, DeleteBookingDialog, and getStatusLabel
 import { 
   ViewBookingDialog, 
   AllBookingsDialog, 
@@ -36,17 +35,34 @@ import {
   ShieldAlert, 
   FileText 
 } from "lucide-react";
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  LineChart, 
-  Line, 
-  Legend 
-} from 'recharts';
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { formatIndianRupee } from "@/lib/utils";
+
+// --- HELPER: Generate Custom Booking ID (SRA/AY/XXXX) ---
+const generateDisplayId = (booking: any, index: number) => {
+  if (!booking) return "N/A";
+  const dateSource = booking.startDate || booking.createdAt;
+  let ay = "0000";
+  if (dateSource) {
+      const d = new Date(dateSource);
+      if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = d.getMonth();
+          let startYear, endYear;
+          if (month < 3) {
+             startYear = year - 1;
+             endYear = year;
+          } else {
+             startYear = year;
+             endYear = year + 1;
+          }
+          ay = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
+      }
+  }
+  const sequence = 1000 + index + 1;
+  return `SRA/${ay}/${sequence}`;
+};
 
 const Dashboard = () => {
   const navigate = useNavigate(); 
@@ -57,12 +73,12 @@ const Dashboard = () => {
   const { data: paymentStats } = usePaymentStatsAnalytics();
   const { data: complianceStats } = useComplianceStats();
   
-  const { data: recentBookingsRes } = useBookings({ limit: 5 });
-  const recentBookings = recentBookingsRes?.data || [];
-
+  // Fetch more bookings to get correct index estimation if needed, but display only recent 5
+  const { data: recentBookingsRes, refetch: refetchRecent } = useBookings({ limit: 100 });
+  
   // Manage pagination for the All Bookings Dialog
   const [reportPage, setReportPage] = useState(1);
-  const { data: allBookingsRes } = useBookings({ limit: 10, page: reportPage });
+  const { data: allBookingsRes, refetch: refetchAll } = useBookings({ limit: 10, page: reportPage });
   const allBookings = allBookingsRes?.data || [];
 
   const updateBookingMutation = useUpdateBooking();
@@ -72,15 +88,41 @@ const Dashboard = () => {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paymentFilter, setPaymentFilter] = useState<'All' | 'Pending' | 'Partially Paid' | 'Paid'>('All');
   
-  // UPDATED: Management States for interactive reports
   const [viewBooking, setViewBooking] = useState<any>(null);
   const [editBooking, setEditBooking] = useState<any>(null);
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [allBookingsOpen, setAllBookingsOpen] = useState(false);
 
+  // Sort "recent" bookings by date descending for display, but calculating index needs ascending logic
+  // We'll process the recent list
+  const rawBookings = recentBookingsRes?.data || [];
+  // Sort oldest first to determine index
+  const sortedForIndex = [...rawBookings].sort((a: any, b: any) => 
+    new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
+  );
+  
+  // But display newest first (slice last 5 and reverse)
+  const displayBookings = [...sortedForIndex].reverse().slice(0, 5);
+
   const openPaymentDetails = (filter: 'All' | 'Pending' | 'Partially Paid' | 'Paid') => {
     setPaymentFilter(filter);
     setIsPaymentOpen(true);
+  };
+
+  const handleEditSave = async (updatedData: any) => {
+    try {
+      await updateBookingMutation.mutateAsync({ 
+          id: updatedData._id || updatedData.id, 
+          data: updatedData 
+      });
+      toast.success("Booking updated successfully");
+      setEditBooking(null);
+      refetchRecent();
+      refetchAll();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update booking");
+    }
   };
 
   if (statsLoading || trendLoading) {
@@ -110,7 +152,7 @@ const Dashboard = () => {
         <CreateBookingDialog />
       </div>
 
-      {/* Compliance Alerts & Inventory Sections remain the same */}
+      {/* Compliance Alerts */}
       <h2 className="text-sm font-semibold text-destructive uppercase tracking-wider flex items-center gap-2 pt-2">
         <ShieldAlert className="h-4 w-4" /> Compliance Alerts
       </h2>
@@ -120,6 +162,7 @@ const Dashboard = () => {
         <StatsCard title="Overdue Taxes" value={complianceStats?.overdueTaxes || 0} icon={AlertCircle} variant="danger" onClick={() => navigate('/admin/documents?tab=taxes')} className="cursor-pointer border-red-200" />
       </div>
 
+      {/* Inventory Overview */}
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider pt-2">Inventory Overview</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatsCard title="Total Media" value={stats?.totalMedia || 0} icon={MapPin} variant="primary" onClick={() => navigate('/admin/media')} />
@@ -140,16 +183,16 @@ const Dashboard = () => {
 
       <ExpiringBookings onViewBooking={setViewBooking} onViewReport={() => setAllBookingsOpen(true)} />
 
-      {/* Charts & Breakdown sections omitted for brevity but remain the same */}
-
       <DistrictBreakdown />
 
+      {/* Recent Bookings Table */}
       <Card className="p-6 bg-card border-border/50">
         <h3 className="text-lg font-semibold mb-4">Recent Bookings</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Booking ID</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Media</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Client</th>
                 <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
@@ -157,29 +200,41 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody>
-              {recentBookings.length === 0 ? (
-                <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">No recent bookings found.</td></tr>
+              {displayBookings.length === 0 ? (
+                <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No recent bookings found.</td></tr>
               ) : (
-                recentBookings.map((booking: any) => (
-                  <tr key={booking._id} className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => navigate(`/admin/media/${booking.mediaId?._id || booking.mediaId}`)}>
-                    <td className="py-3 px-4"><Badge variant="secondary" className="font-mono">{booking.mediaId?.name || "N/A"}</Badge></td>
-                    <td className="py-3 px-4 font-medium">{booking.customerId?.company || booking.customerId?.name || "Unknown"}</td>
-                    <td className="py-3 px-4">
-                      {/* FIXED: Uses getStatusLabel to show 'Booked' only for 'Active' status */}
-                      <Badge variant={booking.status === 'Active' ? 'success' : 'outline'}>
-                        {getStatusLabel(booking.status)}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-right font-medium">₹{booking.amount?.toLocaleString() || 0}</td>
-                  </tr>
-                ))
+                displayBookings.map((booking: any) => {
+                  // Find original index in full sorted list for consistent ID
+                  const index = sortedForIndex.findIndex(b => (b._id || b.id) === (booking._id || booking.id));
+                  return (
+                    <tr 
+                      key={booking._id} 
+                      className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors" 
+                      onClick={() => setEditBooking(booking)}
+                    >
+                      <td className="py-3 px-4">
+                        <span className="font-mono text-xs font-medium text-primary hover:underline">
+                          {generateDisplayId(booking, index)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4"><Badge variant="secondary" className="font-mono">{booking.mediaId?.name || "N/A"}</Badge></td>
+                      <td className="py-3 px-4 font-medium">{booking.customerId?.company || booking.customerId?.name || "Unknown"}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={booking.status === 'Active' ? 'success' : 'outline'}>
+                          {getStatusLabel(booking.status)}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium">₹{formatIndianRupee(booking.amount)}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </Card>
 
-      {/* Payment Management Dialog */}
+      {/* Dialogs */}
       <PaymentListDialog 
         open={isPaymentOpen}
         onOpenChange={setIsPaymentOpen}
@@ -189,7 +244,6 @@ const Dashboard = () => {
         onDeleteBooking={(id: string) => setDeleteBookingId(id)}
       />
 
-      {/* MODAL COMPONENTS FOR INTERACTIVE MANAGEMENT */}
       {viewBooking && <ViewBookingDialog booking={viewBooking} open={!!viewBooking} onOpenChange={() => setViewBooking(null)} />}
       
       {editBooking && (
@@ -197,7 +251,7 @@ const Dashboard = () => {
           booking={editBooking} 
           open={!!editBooking} 
           onOpenChange={() => setEditBooking(null)} 
-          onSave={(data: any) => updateBookingMutation.mutate({ id: data._id, data })} 
+          onSave={handleEditSave} 
         />
       )}
 
@@ -210,7 +264,6 @@ const Dashboard = () => {
         />
       )}
 
-      {/* UPDATED: Functional Global Booking Registry */}
       <AllBookingsDialog 
         open={allBookingsOpen} 
         onOpenChange={setAllBookingsOpen} 

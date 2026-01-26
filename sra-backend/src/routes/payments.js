@@ -1,5 +1,5 @@
 /**
- * Payment Routes
+ * Payment Routes - Fixed Pending Calculation
  */
 
 const express = require('express');
@@ -102,12 +102,11 @@ router.get('/stats/summary', authMiddleware, async (req, res) => {
     ]);
 
     // 2. Calculate Pending Dues safely
-    // We add a projection to ensure amount and amountPaid are treated as numbers
     const pendingBookings = await Booking.aggregate([
       { 
         $match: { 
-          deleted: false,
-          status: { $ne: 'Cancelled' }, // FIX: Exclude Cancelled bookings
+          deleted: false, 
+          status: { $ne: 'Cancelled' }, // <--- CRITICAL FIX: Ignore cancelled bookings
           paymentStatus: { $in: ['Pending', 'Partially Paid'] } 
         } 
       },

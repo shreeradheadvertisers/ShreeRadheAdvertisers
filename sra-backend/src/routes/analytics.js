@@ -1,16 +1,15 @@
 /**
- * Analytics Routes
+ * Analytics Routes - Fixed to exclude Cancelled bookings from Revenue
  */
 
 const express = require('express');
 const router = express.Router();
-const { Media, Booking, Customer, Contact } = require('../models'); // Updated to include Contact
+const { Media, Booking, Customer, Contact } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 
 // Dashboard Stats
 router.get('/dashboard', authMiddleware, async (req, res) => {
   try {
-    // Added totalInquiries and newInquiries to the parallel database calls
     const [
       totalMedia, 
       availableMedia, 
@@ -29,17 +28,28 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       Media.countDocuments({ deleted: false, status: 'Maintenance' }),
       Customer.countDocuments({ deleted: false }),
       Booking.countDocuments({ deleted: false, status: { $in: ['Active', 'Upcoming'] } }),
-      Contact.countDocuments({}), // Total inquiries
-      Contact.countDocuments({ status: 'New' }) // Count specifically 'New' leads
+      Contact.countDocuments({}), 
+      Contact.countDocuments({ status: 'New' }) 
     ]);
 
     const statesCount = await Media.distinct('state', { deleted: false });
     const districtsCount = await Media.distinct('district', { deleted: false });
 
-    // FIX: Exclude Cancelled bookings from Revenue Calculation
+    // FIX: Exclude 'Cancelled' bookings from Revenue & Pending Calculations
     const revenueAgg = await Booking.aggregate([
-      { $match: { deleted: false, status: { $ne: 'Cancelled' } } },
-      { $group: { _id: null, totalRevenue: { $sum: '$amountPaid' }, pendingPayments: { $sum: { $subtract: ['$amount', '$amountPaid'] } } } }
+      { 
+        $match: { 
+          deleted: false, 
+          status: { $ne: 'Cancelled' } // <--- CRITICAL FIX
+        } 
+      },
+      { 
+        $group: { 
+          _id: null, 
+          totalRevenue: { $sum: '$amountPaid' }, 
+          pendingPayments: { $sum: { $subtract: ['$amount', '$amountPaid'] } } 
+        } 
+      }
     ]);
 
     const revenue = revenueAgg[0] || { totalRevenue: 0, pendingPayments: 0 };
@@ -56,8 +66,8 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       activeBookings,
       totalRevenue: revenue.totalRevenue,
       pendingPayments: revenue.pendingPayments,
-      totalInquiries, // Added to response
-      newInquiries   // Added to response
+      totalInquiries,
+      newInquiries
     });
   } catch (error) {
     console.error('Dashboard analytics error:', error);
@@ -133,9 +143,13 @@ router.get('/vacant-sites/:city', authMiddleware, async (req, res) => {
 // Monthly Revenue Trend
 router.get('/revenue-trend', authMiddleware, async (req, res) => {
   try {
-    // FIX: Exclude Cancelled bookings
     const trend = await Booking.aggregate([
-      { $match: { deleted: false, status: { $ne: 'Cancelled' } } },
+      { 
+        $match: { 
+          deleted: false, 
+          status: { $ne: 'Cancelled' } // <--- CRITICAL FIX
+        } 
+      },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m', date: '$startDate' } },
@@ -167,9 +181,13 @@ router.get('/revenue-trend', authMiddleware, async (req, res) => {
 // State Revenue Distribution
 router.get('/state-revenue', authMiddleware, async (req, res) => {
   try {
-    // FIX: Exclude Cancelled bookings
     const stateRevenue = await Booking.aggregate([
-      { $match: { deleted: false, status: { $ne: 'Cancelled' } } },
+      { 
+        $match: { 
+          deleted: false, 
+          status: { $ne: 'Cancelled' } // <--- CRITICAL FIX 
+        } 
+      },
       {
         $lookup: {
           from: 'media',

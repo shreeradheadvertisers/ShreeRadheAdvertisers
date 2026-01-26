@@ -36,10 +36,10 @@ import {
 
 // --- IMPORT API HOOKS & CONTEXT ---
 import { useMedia } from "@/hooks/api/useMedia";
-import { useBookings, useUpdateBooking } from "@/hooks/api/useBookings"; // Added useUpdateBooking
+import { useBookings, useUpdateBooking } from "@/hooks/api/useBookings";
 import { useCustomers } from "@/hooks/api/useCustomers";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast"; // Added useToast
+import { useToast } from "@/hooks/use-toast";
 
 // --- IMPORT EDIT DIALOG ---
 import { EditBookingDialog } from "@/components/admin/BookingManagement";
@@ -92,7 +92,6 @@ export default function Reports() {
 
   // --- DATA FETCHING ---
   const { data: mediaResponse } = useMedia({ limit: 2000 });
-  // Destructure refetch to update UI after edit
   const { data: bookingsResponse, refetch: refetchBookings } = useBookings({ limit: 2000 });
   const { data: customersResponse } = useCustomers({ limit: 2000 });
 
@@ -121,18 +120,30 @@ export default function Reports() {
                        || booking.customer 
                        || { company: "", group: "" };
 
-      // --- GENERATE SEQUENTIAL ID ---
+      // --- GENERATE SEQUENTIAL ID WITH ASSESSMENT YEAR ---
       let displayId = "N/A";
       const dateSource = booking.startDate || booking.createdAt;
       
       if (dateSource) {
           const d = new Date(dateSource);
           if (!isNaN(d.getTime())) {
-              const mm = String(d.getMonth() + 1).padStart(2, '0');
-              const yy = String(d.getFullYear()).slice(-2);
-              // Start counting from 1000
+              const year = d.getFullYear();
+              const month = d.getMonth(); 
+              
+              let startYear, endYear;
+              
+              // Financial Year / Assessment Year Logic (Apr - Mar)
+              if (month < 3) {
+                 startYear = year - 1;
+                 endYear = year;
+              } else {
+                 startYear = year;
+                 endYear = year + 1;
+              }
+              
+              const ay = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
               const seqNum = 1000 + index + 1;
-              displayId = `SRA/${mm}${yy}/${seqNum}`;
+              displayId = `SRA/${ay}/${seqNum}`;
           }
       }
 
@@ -281,7 +292,7 @@ export default function Reports() {
         data: updatedData
       });
       toast({ title: "Booking Updated", description: "The booking details have been saved." });
-      refetchBookings(); // Refresh the list
+      refetchBookings(); 
       setIsEditOpen(false);
     } catch (error) {
       console.error(error);
@@ -544,7 +555,7 @@ export default function Reports() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold">Reports Center</h1>
-          <p className="text-muted-foreground">Generate detailed insights about your inventory and bookings.</p>
+          <p className="text-muted-foreground">Generate and export detailed insights about your inventory and bookings.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsPrinting(true)} disabled={isPrinting}>
