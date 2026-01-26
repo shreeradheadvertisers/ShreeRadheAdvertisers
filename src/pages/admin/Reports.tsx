@@ -36,19 +36,31 @@ import {
 
 // --- IMPORT API HOOKS & CONTEXT ---
 import { useMedia } from "@/hooks/api/useMedia";
-import { useBookings } from "@/hooks/api/useBookings";
+import { useBookings, useUpdateBooking } from "@/hooks/api/useBookings"; // Added useUpdateBooking
 import { useCustomers } from "@/hooks/api/useCustomers";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast"; // Added useToast
+
+// --- IMPORT EDIT DIALOG ---
+import { EditBookingDialog } from "@/components/admin/BookingManagement";
 
 export default function Reports() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("inventory");
   
   // Pagination & Print State
   const [currentPage, setCurrentPage] = useState(1);
   const [isPrinting, setIsPrinting] = useState(false);
   const itemsPerPage = 20;
+
+  // Edit Dialog State
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // API Mutations
+  const updateBookingMutation = useUpdateBooking();
 
   // Filters
   const [stateFilter, setStateFilter] = useState("all");
@@ -80,7 +92,8 @@ export default function Reports() {
 
   // --- DATA FETCHING ---
   const { data: mediaResponse } = useMedia({ limit: 2000 });
-  const { data: bookingsResponse } = useBookings({ limit: 2000 });
+  // Destructure refetch to update UI after edit
+  const { data: bookingsResponse, refetch: refetchBookings } = useBookings({ limit: 2000 });
   const { data: customersResponse } = useCustomers({ limit: 2000 });
 
   const mediaLocations = useMemo(() => mediaResponse?.data || [], [mediaResponse]);
@@ -108,7 +121,7 @@ export default function Reports() {
                        || booking.customer 
                        || { company: "", group: "" };
 
-      // --- NEW: Generate Sequential ID (SRA/MMYY/1000 + Index) ---
+      // --- GENERATE SEQUENTIAL ID ---
       let displayId = "N/A";
       const dateSource = booking.startDate || booking.createdAt;
       
@@ -117,7 +130,7 @@ export default function Reports() {
           if (!isNaN(d.getTime())) {
               const mm = String(d.getMonth() + 1).padStart(2, '0');
               const yy = String(d.getFullYear()).slice(-2);
-              // Start counting from 1000 + index to get 1001, 1002...
+              // Start counting from 1000
               const seqNum = 1000 + index + 1;
               displayId = `SRA/${mm}${yy}/${seqNum}`;
           }
@@ -125,7 +138,6 @@ export default function Reports() {
 
       return { 
         ...booking, 
-        // Attach the generated sequential ID to the object
         displayId, 
         media: {
            ...media,
@@ -255,10 +267,26 @@ export default function Reports() {
     return filters.length > 0 ? filters.join(" | ") : "None (All Records)";
   };
 
-  // --- NAVIGATION HANDLER ---
-  const handleEditClick = (id: string) => {
-    // Navigate to Customer Bookings page
-    navigate(`/admin/bookings`);
+  // --- HANDLERS ---
+  const handleEditClick = (booking: any) => {
+    setSelectedBooking(booking);
+    setIsEditOpen(true);
+  };
+
+  const handleBookingSave = async (updatedData: any) => {
+    if (!selectedBooking) return;
+    try {
+      await updateBookingMutation.mutateAsync({
+        id: selectedBooking._id || selectedBooking.id,
+        data: updatedData
+      });
+      toast({ title: "Booking Updated", description: "The booking details have been saved." });
+      refetchBookings(); // Refresh the list
+      setIsEditOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Update Failed", description: "Could not save changes.", variant: "destructive" });
+    }
   };
 
   // --- EXPORT FUNCTIONS ---
@@ -276,7 +304,7 @@ export default function Reports() {
        }));
        
        if (activeTab === "bookings") return bookingData.map(b => ({ 
-         ID: b.displayId,  // Uses Sequential ID
+         ID: b.displayId, 
          Media: b.media?.name || "Unknown", 
          Start: formatDate(b.startDate), 
          End: formatDate(b.endDate), 
@@ -516,7 +544,7 @@ export default function Reports() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold">Reports Center</h1>
-          <p className="text-muted-foreground">Generate and export detailed insights about your inventory and bookings.</p>
+          <p className="text-muted-foreground">Generate detailed insights about your inventory and bookings.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsPrinting(true)} disabled={isPrinting}>
@@ -526,7 +554,7 @@ export default function Reports() {
             <FileDown className="h-4 w-4 mr-2" /> Download CSV
           </Button>
           <Button onClick={handleDownloadExcel}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" /> Download Excel
+            <FileSpreadsheet className="h-4 w-4 mr-2" /> Download Excel / Sheets
           </Button>
         </div>
       </div>
@@ -673,7 +701,7 @@ export default function Reports() {
                         <TableRow 
                           key={booking.id} 
                           className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleEditClick(booking.id || booking._id)}
+                          onClick={() => handleEditClick(booking)}
                         >
                           {/* FIX: Professional Formatted Sequential ID */}
                           <TableCell className="font-mono text-xs print:text-[10px] print:p-1 text-primary font-medium">
@@ -729,7 +757,7 @@ export default function Reports() {
                           <TableRow 
                             key={booking.id} 
                             className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
-                            onClick={() => handleEditClick(booking.id || booking._id)}
+                            onClick={() => handleEditClick(booking)}
                           >
                              {/* UPDATED: Uses enriched booking.customer object */}
                             <TableCell className="font-medium print:p-1 print:text-[10px] align-top">
@@ -792,13 +820,10 @@ export default function Reports() {
                           <TableRow 
                             key={booking.id} 
                             className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
-                            onClick={() => handleEditClick(booking.id || booking._id)}
+                            onClick={() => handleEditClick(booking)}
                           >
                              {/* UPDATED: Uses enriched booking.customer object */}
-                            <TableCell className="font-medium print:p-1 print:text-[10px] align-top">
-                              {booking.customer?.company || "Unknown"}
-                              <div className="text-[10px] text-muted-foreground font-mono mt-1">{booking.displayId}</div>
-                            </TableCell>
+                            <TableCell className="font-medium print:p-1 print:text-[10px] align-top">{booking.customer?.company || "Unknown"}</TableCell>
                             <TableCell className="print:p-1 align-top">
                                 <Badge variant="outline" className="font-normal print:text-[9px]">{booking.customer?.group || "N/A"}</Badge>
                             </TableCell>
@@ -831,6 +856,16 @@ export default function Reports() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* --- EDIT DIALOG RENDERER --- */}
+      {selectedBooking && (
+        <EditBookingDialog 
+          open={isEditOpen} 
+          onOpenChange={setIsEditOpen} 
+          booking={selectedBooking} 
+          onSave={handleBookingSave}
+        />
+      )}
 
       {/* --- ADDED: PRINT FOOTER (Sticky) --- */}
       <div className="hidden print:flex fixed bottom-0 left-0 w-full justify-between items-center text-[10px] text-gray-500 border-t border-gray-200 pt-2 bg-white pb-4 z-50">
