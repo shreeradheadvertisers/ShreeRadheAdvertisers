@@ -122,8 +122,6 @@ router.post('/', authMiddleware, async (req, res) => {
     await booking.save();
     
     // 2. FIX: Update customer stats (Count AND Total Spent)
-    // We use amountPaid if available, otherwise 0. Or you can use 'amount' for Total Contract Value.
-    // Usually 'totalSpent' implies actual money paid.
     const amountToAdd = booking.amountPaid || 0; 
     
     await Customer.findByIdAndUpdate(finalCustId, {
@@ -175,6 +173,27 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
+    // --- AUTOMATIC PAYMENT STATUS LOGIC ---
+
+    // Case A: Booking is being CANCELLED
+    if (updateData.status === 'Cancelled') {
+      updateData.paymentStatus = 'Cancelled';
+    }
+    // Case B: Booking is being RESTORED (Un-Cancelled)
+    else if (oldBooking.status === 'Cancelled' && updateData.status && updateData.status !== 'Cancelled') {
+       // We need to recalculate status based on what was paid before
+       const currentPaid = updateData.amountPaid !== undefined ? Number(updateData.amountPaid) : (oldBooking.amountPaid || 0);
+       const currentTotal = updateData.amount !== undefined ? Number(updateData.amount) : oldBooking.amount;
+       
+       if (currentPaid >= currentTotal) {
+         updateData.paymentStatus = 'Paid';
+       } else if (currentPaid > 0) {
+         updateData.paymentStatus = 'Partially Paid';
+       } else {
+         updateData.paymentStatus = 'Pending';
+       }
+    }
+
     // 3. Update the booking
     const booking = await Booking.findByIdAndUpdate(bookingId, updateData, { new: true });
 
@@ -194,7 +213,20 @@ router.put('/:id', authMiddleware, async (req, res) => {
         });
       } else if (occupyingStatuses.includes(updateData.status)) {
         // Change Media status back to 'Booked'
-        await Media.findByIdAndUpdate(booking.mediaId, { status: 'Booked' });
+        // FIX: Ensure we don't accidentally add duplicate dates if simply restoring
+        await Media.findByIdAndUpdate(booking.mediaId, { 
+          status: 'Booked',
+          // If we are restoring from Cancelled, we might need to re-push the dates if they were pulled?
+          // The previous logic pulled them on Cancel. So here we should push them back if they aren't there.
+          // For simplicity, we assume the frontend sends the date range again or we use the booking's current dates.
+          $addToSet: { 
+            bookedDates: { 
+              start: booking.startDate, 
+              end: booking.endDate, 
+              bookingId: booking._id 
+            } 
+          }
+        });
       }
     }
 

@@ -1,6 +1,6 @@
 /**
- * Payment Routes - Fixed Revenue Calculation
- * Now excludes payments if the parent Booking is Cancelled
+ * Payment Routes - Fixed Statistics
+ * Strictly excludes Cancelled bookings from Collected and Pending figures.
  */
 
 const express = require('express');
@@ -98,6 +98,7 @@ router.get('/stats/summary', authMiddleware, async (req, res) => {
   try {
     // 1. Calculate Total Collected
     // We must JOIN with Booking to ensure we ignore payments for Cancelled bookings
+    // Even if a payment exists, if the booking is now Cancelled, we don't count it as 'Revenue'
     const stats = await Payment.aggregate([
       { $match: { status: 'Completed' } },
       {
@@ -112,7 +113,7 @@ router.get('/stats/summary', authMiddleware, async (req, res) => {
       { 
         $match: { 
           'bookingDetails.deleted': false,
-          'bookingDetails.status': { $ne: 'Cancelled' } // <--- CRITICAL FIX
+          'bookingDetails.status': { $ne: 'Cancelled' } // STRICT EXCLUSION
         } 
       },
       { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
@@ -123,7 +124,7 @@ router.get('/stats/summary', authMiddleware, async (req, res) => {
       { 
         $match: { 
           deleted: false, 
-          status: { $ne: 'Cancelled' }, // Exclude Cancelled
+          status: { $ne: 'Cancelled' }, // STRICT EXCLUSION
           paymentStatus: { $in: ['Pending', 'Partially Paid'] } 
         } 
       },

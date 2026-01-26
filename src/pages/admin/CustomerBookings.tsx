@@ -226,7 +226,7 @@ export default function CustomerBookings() {
           <p className="text-muted-foreground text-sm font-normal">Comprehensive monitoring of contract lifecycles.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="shadow-sm font-normal" onClick={() => setAllBookingsOpen(true)}><ListFilter className="h-4 w-4 mr-2" />Full History</Button>
+          <Button variant="outline" className="shadow-sm font-normal" onClick={() => setAllBookingsOpen(true)}><ListFilter className="h-4 w-4 mr-2" />All Bookings</Button>
           <Button variant="outline" className="shadow-sm font-normal" onClick={() => setAddCustomerOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Client</Button>
           <CreateBookingDialog />
         </div>

@@ -67,3 +67,34 @@ export function formatIndianRupee(amount: number): string {
 export function formatRupee(amount: number): string {
   return `₹${formatIndianRupee(amount)}`;
 }
+
+/**
+ * Generates the custom Booking ID (SRA/AY/XXXX)
+ * @param booking The booking object
+ * @param index The index in the list (for sequence)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const generateBookingId = (booking: any, index: number) => {
+  if (!booking) return "N/A";
+  const dateSource = booking.startDate || booking.createdAt;
+  let ay = "0000";
+  if (dateSource) {
+      const d = new Date(dateSource);
+      if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = d.getMonth();
+          let startYear, endYear;
+          if (month < 3) {
+             startYear = year - 1;
+             endYear = year;
+          } else {
+             startYear = year;
+             endYear = year + 1;
+          }
+          ay = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
+      }
+  }
+  // If we don't have a reliable index, we fallback to last 4 chars of ID or random
+  const sequence = index >= 0 ? 1000 + index + 1 : (booking._id ? booking._id.slice(-4) : "0000");
+  return `SRA/${ay}/${sequence}`;
+};

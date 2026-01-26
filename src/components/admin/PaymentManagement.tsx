@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 // Import real types instead of mock types
 import { Booking, PaymentMode, PaymentStatus } from "@/lib/api/types";
-import { IndianRupee, CreditCard, Pencil, Calculator, ChevronsUpDown, Check, Trash2, Search, AlertTriangle } from "lucide-react";
+import { IndianRupee, CreditCard, Pencil, Calculator, ChevronsUpDown, Check, Trash2, Search, AlertTriangle, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { cn, formatIndianRupee } from "@/lib/utils";
@@ -180,7 +180,9 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
   const [amountToPay, setAmountToPay] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
 
-  const selectedBooking = bookings.find(b => (b._id === selectedBookingId || b.id === selectedBookingId));
+  // Filter out cancelled bookings from selection
+  const activeBookings = bookings.filter(b => b.status !== 'Cancelled');
+  const selectedBooking = activeBookings.find(b => (b._id === selectedBookingId || b.id === selectedBookingId));
 
   useEffect(() => {
     if (!open) {
@@ -253,9 +255,9 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
                 <Command>
                   <CommandInput placeholder="Search booking..." />
                   <CommandList>
-                    <CommandEmpty>No booking found.</CommandEmpty>
+                    <CommandEmpty>No active booking found.</CommandEmpty>
                     <CommandGroup>
-                      {bookings.map((booking) => {
+                      {activeBookings.map((booking) => {
                          const clientName = booking.customerId?.company || booking.customerId?.name || "N/A";
                          const bId = booking.id || booking._id;
                          return (
@@ -465,6 +467,7 @@ export function EditPaymentDialog({ booking, open, onOpenChange, onSave }: EditP
                     <SelectItem value="Paid">Paid</SelectItem>
                     <SelectItem value="Partially Paid">Partially Paid</SelectItem>
                     <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -504,13 +507,13 @@ interface PaymentListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookings: Booking[];
-  initialFilter?: PaymentStatus | 'All';
+  initialFilter?: PaymentStatus | 'All' | 'Cancelled';
   onUpdateBooking: (updatedBooking: Booking) => void;
   onDeleteBooking: (id: string) => void; 
 }
 
 export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter = 'All', onUpdateBooking, onDeleteBooking }: PaymentListDialogProps) {
-  const [filter, setFilter] = useState<PaymentStatus | 'All'>(initialFilter);
+  const [filter, setFilter] = useState<PaymentStatus | 'All' | 'Cancelled'>(initialFilter);
   const [search, setSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isRecordOpen, setIsRecordOpen] = useState(false);
@@ -522,9 +525,18 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
   }, [open, initialFilter]);
 
   const filteredBookings = (bookings || []).filter(b => {
-    const matchesFilter = filter === 'All' ? true : b.paymentStatus === filter;
+    const isCancelled = b.status === 'Cancelled' || b.paymentStatus === 'Cancelled';
+
+    let matchesFilter = true;
+    if (filter === 'All') {
+      matchesFilter = true;
+    } else if (filter === 'Cancelled') {
+      matchesFilter = isCancelled;
+    } else {
+      // For 'Pending', 'Paid', etc., usually we want to see active bookings matching that payment status
+      matchesFilter = !isCancelled && b.paymentStatus === filter;
+    }
     
-    // SAFE SEARCH: Use optional chaining and fallbacks to avoid crashes
     const searchLower = (search || "").toLowerCase();
     
     const bookingIdStr = (b.id || b._id || "").toString().toLowerCase();
@@ -576,7 +588,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
             </div>
             
             <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-               {(['All', 'Pending', 'Partially Paid', 'Paid'] as const).map(f => (
+               {(['All', 'Pending', 'Partially Paid', 'Paid', 'Cancelled'] as const).map(f => (
                  <Button
                     key={f}
                     variant={filter === f ? "default" : "outline"}
@@ -613,27 +625,42 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                     const customerName = booking.customerId?.company || booking.customerId?.name || "N/A";
                     const mediaName = booking.mediaId?.name || booking.media?.name || "N/A";
                     const isFullyPaid = booking.paymentStatus === 'Paid';
+                    // Check if cancelled (either via paymentStatus or booking status)
+                    const isCancelled = booking.status === 'Cancelled' || booking.paymentStatus === 'Cancelled';
 
                     return (
                       <TableRow key={booking._id || booking.id} className="group hover:bg-muted/30">
                         <TableCell>
-                          <div className="font-mono text-xs font-bold text-primary">{booking.id || booking._id}</div>
-                          <div className="text-sm font-medium">{customerName}</div>
+                          <div className="flex items-center gap-2">
+                             <div className={cn("font-mono text-xs font-bold", isCancelled ? "text-muted-foreground line-through" : "text-primary")}>
+                               {booking.id || booking._id}
+                             </div>
+                             {isCancelled && <Badge variant="secondary" className="text-[10px] h-4">Cancelled</Badge>}
+                          </div>
+                          <div className={cn("text-sm font-medium", isCancelled && "text-muted-foreground")}>{customerName}</div>
                           <div className="text-xs text-muted-foreground truncate max-w-[150px]">{mediaName}</div>
                         </TableCell>
-                        <TableCell className="font-medium">₹{booking.amount.toLocaleString()}</TableCell>
+                        <TableCell className={cn("font-medium", isCancelled && "text-muted-foreground")}>
+                           ₹{booking.amount.toLocaleString()}
+                        </TableCell>
                         <TableCell>
                           <div className="flex flex-col text-xs">
-                             <span className="text-success font-medium">Paid: ₹{booking.amountPaid.toLocaleString()}</span>
-                             {!isFullyPaid && (
+                             <span className={cn("font-medium", isCancelled ? "text-muted-foreground" : "text-success")}>
+                               Paid: ₹{booking.amountPaid.toLocaleString()}
+                             </span>
+                             {!isFullyPaid && !isCancelled && (
                                <span className="text-destructive font-medium">Bal: ₹{(booking.amount - booking.amountPaid).toLocaleString()}</span>
                              )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={booking.paymentStatus === 'Paid' ? 'success' : booking.paymentStatus === 'Partially Paid' ? 'warning' : 'destructive'}>
-                             {booking.paymentStatus}
-                          </Badge>
+                          {isCancelled ? (
+                             <Badge variant="secondary">Cancelled</Badge>
+                          ) : (
+                             <Badge variant={booking.paymentStatus === 'Paid' ? 'success' : booking.paymentStatus === 'Partially Paid' ? 'warning' : 'destructive'}>
+                                {booking.paymentStatus}
+                             </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
@@ -641,18 +668,19 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                               size="sm" 
                               variant="outline" 
                               className="h-8"
-                              disabled={isFullyPaid}
+                              disabled={isFullyPaid || isCancelled}
                               onClick={() => {
                                 setSelectedBooking(booking);
                                 setIsRecordOpen(true);
                               }}
                             >
-                              Record Pay
+                              {isCancelled ? <Ban className="h-3 w-3 mr-1" /> : null} Record Pay
                             </Button>
                             <Button 
                               size="icon" 
                               variant="ghost" 
                               className="h-8 w-8 text-primary"
+                              disabled={isCancelled}
                               onClick={() => {
                                 setSelectedBooking(booking);
                                 setIsEditOpen(true);

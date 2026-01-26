@@ -3,7 +3,7 @@
 export type MediaType = 'Unipole' | 'Hoarding' | 'Gantry' | 'Kiosk' | 'Digital LED' | 'Bus Shelter';
 export type MediaStatus = 'Available' | 'Booked' | 'Coming Soon' | 'Maintenance';
 export type LightingType = 'Front Lit' | 'Back Lit' | 'Non-Lit' | 'Digital';
-export type PaymentStatus = 'Paid' | 'Pending' | 'Partially Paid';
+export type PaymentStatus = 'Paid' | 'Pending' | 'Partially Paid' | 'Cancelled';
 export type PaymentMode = 'Cash' | 'Cheque' | 'Online' | 'Bank Transfer';
 export type BookingStatus = 'Active' | 'Upcoming' | 'Completed' | 'Cancelled';
 export type CustomerGroup = 'Corporate' | 'Government' | 'Agency' | 'Startup' | 'Non-Profit' | string;

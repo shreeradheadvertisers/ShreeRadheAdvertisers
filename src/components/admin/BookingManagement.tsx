@@ -20,6 +20,7 @@ import { formatIndianRupee, cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { generateBookingId } from "@/lib/utils";
 
 // Helper: Technical 'Active' shows as 'Booked' in the UI
 export const getStatusLabel = (status: string) => {
@@ -36,31 +37,6 @@ const formatDisplayDate = (dateStr: string) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
-};
-
-// Helper: Generate Custom Booking ID (SRA/AY/XXXX)
-export const generateBookingId = (booking: any, index: number) => {
-  if (!booking) return "N/A";
-  const dateSource = booking.startDate || booking.createdAt;
-  let ay = "0000";
-  if (dateSource) {
-      const d = new Date(dateSource);
-      if (!isNaN(d.getTime())) {
-          const year = d.getFullYear();
-          const month = d.getMonth();
-          let startYear, endYear;
-          if (month < 3) {
-             startYear = year - 1;
-             endYear = year;
-          } else {
-             startYear = year;
-             endYear = year + 1;
-          }
-          ay = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
-      }
-  }
-  const sequence = 1000 + index + 1;
-  return `SRA/${ay}/${sequence}`;
 };
 
 export function ViewBookingDialog({ booking, open, onOpenChange }: any) {

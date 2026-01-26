@@ -37,10 +37,10 @@ import { customerGroups } from "@/lib/data";
 
 // --- 2. IMPORT HELPERS & DIALOGS ---
 import { 
-  generateBookingId, 
   EditBookingDialog, 
   DeleteBookingDialog 
 } from "@/components/admin/BookingManagement";
+import { generateBookingId } from "@/lib/utils";
 
 const Payments = () => {
   // Filters State
