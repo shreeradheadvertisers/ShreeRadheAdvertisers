@@ -40,7 +40,7 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       { 
         $match: { 
           deleted: false, 
-          status: { $ne: 'Cancelled' } // <--- CRITICAL FIX
+          status: { $ne: 'Cancelled' }
         } 
       },
       { 

@@ -1,5 +1,6 @@
 /**
- * Payment Routes - Fixed Pending Calculation
+ * Payment Routes - Fixed Revenue Calculation
+ * Now excludes payments if the parent Booking is Cancelled
  */
 
 const express = require('express');
@@ -92,21 +93,37 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Payment stats (protected)
+// --- FIXED STATISTICS ROUTE ---
 router.get('/stats/summary', authMiddleware, async (req, res) => {
   try {
     // 1. Calculate Total Collected
+    // We must JOIN with Booking to ensure we ignore payments for Cancelled bookings
     const stats = await Payment.aggregate([
       { $match: { status: 'Completed' } },
+      {
+        $lookup: {
+          from: 'bookings',
+          localField: 'bookingId',
+          foreignField: '_id',
+          as: 'bookingDetails'
+        }
+      },
+      { $unwind: '$bookingDetails' },
+      { 
+        $match: { 
+          'bookingDetails.deleted': false,
+          'bookingDetails.status': { $ne: 'Cancelled' } // <--- CRITICAL FIX
+        } 
+      },
       { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
     ]);
 
-    // 2. Calculate Pending Dues safely
+    // 2. Calculate Pending Dues
     const pendingBookings = await Booking.aggregate([
       { 
         $match: { 
           deleted: false, 
-          status: { $ne: 'Cancelled' }, // <--- CRITICAL FIX: Ignore cancelled bookings
+          status: { $ne: 'Cancelled' }, // Exclude Cancelled
           paymentStatus: { $in: ['Pending', 'Partially Paid'] } 
         } 
       },

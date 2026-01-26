@@ -1,11 +1,10 @@
 /**
- * Customer Routes
+ * Customer Routes - Fixed to exclude Cancelled bookings from Revenue
  */
 
 const express = require('express');
 const router = express.Router();
-const Customer = require('../models/Customer');
-const Booking = require('../models/Booking'); 
+const { Customer } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 const mongoose = require('mongoose');
 
@@ -32,7 +31,7 @@ router.get('/', authMiddleware, async (req, res) => {
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: parseInt(limit) },
-      // JOIN with Bookings
+      // JOIN with Bookings to calculate totals dynamically
       {
         $lookup: {
           from: 'bookings',
@@ -41,7 +40,7 @@ router.get('/', authMiddleware, async (req, res) => {
             { $match: {
                 $expr: { $eq: ["$customerId", "$$customerId"] },
                 deleted: false,
-                status: { $ne: 'Cancelled' } // <--- CRITICAL FIX: Exclude Cancelled
+                status: { $ne: 'Cancelled' } // <--- CRITICAL FIX: Exclude Cancelled from Sum
             }}
           ],
           as: 'bookings_data'
@@ -51,10 +50,10 @@ router.get('/', authMiddleware, async (req, res) => {
       {
         $addFields: {
           totalBookings: { $size: "$bookings_data" },
-          totalSpent: { $sum: "$bookings_data.amount" } 
+          totalSpent: { $sum: "$bookings_data.amount" } // Sums contract value of non-cancelled bookings
         }
       },
-      { $project: { bookings_data: 0 } }
+      { $project: { bookings_data: 0 } } // Remove heavy array
     ];
 
     const [customers, total] = await Promise.all([
@@ -110,7 +109,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// ... [Keep Create/Update/Delete routes unchanged] ...
+// Create customer (protected)
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const customer = new Customer(req.body);
@@ -121,16 +120,20 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
+// Update customer (protected)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
     res.json(customer);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update customer' });
   }
 });
 
+// Delete customer (protected)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const customer = await Customer.findByIdAndUpdate(
@@ -138,7 +141,9 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       { deleted: true, deletedAt: new Date() }, 
       { new: true }
     );
-    if (!customer) return res.status(404).json({ message: 'Customer not found' });
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found' });
+    }
     res.json({ message: 'Customer deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete customer' });
