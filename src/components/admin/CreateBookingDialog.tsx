@@ -137,6 +137,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
             amount: currentMedia.pricePerMonth?.toString() || ""
         }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMedia, open]); // Removed currentItem.amount dependency to avoid loop
 
   const selectedCustomer = customers.find((c: any) => getId(c) === customerId);
