@@ -62,6 +62,12 @@ export interface ComplianceStats {
 }
 
 // ============= MEDIA LOCATION =============
+export interface BookedDateRange {
+  start: string; // ISO Date String
+  end: string;   // ISO Date String
+  bookingId?: string;
+}
+
 export interface MediaLocation {
   _id: string;
   id: string; 
@@ -82,19 +88,16 @@ export interface MediaLocation {
   latitude?: number;
   longitude?: number;
   landmark?: string;
+  
+  // This field is critical for the public calendar
   bookedDates?: BookedDateRange[];
+  
   occupancyRate: number;
   totalDaysBooked: number;
   deleted?: boolean;
   deletedAt?: string;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface BookedDateRange {
-  start: string;
-  end: string;
-  bookingId?: string;
 }
 
 // ============= BOOKING =============
@@ -357,7 +360,7 @@ export interface BookingFilters {
 
 export interface CentralBinItem {
   id: string;
-  type: BinItemType; // Use the named union here
+  type: BinItemType; 
   displayName: string;
   subText: string;
   deletedAt: string;

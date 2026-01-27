@@ -25,7 +25,7 @@ router.get('/', authMiddleware, async (req, res) => {
     
     const filter = { deleted: false };
 
-    // FIX: Resolve IDs before querying
+    // Resolve IDs before querying
     if (customerId) {
       const resolvedCustId = await resolveId(Customer, customerId);
       if (resolvedCustId) filter.customerId = resolvedCustId;
@@ -74,11 +74,9 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Get bookings by customer (protected)
 router.get('/customer/:customerId', authMiddleware, async (req, res) => {
   try {
-    // FIX: Resolve Customer ID here (e.g., convert "SRA-CUST-001" to ObjectId)
     const resolvedCustId = await resolveId(Customer, req.params.customerId);
     
     if (!resolvedCustId) {
-       // If we can't find the customer, return empty list instead of error
        return res.json({ data: [], total: 0, page: 1, pages: 1 });
     }
 
@@ -108,7 +106,6 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!resolvedMediaId) return res.status(404).json({ message: `Media with ID ${mediaId} not found` });
     
     const resolvedCustId = await resolveId(Customer, customerId);
-    // If we can't find by custom ID, and it looks like a MongoID, use it directly, else fail
     const finalCustId = resolvedCustId || (customerId.match(/^[0-9a-fA-F]{24}$/) ? customerId : null);
     
     if (!finalCustId) return res.status(404).json({ message: `Customer with ID ${customerId} not found` });
@@ -121,9 +118,8 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await booking.save();
     
-    // 2. FIX: Update customer stats (Count AND Total Spent)
+    // 2. Update customer stats
     const amountToAdd = booking.amountPaid || 0; 
-    
     await Customer.findByIdAndUpdate(finalCustId, {
       $inc: { 
         totalBookings: 1,
@@ -131,9 +127,15 @@ router.post('/', authMiddleware, async (req, res) => {
       }
     });
     
-    // 3. Update media status
-    await Media.findByIdAndUpdate(resolvedMediaId, { 
-      status: 'Booked',
+    // 3. Update media status and Calendar
+    // FIX: Only set status to 'Booked' if the booking is currently active (today is between start and end)
+    const now = new Date();
+    const start = new Date(req.body.startDate);
+    const end = new Date(req.body.endDate);
+    
+    const isActiveNow = now >= start && now <= end;
+
+    const mediaUpdate = {
       $push: { 
         bookedDates: { 
           start: req.body.startDate, 
@@ -141,7 +143,15 @@ router.post('/', authMiddleware, async (req, res) => {
           bookingId: booking._id 
         } 
       }
-    });
+    };
+
+    // If booking is active NOW, mark media as Booked.
+    // If booking is FUTURE, leave it as is (Available or whatever it currently is).
+    if (isActiveNow) {
+      mediaUpdate.status = 'Booked';
+    }
+
+    await Media.findByIdAndUpdate(resolvedMediaId, mediaUpdate);
     
     res.status(201).json(booking);
   } catch (error) {
@@ -159,7 +169,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const bookingId = req.params.id;
     const updateData = { ...req.body };
 
-    // 1. Safety: If mediaId or customerId are objects (populated from frontend), extract the IDs
+    // 1. Safety: ID extraction
     if (updateData.mediaId && typeof updateData.mediaId === 'object') {
       updateData.mediaId = updateData.mediaId._id || updateData.mediaId.id;
     }
@@ -167,70 +177,68 @@ router.put('/:id', authMiddleware, async (req, res) => {
       updateData.customerId = updateData.customerId._id || updateData.customerId.id;
     }
 
-    // 2. Get the old booking state to check for status changes
+    // 2. Get the old booking
     const oldBooking = await Booking.findById(bookingId);
     if (!oldBooking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // --- AUTOMATIC PAYMENT STATUS LOGIC ---
-
-    // Case A: Booking is being CANCELLED
+    // --- PAYMENT LOGIC ---
     if (updateData.status === 'Cancelled') {
       updateData.paymentStatus = 'Cancelled';
     }
-    // Case B: Booking is being RESTORED (Un-Cancelled)
     else if (oldBooking.status === 'Cancelled' && updateData.status && updateData.status !== 'Cancelled') {
-       // We need to recalculate status based on what was paid before
        const currentPaid = updateData.amountPaid !== undefined ? Number(updateData.amountPaid) : (oldBooking.amountPaid || 0);
        const currentTotal = updateData.amount !== undefined ? Number(updateData.amount) : oldBooking.amount;
        
-       if (currentPaid >= currentTotal) {
-         updateData.paymentStatus = 'Paid';
-       } else if (currentPaid > 0) {
-         updateData.paymentStatus = 'Partially Paid';
-       } else {
-         updateData.paymentStatus = 'Pending';
-       }
+       if (currentPaid >= currentTotal) updateData.paymentStatus = 'Paid';
+       else if (currentPaid > 0) updateData.paymentStatus = 'Partially Paid';
+       else updateData.paymentStatus = 'Pending';
     }
 
     // 3. Update the booking
     const booking = await Booking.findByIdAndUpdate(bookingId, updateData, { new: true });
 
-    // 4. SYNC MEDIA STATUS: Update media asset if booking status changed
-    const freeingStatuses = ['Completed', 'Cancelled'];
-    const occupyingStatuses = ['Active', 'Upcoming'];
+    // 4. SYNC MEDIA STATUS
+    const now = new Date();
+    const start = new Date(booking.startDate);
+    const end = new Date(booking.endDate);
+    const isActiveNow = now >= start && now <= end;
 
-    if (updateData.status && updateData.status !== oldBooking.status) {
-      if (freeingStatuses.includes(updateData.status)) {
-        // Change Media status to 'Available'
-        await Media.findByIdAndUpdate(booking.mediaId, { 
-          status: 'Available',
-          // If cancelled, also remove the dates from the media calendar
-          ...(updateData.status === 'Cancelled' && { 
-            $pull: { bookedDates: { bookingId: booking._id } } 
-          })
-        });
-      } else if (occupyingStatuses.includes(updateData.status)) {
-        // Change Media status back to 'Booked'
-        // FIX: Ensure we don't accidentally add duplicate dates if simply restoring
-        await Media.findByIdAndUpdate(booking.mediaId, { 
-          status: 'Booked',
-          // If we are restoring from Cancelled, we might need to re-push the dates if they were pulled?
-          // The previous logic pulled them on Cancel. So here we should push them back if they aren't there.
-          // For simplicity, we assume the frontend sends the date range again or we use the booking's current dates.
-          $addToSet: { 
-            bookedDates: { 
-              start: booking.startDate, 
-              end: booking.endDate, 
-              bookingId: booking._id 
-            } 
-          }
-        });
+    // A. Handle Cancellation
+    if (updateData.status === 'Cancelled' && oldBooking.status !== 'Cancelled') {
+      // Pull dates from calendar
+      await Media.findByIdAndUpdate(booking.mediaId, { 
+        $pull: { bookedDates: { bookingId: booking._id } } 
+      });
+
+      // If this was an ACTIVE booking, free up the media
+      // (We check if the media is currently marked as Booked to be safe)
+      if (isActiveNow) {
+        await Media.findByIdAndUpdate(booking.mediaId, { status: 'Available' });
       }
+    } 
+    
+    // B. Handle Restoration or Date Change
+    else if (updateData.status && updateData.status !== 'Cancelled') {
+      // 1. Refresh calendar dates (Remove old, Add new to avoid duplication)
+      //    We use $pull and then $push to ensure dates are updated if they changed
+      await Media.findByIdAndUpdate(booking.mediaId, {
+         $pull: { bookedDates: { bookingId: booking._id } }
+      });
+      await Media.findByIdAndUpdate(booking.mediaId, {
+         $push: { bookedDates: { start: booking.startDate, end: booking.endDate, bookingId: booking._id } }
+      });
+
+      // 2. Update Status ONLY if it's currently active
+      if (isActiveNow) {
+        await Media.findByIdAndUpdate(booking.mediaId, { status: 'Booked' });
+      } 
+      // Note: If it's a future booking, we don't automatically set it to 'Available' 
+      // because there might be *another* booking active right now.
     }
 
-    // 5. Update Customer Total Spent if payment amount changed
+    // 5. Update Customer Stats
     if (booking.amountPaid !== oldBooking.amountPaid) {
       const difference = (booking.amountPaid || 0) - (oldBooking.amountPaid || 0);
       if (difference !== 0) {
@@ -247,7 +255,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Delete booking - soft delete (protected)
+// Delete booking (protected)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const booking = await Booking.findByIdAndUpdate(
@@ -260,7 +268,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Optional: Decrement stats on delete
+    // Decrement stats
     await Customer.findByIdAndUpdate(booking.customerId, {
       $inc: { 
         totalBookings: -1,
@@ -268,11 +276,16 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       }
     });
 
-    // Also free up the media status
+    // Remove dates from media
     await Media.findByIdAndUpdate(booking.mediaId, {
-       status: 'Available',
        $pull: { bookedDates: { bookingId: booking._id } }
     });
+
+    // If this booking was currently occupying the media, set it to Available
+    const now = new Date();
+    if (now >= booking.startDate && now <= booking.endDate) {
+       await Media.findByIdAndUpdate(booking.mediaId, { status: 'Available' });
+    }
 
     res.json({ message: 'Booking deleted' });
   } catch (error) {

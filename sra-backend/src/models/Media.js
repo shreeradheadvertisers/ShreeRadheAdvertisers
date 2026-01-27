@@ -34,6 +34,13 @@ const MediaSchema = new mongoose.Schema({
   pricePerMonth: { type: Number, required: true },
   imageUrl: { type: String }, // Stores Cloudinary secure_url
 
+  // --- CRITICAL FIX: Added bookedDates array ---
+  bookedDates: [{
+    start: Date,
+    end: Date,
+    bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }
+  }],
+
   // Show / Hide Toggle
   isPublic: { type: Boolean, default: true },
 
@@ -53,12 +60,10 @@ MediaSchema.set('toJSON', { virtuals: false });
 MediaSchema.index({ state: 1, district: 1, city: 1 });
 
 // 2. Compound Index for "Explore Media" Filters (Most Used)
-// This makes filtering by District + Availability nearly instant
 MediaSchema.index({ district: 1, status: 1 });
 MediaSchema.index({ type: 1, status: 1 });
 
 // 3. Sorting Indexes
-// Speeds up pages where users sort by 'Newest' or 'Price'
 MediaSchema.index({ pricePerMonth: 1 });
 MediaSchema.index({ createdAt: -1 });
 

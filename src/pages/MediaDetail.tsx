@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import { useMediaById } from "@/hooks/api/useMedia";
-import { useBookings } from "@/hooks/api/useBookings";
+// REMOVED: useBookings import, as we don't need to fetch protected bookings anymore
 import { adaptMediaLocation } from "@/lib/services/dataService";
 import { isWithinInterval, parseISO, startOfDay } from "date-fns";
 import { useMemo } from "react";
@@ -26,20 +26,22 @@ const MediaDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Fetch data from MongoDB
+  // Fetch only the Media data (which now includes bookedDates)
   const { data: apiMedia, isLoading: isLoadingMedia } = useMediaById(id || '');
-  const { data: bookingsData } = useBookings({ mediaId: id, limit: 100 });
 
   const media = apiMedia ? adaptMediaLocation(apiMedia) : null;
 
-  // Process booked dates for the public calendar
+  // Process booked dates for the public calendar using media.bookedDates
   const bookedDays = useMemo(() => {
-    if (!bookingsData?.data) return [];
-    return bookingsData.data.map(booking => ({
-      from: startOfDay(parseISO(booking.startDate)),
-      to: startOfDay(parseISO(booking.endDate))
+    // We check media.bookedDates (from the MediaLocation interface)
+    // The previous code failed because useBookings (protected route) returned 401 for public users
+    if (!media?.bookedDates) return [];
+    
+    return media.bookedDates.map(range => ({
+      from: startOfDay(parseISO(range.start)),
+      to: startOfDay(parseISO(range.end))
     }));
-  }, [bookingsData]);
+  }, [media]);
 
   if (isLoadingMedia) {
     return (
@@ -196,10 +198,10 @@ const MediaDetail = () => {
                       <div className="p-3">
                         <Calendar
                           mode="single"
-                          showOutsideDays={true} // Display next/prev month dates to fill grid
-                          fixedWeeks={false}     // Do NOT force an extra 6th row if not needed
-                          fromDate={new Date()}  // Prevent navigation to previous months
-                          disabled={{ before: new Date() }} // Disable interaction with past dates
+                          showOutsideDays={true} 
+                          fixedWeeks={false}
+                          fromDate={new Date()}
+                          disabled={{ before: new Date() }}
                           modifiers={{
                             booked: (date) => bookedDays.some(range => 
                               isWithinInterval(startOfDay(date), { start: range.from, end: range.to })
@@ -207,7 +209,6 @@ const MediaDetail = () => {
                           }}
                           modifiersStyles={{
                             booked: { 
-                              // DARK RED for Booked
                               backgroundColor: '#b91c1c', // red-700
                               color: 'white',
                               textDecoration: 'line-through',
@@ -218,29 +219,16 @@ const MediaDetail = () => {
                             }
                           }}
                           classNames={{
-                            // Layout spacing
                             months: "space-y-4",
                             month: "space-y-4",
                             caption: "flex justify-center pt-1 relative items-center mb-2",
                             caption_label: "text-sm font-semibold",
                             nav: "space-x-1 flex items-center",
-                            
-                            // Header (Days of week)
                             head_cell: "text-muted-foreground rounded-md w-10 font-medium text-[0.8rem]",
-                            
-                            // Cells - p-1 provides the GAP between dates
                             cell: "h-10 w-10 text-center p-1 relative focus-within:relative focus-within:z-20",
-                            
-                            // Day Button - DARK GREEN for Available
                             day: "h-full w-full p-0 font-medium aria-selected:opacity-100 bg-emerald-600 text-white hover:bg-emerald-700 rounded-md transition-all shadow-sm",
-                            
-                            // Today's Date - Ring highlight
                             day_today: "ring-2 ring-yellow-500 ring-offset-2 font-bold",
-                            
-                            // Outside Days - Visible but Low Opacity (Dimmed)
                             day_outside: "text-zinc-400 opacity-40 bg-transparent hover:bg-transparent",
-                            
-                            // Disabled (Past dates) - Grayed out & Ghost
                             day_disabled: "text-muted-foreground opacity-30 bg-transparent hover:bg-transparent text-gray-400 shadow-none",
                           }}
                         />
