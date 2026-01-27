@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom"; // Added useSearchParams
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { mediaLocations, mediaTypes } from "@/lib/data";
-import { CalendarDays, Search, Filter, Loader2, Info, MapPin, PlusCircle, ChevronsUpDown, Check } from "lucide-react";
+import { CalendarDays, Search, Loader2, Info, MapPin, PlusCircle, ChevronsUpDown, Check } from "lucide-react";
 import { useBookings } from "@/hooks/api/useBookings";
 import { useMedia, useMediaById } from "@/hooks/api/useMedia";
 import { isWithinInterval, parseISO, startOfDay } from "date-fns";
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 
 const Availability = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // Get URL parameters
   const [selectedMedia, setSelectedMedia] = useState<string>('');
   const [selectedDates, setSelectedDates] = useState<Date[] | undefined>([]);
   const [openCombobox, setOpenCombobox] = useState(false);
@@ -44,6 +45,15 @@ const Availability = () => {
   const sourceMedia = useMemo(() => {
     return mediaData?.data && mediaData.data.length > 0 ? mediaData.data : mediaLocations;
   }, [mediaData]);
+
+  // --- FIX: AUTO-FILL FROM URL PARAMETER ---
+  useEffect(() => {
+    const mediaIdParam = searchParams.get('mediaId');
+    // Only set if we have a parameter and it's different from current
+    if (mediaIdParam && mediaIdParam !== selectedMedia) {
+      setSelectedMedia(mediaIdParam);
+    }
+  }, [searchParams, selectedMedia]);
 
   // --- DYNAMIC FILTER OPTIONS ---
   const uniqueStates = useMemo(() => {
@@ -83,7 +93,7 @@ const Availability = () => {
     });
   }, [sourceMedia, typeFilter, stateFilter, districtFilter, cityFilter]);
 
-  // Fetch Details & Bookings
+  // Fetch Details & Bookings for the selected media
   const { data: selectedMediaDetails } = useMediaById(selectedMedia);
   const { data: bookingsData, isLoading: isLoadingBookings } = useBookings({ 
     mediaId: selectedMedia,

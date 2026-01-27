@@ -15,25 +15,33 @@ import {
   Calendar,
   Edit,
   TrendingUp,
-  Sparkles
+  User
 } from "lucide-react";
 import { useMediaById } from "@/hooks/api/useMedia";
+import { useBookings } from "@/hooks/api/useBookings"; // Import hook to get full booking data
 import { isBackendConfigured } from "@/lib/api/config";
 import { adaptMediaLocation } from "@/lib/services/dataService";
-import { MediaLocation } from "@/lib/api/types"; // Import the type
+import { MediaLocation } from "@/lib/api/types";
+import { format } from "date-fns"; // Import date formatter
 
 const AdminMediaDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const { data: apiMedia, isLoading } = useMediaById(id || '');
+  // 1. Fetch Media Details
+  const { data: apiMedia, isLoading: isLoadingMedia } = useMediaById(id || '');
   
-  // FIX: Explicitly cast to MediaLocation to resolve the property access error
+  // 2. Fetch Full Booking History (to get Customer Names & Status)
+  const { data: bookingsData, isLoading: isLoadingBookings } = useBookings({ 
+    mediaId: id,
+    limit: 50 // Get the last 50 bookings
+  });
+  
   const media = (isBackendConfigured() && apiMedia 
     ? adaptMediaLocation(apiMedia as any)
     : getMediaById(id || '')) as MediaLocation | null;
 
-  if (isBackendConfigured() && isLoading) {
+  if (isBackendConfigured() && isLoadingMedia) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -66,12 +74,16 @@ const AdminMediaDetail = () => {
     );
   }
 
-  // Use the Hostinger absolute URL primarily, fallback to the image field or placeholder
   const displayImage = media.imageUrl || media.image || 'https://placehold.co/800x450?text=Image+Not+Available';
 
   const statusVariant = 
     media.status === 'Available' ? 'success' :
     media.status === 'Booked' ? 'destructive' : 'warning';
+
+  // Sort bookings: Newest first
+  const sortedBookings = bookingsData?.data 
+    ? [...bookingsData.data].sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+    : [];
 
   return (
     <div className="space-y-6">
@@ -90,6 +102,7 @@ const AdminMediaDetail = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Passes mediaId to Availability page for auto-fill */}
           <Button variant="outline" onClick={() => navigate(`/admin/availability?mediaId=${media.id}`)}>
             <Calendar className="h-4 w-4 mr-2" />
             Manage Availability
@@ -110,8 +123,7 @@ const AdminMediaDetail = () => {
               alt={media.name}
               className="w-full aspect-video object-cover"
               onError={(e) => {
-                // Fallback if the Hostinger URL fails to load
-                (e.target as HTMLImageElement).src = 'https://placehold.co/800x450?text=Error+Loading+Hostinger+File';
+                (e.target as HTMLImageElement).src = 'https://placehold.co/800x450?text=Error+Loading+Image';
               }}
             />
           </Card>
@@ -138,42 +150,59 @@ const AdminMediaDetail = () => {
             ))}
           </div>
 
-          {/* Booking History */}
+          {/* FIX: Improved Booking History */}
           <Card className="p-6 bg-card border-border/50">
             <h3 className="text-lg font-semibold mb-4">Booking History</h3>
-            <div className="space-y-4">
-              {media.bookedDates && media.bookedDates.length > 0 ? (
-                media.bookedDates.map((booking: { start: string; end: string }, i: number) => (
-                  <div key={i} className="flex items-center gap-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                    <div className="w-3 h-3 rounded-full bg-destructive" />
-                    <div className="flex-1">
-                      <div className="font-medium">Booked Period</div>
-                      <div className="text-sm text-muted-foreground">{booking.start} to {booking.end}</div>
+            <div className="space-y-3">
+              {isLoadingBookings ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </div>
+              ) : sortedBookings.length > 0 ? (
+                sortedBookings.map((booking: any) => {
+                  // FIX: Handle populated data in either customerId (raw) or customer (adapted)
+                  const customerObj = booking.customer || (typeof booking.customerId === 'object' ? booking.customerId : null);
+                  const customerName = customerObj?.company || customerObj?.name || "Deleted Customer";
+                  
+                  // FIX: Format dates
+                  const startDate = format(new Date(booking.startDate), "dd MMM yyyy");
+                  const endDate = format(new Date(booking.endDate), "dd MMM yyyy");
+                  const isActive = booking.status === 'Active';
+
+                  return (
+                    <div 
+                      key={booking._id || booking.id} 
+                      className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${
+                        isActive ? 'bg-primary/5 border-primary/20' : 'bg-card border-border/50'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-full ${isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                        <User className="h-4 w-4" />
+                      </div>
+                      
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-medium text-sm">{customerName}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                                {startDate} — {endDate}
+                            </div>
+                          </div>
+                          <Badge variant={isActive ? 'default' : 'outline'} className="text-[10px] h-5">
+                            {booking.status}
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No booking history available</p>
+                <div className="text-center py-8 text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
+                  <Calendar className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No booking history available</p>
                 </div>
               )}
-            </div>
-          </Card>
-
-          {/* AI Insight */}
-          <Card className="p-6 bg-gradient-to-br from-primary/10 via-purple-500/5 to-transparent border-primary/20">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-primary/20">
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">AI Performance Insight</h3>
-                <p className="text-sm text-muted-foreground">
-                  This {media.type.toLowerCase()} shows <span className="text-foreground font-medium">high demand during summer months (March–June)</span>. 
-                  Consider offering promotional rates during monsoon season to improve occupancy.
-                </p>
-              </div>
             </div>
           </Card>
         </div>
