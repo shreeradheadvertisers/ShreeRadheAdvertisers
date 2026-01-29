@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { customerGroups as initialGroups } from "@/lib/data";
 import type { Customer, Booking } from "@/lib/api/types"; 
+import { apiClient } from "@/lib/api/client"; // ✅ Added API Client
 
 import { AddCustomerDialog, EditCustomerDialog, DeleteCustomerDialog } from "@/components/admin/CustomerManagement";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
@@ -165,18 +166,25 @@ export default function CustomerBookings() {
   const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
 
-  // --- AUTOMATICALLY OPEN DIALOG FROM AVAILABILITY PAGE ---
+  // --- AUTOMATICALLY OPEN DIALOGS ---
   useEffect(() => {
-    // 1. Check State (Preferred)
-    if (location.state?.openCreateDialog) {
-      setCreateBookingOpen(true);
-      if (location.state.prefill) {
-        setBookingPrefill(location.state.prefill);
+    const handleDeepLinks = async () => {
+      // 1. Create Booking Link
+      if (location.state?.openCreateDialog) {
+        setCreateBookingOpen(true);
+        if (location.state.prefill) setBookingPrefill(location.state.prefill);
+      } 
+      // 2. View Booking Link (From Logs)
+      else if (location.state?.viewBookingId) {
+        try {
+          const res = await apiClient.get<Booking>(`/api/bookings/${location.state.viewBookingId}`);
+          if (res) setViewBooking(res as any);
+        } catch (e) {
+          toast({ title: "Error", description: "Could not find booking record.", variant: "destructive" });
+        }
       }
-      window.history.replaceState({}, document.title); // Clear state
-    } 
-    // 2. Check Query Params (Fallback for direct link)
-    else {
+      
+      // 3. Fallback: Query Params
       const params = new URLSearchParams(location.search);
       if (params.get('action') === 'create') {
         setCreateBookingOpen(true);
@@ -186,7 +194,12 @@ export default function CustomerBookings() {
           endDate: params.get('end')
         });
       }
-    }
+
+      // Clean up state
+      window.history.replaceState({}, document.title);
+    };
+
+    handleDeepLinks();
   }, [location]);
 
   const snapshotBookings = useMemo(() => statsRes?.data || [], [statsRes]);

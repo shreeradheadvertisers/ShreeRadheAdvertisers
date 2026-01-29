@@ -5,8 +5,9 @@
 
 const express = require('express');
 const router = express.Router();
+// Ensure ALL models are imported so we can delete from any of them
 const { Media, Booking, Customer, Payment, TaxRecord, Tender } = require('../models');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 const { logActivity } = require('../services/logger');
 
 // --- HELPER: Generate Custom Booking ID ---
@@ -28,15 +29,14 @@ const generateBookingId = (booking, index) => {
       }
   }
   
-  // Sequence starts at 1001 (index 0 -> 1001)
   const sequence = index >= 0 ? 1000 + index + 1 : "0000";
   return `SRA/${ay}/${sequence}`;
 };
 
-// Get all deleted items (protected)
+// 1. GET ALL DELETED ITEMS
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    // 1. CALCULATE GLOBAL INDICES
+    // Calculate global indices for bookings
     const allBookings = await Booking.find({}, { _id: 1, startDate: 1, createdAt: 1 }).lean();
     
     allBookings.sort((a, b) => {
@@ -50,7 +50,7 @@ router.get('/', authMiddleware, async (req, res) => {
       bookingIdMap[b._id.toString()] = generateBookingId(b, index);
     });
 
-    // 2. FETCH DELETED ITEMS
+    // Fetch deleted items from all collections
     const [
       deletedMedia, 
       deletedBookings, 
@@ -68,7 +68,7 @@ router.get('/', authMiddleware, async (req, res) => {
       TaxRecord.find({ deleted: true }).sort({ deletedAt: -1 })
     ]);
 
-    // 3. TRANSFORM & FORMAT
+    // Transform Data
     const binItems = [];
 
     deletedMedia.forEach(m => {
@@ -124,6 +124,7 @@ router.get('/', authMiddleware, async (req, res) => {
       });
     });
 
+    // Sort by deleted date (newest first)
     binItems.sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
 
     res.json(binItems);
@@ -133,26 +134,19 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Restore item (protected)
+// 2. RESTORE ITEM
 router.post('/restore', authMiddleware, async (req, res) => {
   const { id, type } = req.body;
   try {
     let result;
-    if (type === 'media') {
-      result = await Media.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
-    } else if (type === 'booking') {
-      result = await Booking.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
-    } else if (type === 'customer') {
-      result = await Customer.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
-    } else if (type === 'agreement') {
-      result = await Tender.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
-    } else if (type === 'tax') {
-      result = await TaxRecord.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
-    }
+    if (type === 'media') result = await Media.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
+    else if (type === 'booking') result = await Booking.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
+    else if (type === 'customer') result = await Customer.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
+    else if (type === 'agreement') result = await Tender.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
+    else if (type === 'tax') result = await TaxRecord.findByIdAndUpdate(id, { deleted: false, deletedAt: null });
 
     if (!result) return res.status(404).json({ message: 'Item not found' });
 
-    // LOG ACTIVITY
     await logActivity(req, 'UPDATE', 'SYSTEM', `Restored ${type} from Recycle Bin`, { itemId: id });
 
     res.json({ success: true, message: 'Item restored successfully' });
@@ -161,27 +155,56 @@ router.post('/restore', authMiddleware, async (req, res) => {
   }
 });
 
-// Permanent delete (protected)
-router.delete('/:id', authMiddleware, async (req, res) => {
-  const { type } = req.query; 
-  const { id } = req.params;
-
+// 3. PERMANENT DELETE (Fixes 404 Error)
+// NOTE: This must be defined BEFORE any generic /:id route if one exists
+router.delete('/permanent-delete', authMiddleware, requireRole('admin', 'superadmin'), async (req, res) => {
   try {
+    const { id, type } = req.query; // Gets params from URL: ?id=...&type=...
+
+    if (!id || !type) {
+      return res.status(400).json({ message: "ID and Type are required." });
+    }
+
     let result;
-    if (type === 'media') result = await Media.findByIdAndDelete(id);
-    else if (type === 'booking') result = await Booking.findByIdAndDelete(id);
-    else if (type === 'customer') result = await Customer.findByIdAndDelete(id);
-    else if (type === 'agreement') result = await Tender.findByIdAndDelete(id);
-    else if (type === 'tax') result = await TaxRecord.findByIdAndDelete(id);
+    switch (type.toLowerCase()) {
+      case 'media': result = await Media.findByIdAndDelete(id); break;
+      case 'booking': result = await Booking.findByIdAndDelete(id); break;
+      case 'customer': result = await Customer.findByIdAndDelete(id); break;
+      case 'agreement': result = await Tender.findByIdAndDelete(id); break;
+      case 'tax': result = await TaxRecord.findByIdAndDelete(id); break;
+      default: return res.status(400).json({ message: "Invalid item type" });
+    }
 
-    if (!result) return res.status(404).json({ message: 'Item not found' });
+    if (!result) return res.status(404).json({ message: 'Item not found or already deleted' });
 
-    // LOG ACTIVITY
-    await logActivity(req, 'DELETE', 'SYSTEM', `Permanently deleted ${type} from Recycle Bin`, { itemId: id });
+    await logActivity(req, 'DELETE', 'SYSTEM', `Permanently deleted ${type}`, { itemId: id });
 
     res.json({ success: true, message: 'Item permanently deleted' });
   } catch (error) {
+    console.error("Permanent Delete Error:", error);
     res.status(500).json({ message: 'Failed to delete item' });
+  }
+});
+
+// 4. WIPE RECYCLE BIN (Optional: For "Wipe All" Button)
+router.delete('/wipe', authMiddleware, requireRole('admin', 'superadmin'), async (req, res) => {
+  try {
+    const [mediaRes, bookingRes, customerRes, tenderRes, taxRes] = await Promise.all([
+      Media.deleteMany({ deleted: true }),
+      Booking.deleteMany({ deleted: true }),
+      Customer.deleteMany({ deleted: true }),
+      Tender.deleteMany({ deleted: true }),
+      TaxRecord.deleteMany({ deleted: true })
+    ]);
+
+    const total = mediaRes.deletedCount + bookingRes.deletedCount + customerRes.deletedCount + tenderRes.deletedCount + taxRes.deletedCount;
+
+    await logActivity(req, 'DELETE', 'SYSTEM', `Wiped Recycle Bin (${total} items removed)`);
+
+    res.json({ success: true, message: `Recycle Bin wiped. ${total} items removed permanently.` });
+  } catch (error) {
+    console.error("Wipe Error:", error);
+    res.status(500).json({ message: "Failed to wipe recycle bin" });
   }
 });
 

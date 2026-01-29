@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,9 +14,14 @@ import {
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs
 import { toast } from "sonner";
-import { Plus, Edit, Key, Trash2, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { 
+  Plus, Edit, Key, Trash2, Loader2, AlertCircle, Eye, EyeOff, 
+  RotateCcw, CheckCircle2 // New Icons
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { format } from "date-fns"; // Ensure date-fns is installed or use native date
 
 export default function UserManagement() {
   const [users, setUsers] = useState<any[]>([]);
@@ -25,45 +30,37 @@ export default function UserManagement() {
   const [passwordMode, setPasswordMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Tab State for Soft Delete
+  const [activeTab, setActiveTab] = useState("active"); 
+
   // General Form State
   const [formData, setFormData] = useState({ name: '', username: '', email: '', role: 'staff' });
   
-  // Dedicated Password State (New + Confirm)
+  // Password State
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Password Visibility States
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfPass, setShowConfPass] = useState(false);
 
-  const fetchUsers = async () => {
+  // Fetch Users based on Active Tab
+  const fetchUsers = useCallback(async () => {
     try {
-      const response = await apiClient.get<any>('/api/users');
+      const statusParam = activeTab === 'deleted' ? 'deleted' : 'active';
+      const response = await apiClient.get<any>(`/api/users?status=${statusParam}`);
       
-      console.log("DEBUG: Raw API Response for Users:", response); // Check Console (F12) if this is still empty
-
       let userData: any[] = [];
       
-      // LOGIC: Check all possible locations for the array
-      
-      // Case 1: The response IS the array (common if interceptors unwrap data)
+      // Data Extraction Logic
       if (Array.isArray(response)) {
         userData = response;
-      } 
-      // Case 2: Standard Axios response (response.data is the array)
-      else if (response.data && Array.isArray(response.data)) {
+      } else if (response.data && Array.isArray(response.data)) {
         userData = response.data;
-      } 
-      // Case 3: Nested in 'users' key (e.g. { users: [...] })
-      else if (response.users && Array.isArray(response.users)) {
+      } else if (response.users && Array.isArray(response.users)) {
         userData = response.users;
-      }
-      // Case 4: Nested deeply (e.g. response.data.users)
-      else if (response.data && response.data.users && Array.isArray(response.data.users)) {
+      } else if (response.data && response.data.users && Array.isArray(response.data.users)) {
         userData = response.data.users;
       }
 
-      console.log("DEBUG: Final Extracted Users:", userData);
       setUsers(userData);
 
     } catch (err) { 
@@ -71,11 +68,11 @@ export default function UserManagement() {
       toast.error("Failed to fetch users"); 
       setUsers([]); 
     }
-  };
+  }, [activeTab]); // Re-run when tab changes
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // Reset states when opening/closing dialog
+  // Reset states
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setEditingUser(null);
@@ -123,63 +120,54 @@ export default function UserManagement() {
     setErrorMsg(null);
 
     try {
-      // --- PASSWORD RESET MODE ---
       if (passwordMode && editingUser) {
-        if (!passwordData.newPassword || !passwordData.confirmPassword) {
-          throw new Error("Please fill in both password fields.");
-        }
-        if (passwordData.newPassword.length < 8) {
-          throw new Error("Password must be at least 8 characters long.");
-        }
-        if (passwordData.newPassword !== passwordData.confirmPassword) {
-          throw new Error("Passwords do not match.");
-        }
+        if (!passwordData.newPassword || !passwordData.confirmPassword) throw new Error("Please fill in both fields.");
+        if (passwordData.newPassword.length < 8) throw new Error("Password must be at least 8 characters.");
+        if (passwordData.newPassword !== passwordData.confirmPassword) throw new Error("Passwords do not match.");
 
-        await apiClient.put(`/api/users/${editingUser._id}/password`, { 
-          password: passwordData.newPassword 
-        });
+        await apiClient.put(`/api/users/${editingUser._id}/password`, { password: passwordData.newPassword });
         toast.success("Password updated successfully");
-      } 
-      // --- EDIT USER MODE ---
-      else if (editingUser) {
+      } else if (editingUser) {
         await apiClient.put(`/api/users/${editingUser._id}`, formData);
         toast.success("User updated successfully");
-      } 
-      // --- CREATE USER MODE ---
-      else {
-        await apiClient.post('/api/users', { 
-            ...formData,
-            password: passwordData.newPassword || 'SRA@staff123' 
-        });
+      } else {
+        await apiClient.post('/api/users', { ...formData, password: passwordData.newPassword || 'SRA@staff123' });
         toast.success("User created successfully");
       }
 
-      handleOpenChange(false); // Close dialog
-      fetchUsers(); // Refresh list
+      handleOpenChange(false);
+      fetchUsers();
     } catch (err: any) {
       const msg = err.message || err.response?.data?.message || "Operation failed";
-      if (passwordMode) {
-        setErrorMsg(msg); 
-      } else {
-        toast.error(msg);
-      }
+      if (passwordMode) setErrorMsg(msg);
+      else toast.error(msg);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Soft Delete
   const handleDelete = async (id: string) => {
-    if(!confirm("Are you sure? This action cannot be undone.")) return;
+    if(!confirm("Are you sure you want to deactivate this user?")) return;
     try {
       await apiClient.delete(`/api/users/${id}`);
-      toast.success("User deleted");
+      toast.success("User deactivated");
       fetchUsers();
-    } catch (err) { toast.error("Delete failed"); }
+    } catch (err) { toast.error("Deactivation failed"); }
+  };
+
+  // Restore User
+  const handleRestore = async (id: string) => {
+    try {
+      await apiClient.patch(`/api/users/${id}/restore`);
+      toast.success("User restored successfully");
+      fetchUsers();
+    } catch (err) { toast.error("Restore failed"); }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
           <p className="text-muted-foreground">Manage system access and roles.</p>
@@ -189,6 +177,20 @@ export default function UserManagement() {
         </Button>
       </div>
 
+      {/* Tabs for Active / Deactivated */}
+      <div className="flex items-center justify-between">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-auto">
+          <TabsList>
+            <TabsTrigger value="active" className="gap-2">
+              <CheckCircle2 className="h-4 w-4" /> Active Staff
+            </TabsTrigger>
+            <TabsTrigger value="deleted" className="gap-2 text-destructive data-[state=active]:text-destructive">
+              <Trash2 className="h-4 w-4" /> Deactivated
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       <Card>
         <Table>
           <TableHeader>
@@ -196,15 +198,19 @@ export default function UserManagement() {
               <TableHead>Name</TableHead>
               <TableHead>Username/Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>
+                {activeTab === 'deleted' ? 'Deactivated On' : 'Created At'}
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* SAFETY FIX: Check if users is an array before mapping */}
             {Array.isArray(users) && users.length > 0 ? (
               users.map((user: any) => (
                 <TableRow key={user._id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {user.name}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">{user.username}</span>
@@ -216,25 +222,43 @@ export default function UserManagement() {
                           {user.role}
                       </span>
                   </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {user.deletedAt 
+                      ? <span className="text-destructive">{format(new Date(user.deletedAt), 'dd MMM yyyy')}</span> 
+                      : (user.createdAt ? format(new Date(user.createdAt), 'dd MMM yyyy') : 'N/A')
+                    }
+                  </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} title="Edit Details">
-                          <Edit className="h-4 w-4" />
+                    {activeTab === 'active' ? (
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)} title="Edit Details">
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openPasswordDialog(user)} title="Change Password">
+                            <Key className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(user._id)} title="Deactivate User">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      // Restore Action for Deactivated Users
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-primary hover:text-primary border-primary/20 hover:bg-primary/5 gap-2"
+                        onClick={() => handleRestore(user._id)}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" /> Restore
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openPasswordDialog(user)} title="Change Password">
-                          <Key className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(user._id)} title="Delete User">
-                          <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                  No users found.
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  No {activeTab === 'deleted' ? 'deactivated' : 'active'} users found.
                 </TableCell>
               </TableRow>
             )}
@@ -303,12 +327,7 @@ export default function UserManagement() {
                           onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} 
                           className="pr-10"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPass(!showNewPass)}
-                          className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground focus:outline-none"
-                          tabIndex={-1}
-                        >
+                        <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
                           {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
@@ -327,20 +346,10 @@ export default function UserManagement() {
                           type={showNewPass ? "text" : "password"}
                           placeholder="Min 8 characters" 
                           value={passwordData.newPassword} 
-                          onChange={e => {
-                              setErrorMsg(null);
-                              setPasswordData({...passwordData, newPassword: e.target.value});
-                          }} 
-                          required 
-                          minLength={8} 
-                          className="pr-10"
+                          onChange={e => { setErrorMsg(null); setPasswordData({...passwordData, newPassword: e.target.value}); }} 
+                          required minLength={8} className="pr-10"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPass(!showNewPass)}
-                        className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground focus:outline-none"
-                        tabIndex={-1}
-                      >
+                      <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
                         {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -353,19 +362,10 @@ export default function UserManagement() {
                           type={showConfPass ? "text" : "password"}
                           placeholder="Re-enter new password" 
                           value={passwordData.confirmPassword} 
-                          onChange={e => {
-                              setErrorMsg(null);
-                              setPasswordData({...passwordData, confirmPassword: e.target.value});
-                          }} 
-                          required 
-                          className="pr-10"
+                          onChange={e => { setErrorMsg(null); setPasswordData({...passwordData, confirmPassword: e.target.value}); }} 
+                          required className="pr-10"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfPass(!showConfPass)}
-                        className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground focus:outline-none"
-                        tabIndex={-1}
-                      >
+                      <button type="button" onClick={() => setShowConfPass(!showConfPass)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
                         {showConfPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>

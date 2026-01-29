@@ -11,7 +11,7 @@ const ActivityLogSchema = new mongoose.Schema({
   module: { 
     type: String, 
     required: true,
-    enum: ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM'] 
+    enum: ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM', 'REPORTS'] 
   },
   description: { type: String, required: true },
   details: { type: Object }, // Flexible bucket for IDs, diffs

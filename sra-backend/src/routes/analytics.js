@@ -304,20 +304,26 @@ router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (re
 });
 
 // Allow Frontend to report actions (like downloads)
+// UPDATED: Now "sanitizes" the module input to prevent DB crashes
 router.post('/log', authMiddleware, async (req, res) => {
   try {
     const { action, module, description } = req.body;
     
+    // 1. Define allowed modules strictly from your DB Schema
+    const allowedModules = ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM'];
+    
+    // 2. If 'module' is invalid (e.g., 'REPORTS'), force it to 'SYSTEM'
+    const safeModule = allowedModules.includes(module) ? module : 'SYSTEM';
+
     await logActivity(
       req, 
-      action || 'ACTION', 
-      module || 'SYSTEM', 
+      action || 'EXPORT', 
+      safeModule,
       description || 'User performed an action'
     );
 
     res.json({ success: true });
   } catch (error) {
-    // Fail silently so it doesn't break the frontend app
     console.error('Manual logging failed:', error);
     res.status(500).json({ success: false });
   }

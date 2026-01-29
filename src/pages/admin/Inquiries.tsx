@@ -1,27 +1,48 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom"; // Import useLocation
 import { useContactSubmissions, useMarkAsAttended, useUnmarkAsAttended } from "@/hooks/api/useContacts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { 
-  CheckCircle2, Clock, User, MessageSquare, Phone, 
-  Search, Eye, Inbox, TrendingUp, RotateCcw, 
-  Tag, Copy, ExternalLink, CalendarClock 
-} from "lucide-react";
+import { CheckCircle2, Clock, User, MessageSquare, Phone, Search, Eye, Inbox, TrendingUp, RotateCcw, Tag, Copy, CalendarClock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api/client"; // Import API Client
 
 export default function Inquiries() {
   const { data: response, isLoading } = useContactSubmissions();
   const markAsAttended = useMarkAsAttended();
   const unmarkAsAttended = useUnmarkAsAttended();
+  const location = useLocation(); // Location hook
   
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
+
+  // --- DEEP LINK LOGIC ---
+  useEffect(() => {
+    const checkDeepLink = async () => {
+      // If navigated here with a specific ID (from Activity Logs)
+      if (location.state?.viewInquiryId) {
+        try {
+          // Fetch the specific inquiry directly by ID
+          const res = await apiClient.get<any>(`/api/contact/${location.state.viewInquiryId}`);
+          
+          if (res) {
+            setSelectedInquiry(res); // Open the dialog automatically
+            // Clear state so it doesn't reopen on refresh
+            window.history.replaceState({}, document.title);
+          }
+        } catch (error) {
+          toast.error("Could not load the requested inquiry details.");
+        }
+      }
+    };
+    checkDeepLink();
+  }, [location]);
 
   const allInquiries = response?.data || [];
   
@@ -246,7 +267,7 @@ export default function Inquiries() {
                 </Button>
               </div>
 
-              {selectedInquiry.attended && (
+              {selectedInquiry.attended && selectedInquiry.attendedAt && (
                 <div className="text-[10px] bg-success/10 text-success p-2 rounded border border-success/20 flex items-center gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Processed by Admin on {format(new Date(selectedInquiry.attendedAt), "PPP p")}

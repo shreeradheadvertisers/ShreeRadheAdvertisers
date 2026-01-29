@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { EditPaymentDialog, NewPaymentDialog, PaymentListDialog } from "@/components/admin/PaymentManagement";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -28,14 +29,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { cn, formatIndianRupee } from "@/lib/utils";
 import { toast } from "sonner";
-import logo from "@/assets/logo.png"; // Import Logo
+import logo from "@/assets/logo.png"; 
+import { apiClient } from "@/lib/api/client"; // ✅ Added API Client
 
 // --- 1. IMPORT LIVE API HOOKS & CONTEXT ---
 import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
 import { useCustomers } from "@/hooks/api/useCustomers";
 import { Booking, PaymentStatus, PaymentMode } from "@/lib/api/types";
 import { customerGroups } from "@/lib/data";
-import { useAuth } from "@/contexts/AuthContext"; // Import Auth for Report User
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- 2. IMPORT HELPERS & DIALOGS ---
 import { 
@@ -45,7 +47,8 @@ import {
 import { generateBookingId } from "@/lib/utils";
 
 const Payments = () => {
-  const { user } = useAuth(); // Get current user for report footer
+  const { user } = useAuth();
+  const location = useLocation(); // ✅ Hook to catch the redirect state
   
   // Filters State
   const [search, setSearch] = useState("");
@@ -75,8 +78,44 @@ const Payments = () => {
   const updateBookingMutation = useUpdateBooking();
   const deleteBookingMutation = useDeleteBooking();
 
-  const bookings = bookingsRes?.data || [];
-  const customers = customersRes?.data || [];
+  const bookings = useMemo(() => bookingsRes?.data || [], [bookingsRes?.data]);
+  const customers = useMemo(() => customersRes?.data || [], [customersRes?.data]);
+
+  // --- 🌟 DEEP LINK LOGIC (AUTO-OPEN FROM LOGS) ---
+  useEffect(() => {
+    const handleDeepLink = async () => {
+      // Check if navigated here with a 'highlightBookingId'
+      if (location.state?.highlightBookingId) {
+        try {
+          const id = location.state.highlightBookingId;
+          
+          // 1. Try finding it in the already loaded list
+          const found = bookings.find((b: any) => b._id === id || b.id === id);
+          
+          if (found) {
+            setSelectedPaymentForEdit(found);
+            setIsPaymentEditOpen(true); // Open the Payment Dialog
+          } else {
+            // 2. If not found (e.g. pagination), fetch it directly
+            const res = await apiClient.get<Booking>(`/api/bookings/${id}`);
+            if (res) {
+              setSelectedPaymentForEdit(res as any);
+              setIsPaymentEditOpen(true); // Open the Payment Dialog
+            }
+          }
+          // Clear the state so it doesn't reopen on refresh
+          window.history.replaceState({}, document.title);
+        } catch (e) {
+          toast.error("Could not load the requested payment details.");
+        }
+      }
+    };
+    
+    // Run only after bookings have attempted to load
+    if (!bookingsLoading) {
+      handleDeepLink();
+    }
+  }, [location, bookings, bookingsLoading]);
 
   // --- 4. DYNAMIC STATS (Exclude Cancelled) ---
   const totalRevenueNum = bookings.reduce((acc, b) => {
@@ -132,7 +171,6 @@ const Payments = () => {
   ];
 
   // --- 5. PREPARE DATA ---
-  // Sort oldest first for correct ID generation
   const sortedBookings = [...bookings].sort((a, b) => 
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
@@ -145,7 +183,7 @@ const Payments = () => {
     const matchesMode = modeFilter === 'All' ? true : b.paymentMode === modeFilter;
     const matchesGroup = groupFilter === 'All' ? true : customer?.group === groupFilter;
     
-    // ID Generation for Search
+    // Search Logic
     const customId = generateBookingId(b, index);
     const matchesSearch =
       customId.toLowerCase().includes(search.toLowerCase()) ||
@@ -174,7 +212,7 @@ const Payments = () => {
 
   const hasActiveFilters = groupFilter !== 'All' || modeFilter !== 'All' || dateRange.start || dateRange.end;
 
-  // --- 5.1 HELPER: Get Filter Context for Report ---
+  // --- Helpers for Report ---
   const getFilterContext = () => {
     const filters = [];
     if (statusFilter !== 'All') filters.push(`Status: ${statusFilter}`);
@@ -185,7 +223,6 @@ const Payments = () => {
     return filters.length > 0 ? filters.join(" | ") : "None (All Records)";
   };
 
-  // --- 5.2 HELPER: Get Totals for Report ---
   const getReportTotals = () => {
     const revenue = filteredBookings.reduce((acc, b) => acc + (b.amountPaid || 0), 0);
     const pending = filteredBookings.reduce((acc, b) => acc + ((b.amount || 0) - (b.amountPaid || 0)), 0);
@@ -252,7 +289,6 @@ const Payments = () => {
       return;
     }
     
-    // UPDATED: PDF now triggers system print which uses the @media print styles
     if (format === 'pdf') {
       window.print();
       return;
@@ -296,42 +332,15 @@ const Payments = () => {
       <style>
         {`
           @media print {
-            @page {
-              margin: 10mm;
-              size: auto;
-            }
-            * {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            body {
-              background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'><text x='150' y='150' fill='rgba(0,0,0,0.05)' font-size='24' font-family='Arial' font-weight='bold' transform='rotate(-45 150 150)' text-anchor='middle' dominant-baseline='middle'>CONFIDENTIAL</text></svg>") !important;
-              background-repeat: repeat !important;
-              background-position: center !important;
-            }
-            .bg-card, .bg-background, .bg-white, table, tr, td, th {
-              background-color: transparent !important;
-            }
-            .shadow-sm, .shadow-md, .shadow-lg, .border, .border-b-2 {
-              box-shadow: none !important;
-              border: none !important;
-            }
-            tr {
-              border-bottom: 1px solid #e5e7eb !important; 
-              break-inside: avoid;
-            }
-            thead tr {
-              border-bottom: 2px solid #000 !important;
-            }
-            th, td {
-               padding: 4px !important;
-               font-size: 10px !important;
-               vertical-align: top;
-            }
-            /* Hide scrolling containers for print */
-            .overflow-hidden, .overflow-x-auto {
-               overflow: visible !important;
-            }
+            @page { margin: 10mm; size: auto; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'><text x='150' y='150' fill='rgba(0,0,0,0.05)' font-size='24' font-family='Arial' font-weight='bold' transform='rotate(-45 150 150)' text-anchor='middle' dominant-baseline='middle'>CONFIDENTIAL</text></svg>") !important; background-repeat: repeat !important; background-position: center !important; }
+            .bg-card, .bg-background, .bg-white, table, tr, td, th { background-color: transparent !important; }
+            .shadow-sm, .shadow-md, .shadow-lg, .border, .border-b-2 { box-shadow: none !important; border: none !important; }
+            tr { border-bottom: 1px solid #e5e7eb !important; break-inside: avoid; }
+            thead tr { border-bottom: 2px solid #000 !important; }
+            th, td { padding: 4px !important; font-size: 10px !important; vertical-align: top; }
+            .overflow-hidden, .overflow-x-auto { overflow: visible !important; }
           }
         `}
       </style>
@@ -547,7 +556,6 @@ const Payments = () => {
                 filteredBookings.map((booking) => {
                   const customer = typeof booking.customerId === 'object' ? booking.customerId : customers.find(c => (c._id || c.id) === booking.customerId);
                   
-                  // Get index from original sorted list to keep ID consistent
                   const originalIndex = sortedBookings.findIndex(sb => (sb._id || sb.id) === (booking._id || booking.id));
                   const customId = generateBookingId(booking, originalIndex);
 

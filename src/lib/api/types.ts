@@ -10,6 +10,8 @@ export type CustomerGroup = 'Corporate' | 'Government' | 'Agency' | 'Startup' | 
 export type MaintenanceStatus = 'Pending' | 'In Progress' | 'Completed';
 export type MaintenancePriority = 'Low' | 'Medium' | 'High' | 'Critical';
 export type ContactStatus = 'New' | 'Contacted' | 'Qualified' | 'Converted' | 'Closed';
+
+// Updated to match backend Recycle Bin categories
 export type BinItemType = 'media' | 'booking' | 'customer' | 'payment' | 'agreement' | 'tax' | 'maintenance';
 
 // ============= COMPLIANCE & DOCUMENTS =============
@@ -136,6 +138,8 @@ export interface Customer {
   totalSpent: number;
   createdAt: string;
   updatedAt: string;
+  deleted?: boolean;
+  deletedAt?: string;
 }
 
 // ============= CONTACT FORM =============
@@ -199,9 +203,15 @@ export interface AdminUser {
   _id: string;
   username: string;
   email: string;
-  role: 'admin' | 'superadmin' | 'viewer';
+  role: 'admin' | 'superadmin' | 'viewer'; // Added roles
   name: string;
   lastLogin?: string;
+  
+  // Updated for Soft Delete
+  active?: boolean;
+  deleted?: boolean;
+  deletedAt?: string;
+
   createdAt: string;
 }
 
@@ -358,6 +368,7 @@ export interface BookingFilters {
   page?: number;
 }
 
+// ============= RECYCLE BIN =============
 export interface CentralBinItem {
   id: string;
   type: BinItemType; 

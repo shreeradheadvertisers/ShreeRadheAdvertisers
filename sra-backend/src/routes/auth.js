@@ -1,5 +1,6 @@
 /**
- * Authentication Routes - With Audit Logging (Fixed)
+ * Authentication Routes - With Audit Logging & Soft Delete Support
+ * UPDATED: Backwards compatibility for legacy users
  */
 
 const express = require('express');
@@ -24,25 +25,39 @@ router.post('/login', async (req, res) => {
       ]
     });
 
+    // 1. Check if user exists
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
-    if (!user.active) {
+    // 2. Check if Soft Deleted (Explicit true check)
+    if (user.deleted === true) {
       return res.status(401).json({ message: 'Account is deactivated.' });
     }
 
+    // 3. Check if Inactive (Legacy Safe Check)
+    // Only block if active is EXPLICITLY false. Undefined (legacy users) are allowed.
+    if (user.active === false) {
+      return res.status(401).json({ message: 'Account is inactive.' });
+    }
+
+    // 4. Validate Password
     if (!user.validatePassword(password)) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
+
+    // --- SUCCESSFUL LOGIN ---
+    
+    // Self-Healing: Migrate legacy users by setting defaults if missing
+    if (user.active === undefined) user.active = true;
+    if (user.deleted === undefined) user.deleted = false;
 
     user.lastLogin = new Date();
     await user.save();
 
     const token = generateToken(user);
 
-    // FIXED LOGGING LOGIC
-    // Attach user to the REAL req object instead of spreading it (which kills methods like req.get)
+    // Attach user to req for logging
     req.user = user; 
     await logActivity(req, 'LOGIN', 'AUTH', `User logged in: ${user.username}`);
 
@@ -96,14 +111,16 @@ router.post('/register', async (req, res) => {
     const user = new AdminUser({
       username: username.toLowerCase(),
       email: email.toLowerCase(),
-      name
+      name,
+      // Default new users to active
+      active: true,
+      deleted: false
     });
     user.setPassword(password);
     await user.save();
 
     const token = generateToken(user);
 
-    // FIXED LOGGING LOGIC
     req.user = user;
     await logActivity(req, 'CREATE', 'AUTH', `New Admin Registered: ${username}`);
 
@@ -127,6 +144,11 @@ router.post('/register', async (req, res) => {
 
 // Verify Token
 router.get('/verify', authMiddleware, (req, res) => {
+  // Check if user was deleted/deactivated *after* token was issued
+  if (req.user.deleted || req.user.active === false) {
+    return res.status(401).json({ valid: false, message: 'User account invalid.' });
+  }
+
   res.json({
     valid: true,
     user: {
@@ -160,6 +182,11 @@ router.put('/change-password', authMiddleware, async (req, res) => {
     }
 
     const user = await AdminUser.findById(req.user._id);
+    
+    // Safety check
+    if (!user || user.deleted) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
     
     if (!user.validatePassword(currentPassword)) {
       return res.status(400).json({ message: 'Current password is incorrect.' });

@@ -29,7 +29,9 @@ const AdminUserSchema = new mongoose.Schema({
     default: 'admin' 
   },
   lastLogin: Date,
-  active: { type: Boolean, default: true }
+  active: { type: Boolean, default: true },
+  deleted: { type: Boolean, default: false },
+  deletedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 // Password Hashing Methods

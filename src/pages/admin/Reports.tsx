@@ -40,7 +40,7 @@ import { useBookings, useUpdateBooking } from "@/hooks/api/useBookings";
 import { useCustomers } from "@/hooks/api/useCustomers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient } from "@/lib/api/client"; // 👈 ADDED: Import API Client for Logging
+import { apiClient } from "@/lib/api/client"; // IMPORT API Client for Logging
 
 // --- IMPORT EDIT DIALOG ---
 import { EditBookingDialog } from "@/components/admin/BookingManagement";
@@ -295,6 +295,19 @@ export default function Reports() {
     }
   };
 
+  // --- PRINT BUTTON HANDLER ---
+  const handlePrintClick = () => {
+    // 1. Log the print action BEFORE opening the dialog
+    apiClient.post('/api/analytics/log', {
+      action: 'EXPORT',
+      module: 'SYSTEM',
+      description: `Printed ${activeTab.toUpperCase()} Report`
+    }).catch(err => console.error("Logging failed", err));
+
+    // 2. Trigger Print
+    setIsPrinting(true);
+  };
+
   // --- EXPORT FUNCTIONS ---
   const handleDownloadCSV = () => {
     const getData = () => {
@@ -363,10 +376,9 @@ export default function Reports() {
     link.download = `SRA_Report_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
 
-    // 👇 ADDED: Log the download action
-    apiClient.post('/analytics/log', {
+    apiClient.post('/api/analytics/log', {
       action: 'EXPORT',
-      module: 'REPORTS',
+      module: 'SYSTEM',
       description: `Downloaded ${activeTab.toUpperCase()} Report (CSV)`
     }).catch(err => console.error("Logging failed", err));
   };
@@ -442,10 +454,9 @@ export default function Reports() {
     link.download = `SRA_Smart_Report_${activeTab}.csv`;
     link.click();
 
-    // 👇 ADDED: Log the download action
-    apiClient.post('/analytics/log', {
+    apiClient.post('/api/analytics/log', {
       action: 'EXPORT',
-      module: 'REPORTS',
+      module: 'SYSTEM',
       description: `Downloaded ${activeTab.toUpperCase()} Report (Excel)`
     }).catch(err => console.error("Logging failed", err));
   };
@@ -567,7 +578,7 @@ export default function Reports() {
           <p className="text-muted-foreground">Generate and export detailed insights about your inventory and bookings.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsPrinting(true)} disabled={isPrinting}>
+          <Button variant="outline" onClick={handlePrintClick} disabled={isPrinting}>
             <Printer className="h-4 w-4 mr-2" /> {isPrinting ? "Preparing..." : "Print / PDF"}
           </Button>
           <Button variant="outline" onClick={handleDownloadCSV}>

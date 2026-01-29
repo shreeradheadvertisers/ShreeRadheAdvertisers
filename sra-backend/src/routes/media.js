@@ -10,14 +10,21 @@ router.post('/', authMiddleware, async (req, res) => {
     const media = new Media(req.body);
     await media.save();
 
-    // LOG ACTIVITY
-    await logActivity(req, 'CREATE', 'MEDIA', `Added new media: ${media.name} (${media.type})`, { mediaId: media._id });
+    // 👇 CRITICAL FIX: Use .get('id') to bypass Mongoose's default virtual 'id'
+    const customId = media.get('id');
+
+    await logActivity(req, 'CREATE', 'MEDIA', `Added new media: ${media.name}`, { 
+      mediaId: media._id,       // Internal DB ID
+      customId: customId,       // 👈 YOUR CUSTOM ID (e.g. H020002332)
+      name: media.name,
+      type: media.type,
+      location: `${media.city}, ${media.district}`
+    });
     
     res.status(201).json({ success: true, data: media });
   } catch (error) {
     console.error('Create media error:', error);
     
-    // Check for Duplicate SRA ID
     if (error.code === 11000) {
       return res.status(400).json({ 
         success: false, 
@@ -104,7 +111,6 @@ router.get('/public', async (req, res) => {
       Media.countDocuments(filter)
     ]);
 
-    // Data Standardization (Preserved your critical fix)
     const standardizedData = media.map(item => {
       const doc = item.toObject();
       return {
@@ -129,7 +135,7 @@ router.get('/public', async (req, res) => {
   }
 });
 
-// 4. GET Single media (handles both MongoDB _id and Custom ID)
+// 4. GET Single media
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -165,7 +171,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       ? { $or: [{ _id: id }, { id: id }] } 
       : { id: id };
 
-    // 1. Fetch Old Data (For Logs)
+    // 1. Fetch Old Data
     const oldMedia = await Media.findOne(query);
     if (!oldMedia) {
       return res.status(404).json({ success: false, message: 'Media not found' });
@@ -174,17 +180,23 @@ router.put('/:id', authMiddleware, async (req, res) => {
     // 2. Perform Update
     const media = await Media.findOneAndUpdate(query, req.body, { new: true });
 
-    // 3. Log Activity (Compare changes)
+    // 3. Log Activity
     let changes = [];
     if (oldMedia.status !== media.status) changes.push(`Status: ${oldMedia.status} -> ${media.status}`);
     if (oldMedia.pricePerMonth !== media.pricePerMonth) changes.push(`Price: ${oldMedia.pricePerMonth} -> ${media.pricePerMonth}`);
     if (oldMedia.name !== media.name) changes.push(`Name changed`);
+    
+    if (changes.length === 0) changes.push('Details updated');
 
-    const desc = changes.length > 0 
-      ? `Updated ${media.name}: ${changes.join(', ')}` 
-      : `Updated details for ${media.name}`;
+    // 👇 FIXED: Use .get('id') here as well
+    const customId = media.get('id');
 
-    await logActivity(req, 'UPDATE', 'MEDIA', desc, { mediaId: media._id });
+    await logActivity(req, 'UPDATE', 'MEDIA', `Updated media: ${media.name}`, { 
+      mediaId: media._id,
+      customId: customId, // 👈 FORCED CUSTOM ID
+      name: media.name,
+      changes: changes
+    });
     
     res.json({ success: true, data: media }); 
   } catch (error) {
@@ -207,8 +219,15 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Media not found' });
     }
 
-    // LOG ACTIVITY
-    await logActivity(req, 'DELETE', 'MEDIA', `Moved media to Recycle Bin: ${media.name}`, { mediaId: media._id });
+    // 👇 FIXED: Use .get('id')
+    const customId = media.get('id');
+
+    await logActivity(req, 'DELETE', 'MEDIA', `Moved media to Recycle Bin: ${media.name}`, { 
+      mediaId: media._id,
+      customId: customId, // 👈 FORCED CUSTOM ID
+      name: media.name,
+      type: media.type
+    });
 
     res.json({ success: true, message: 'Media moved to recycle bin' });
   } catch (error) {
