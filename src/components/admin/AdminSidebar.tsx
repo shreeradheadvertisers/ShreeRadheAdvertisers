@@ -3,7 +3,8 @@ import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, MapPin, PlusCircle, Calendar, BarChart3, 
   Clock, Users, FileText, CreditCard, ChevronLeft, 
-  ChevronRight, LogOut, MessageSquare
+  ChevronRight, LogOut, MessageSquare,
+  UserCog, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -32,6 +33,8 @@ const navItems = [
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
   { icon: FileText, label: 'Reports', path: '/admin/reports' },
   { icon: Clock, label: 'Maintenance', path: '/admin/maintenance' },
+  { icon: UserCog, label: 'User Management', path: '/admin/users', roles: ['admin'] },
+  { icon: ShieldCheck, label: 'Audit Logs', path: '/admin/logs', roles: ['admin'] },
 ];
 
 export function AdminSidebar() {

@@ -13,6 +13,7 @@ const contactRoutes = require('./contact');
 const complianceRoutes = require('./compliance');
 const uploadRoutes = require('./upload');
 const recycleBinRoutes = require('./recycleBin');
+const userRoutes = require('./users');
 
 module.exports = {
   authRoutes,
@@ -25,5 +26,6 @@ module.exports = {
   contactRoutes,
   complianceRoutes,
   uploadRoutes,
-  recycleBinRoutes
+  recycleBinRoutes,
+  userRoutes
 };

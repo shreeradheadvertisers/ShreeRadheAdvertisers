@@ -78,6 +78,7 @@ app.use('/api/contact', routes.contactRoutes);
 app.use('/api/compliance', routes.complianceRoutes);
 app.use('/api/media/upload', routes.uploadRoutes);
 app.use('/api/recycle-bin', routes.recycleBinRoutes);
+app.use('/api/users', routes.userRoutes);
 
 // Root Route
 app.get('/', (req, res) => res.send('SRA Backend API is running. Use /api/health for status.'));

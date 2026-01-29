@@ -36,6 +36,8 @@ import Reports from "./pages/admin/Reports";
 import Payments from "./pages/admin/Payments";
 import NotFound from "./pages/NotFound";
 import Documents from "./pages/admin/Documents";
+import UserManagement from "./pages/admin/UserManagement";
+import ActivityLogs from "./pages/admin/ActivityLogs";
 
 const queryClient = new QueryClient();
 
@@ -80,14 +82,14 @@ const App = () => (
                 <Route path="/admin/login" element={<Login />} />
 
                 {/* Protected Admin Routes */}
-                <Route 
-                  path="/admin" 
-                  element={
-                    <ProtectedRoute>
-                      <AdminLayout />
-                    </ProtectedRoute>
-                  }
-                >
+                  <Route 
+                    path="/admin" 
+                    element={
+                      <ProtectedRoute>
+                        <AdminLayout />
+                      </ProtectedRoute>
+                    }
+                  >
                   <Route index element={<Dashboard />} />
                   <Route path="inquiries" element={<Inquiries />} />
                   <Route path="media" element={<MediaManagement />} />
@@ -101,6 +103,8 @@ const App = () => (
                   <Route path="reports" element={<Reports />} />
                   <Route path="documents" element={<Documents />} />
                   <Route path="maintenance" element={<Maintenance />} />
+                  <Route path="users" element={<UserManagement />} />
+                  <Route path="logs" element={<ActivityLogs />} />
                 </Route>
 
                 {/* 404 */}

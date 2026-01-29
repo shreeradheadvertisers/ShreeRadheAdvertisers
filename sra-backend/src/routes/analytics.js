@@ -5,8 +5,10 @@
 
 const express = require('express');
 const router = express.Router();
-const { Media, Booking, Customer, Contact } = require('../models');
+const { Media, Booking, Customer, Contact, ActivityLog } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
+const { requireRole } = require('../middleware/auth');
+const { Parser } = require('json2csv');
 
 // Dashboard Stats
 router.get('/dashboard', authMiddleware, async (req, res) => {
@@ -238,6 +240,66 @@ router.get('/occupancy', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Occupancy error:', error);
     res.status(500).json({ message: 'Failed to fetch occupancy data' });
+  }
+});
+
+// GET LOGS (Paginated & Filtered)
+router.get('/audit-logs', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const { user, action, startDate, endDate, page = 1, limit = 50 } = req.query;
+    
+    const filter = {};
+    if (user && user !== 'all') filter.user = user;
+    if (action && action !== 'all') filter.action = action;
+    if (startDate && endDate) {
+      filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+
+    const logs = await ActivityLog.find(filter)
+      .populate('user', 'name role')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+      
+    const total = await ActivityLog.countDocuments(filter);
+
+    res.json({ data: logs, total, pages: Math.ceil(total / limit) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to fetch logs' });
+  }
+});
+
+// EXPORT LOGS (CSV)
+router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const { user } = req.query;
+    const filter = {};
+    if (user && user !== 'all') filter.user = user;
+
+    const logs = await ActivityLog.find(filter).populate('user', 'name').sort({ createdAt: -1 }).limit(1000);
+
+    const fields = [
+      { label: 'Time', value: (row) => new Date(row.createdAt).toLocaleString() },
+      { label: 'User', value: 'user.name' },
+      { label: 'Action', value: 'action' },
+      { label: 'Module', value: 'module' },
+      { label: 'Description', value: 'description' },
+      { label: 'IP', value: 'ipAddress' }
+    ];
+
+    const json2csvParser = new Parser({ fields });
+    const csv = json2csvParser.parse(logs);
+
+    await logActivity(req, 'EXPORT', 'SYSTEM', `Exported audit logs`);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`audit_logs_${new Date().getTime()}.csv`);
+    return res.send(csv);
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Export failed' });
   }
 });
 

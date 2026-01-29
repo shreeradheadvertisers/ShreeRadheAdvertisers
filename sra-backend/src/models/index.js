@@ -12,6 +12,7 @@ const Contact = require('./Contact');
 const Tender = require('./Tender');
 const TaxRecord = require('./TaxRecord');
 const AdminUser = require('./AdminUser');
+const ActivityLog = require('./ActivityLog');
 
 module.exports = {
   Media,
@@ -22,5 +23,6 @@ module.exports = {
   Contact,
   Tender,
   TaxRecord,
-  AdminUser
+  AdminUser,
+  ActivityLog,
 };
