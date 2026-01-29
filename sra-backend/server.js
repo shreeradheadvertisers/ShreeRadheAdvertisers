@@ -16,8 +16,10 @@ require('dotenv').config({ path: path.join(__dirname, envFile) });
 const { connectDB } = require('./src/config/database');
 const { errorHandler } = require('./src/middleware/errorHandler');
 
-// Import routes
+// Import generic routes
 const routes = require('./src/routes'); 
+
+const recycleBinRoutes = require('./src/routes/recycleBin'); 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -51,13 +53,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(morgan('dev')); // Use 'dev' for cleaner logs if preferred
+app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // --- LIGHTWEIGHT HEALTH CHECK ---
-// Using this URL for your Cron-job to keep the server awake.
-// It returns a 200 OK instantly without touching the database.
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'ok', 
@@ -77,8 +77,9 @@ app.use('/api/maintenance', routes.maintenanceRoutes);
 app.use('/api/contact', routes.contactRoutes);
 app.use('/api/compliance', routes.complianceRoutes);
 app.use('/api/media/upload', routes.uploadRoutes);
-app.use('/api/recycle-bin', routes.recycleBinRoutes);
 app.use('/api/users', routes.userRoutes);
+
+app.use('/api/recycle-bin', recycleBinRoutes);
 
 // Root Route
 app.get('/', (req, res) => res.send('SRA Backend API is running. Use /api/health for status.'));
