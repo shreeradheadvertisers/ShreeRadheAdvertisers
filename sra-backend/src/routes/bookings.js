@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { Booking, Customer, Media } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
+const { logActivity } = require('../services/logger');
 
 // Helper: Resolve Custom ID to ObjectId
 const resolveId = async (Model, id) => {
@@ -175,6 +176,9 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Sync Media Status based on the saved booking
     await syncMediaStatus(resolvedMediaId);
+
+    // Logger function
+    await logActivity(req, 'CREATE', 'BOOKING', `Created booking for Customer ${finalCustId}`, { bookingId: booking._id });
     
     res.status(201).json(booking);
   } catch (error) {
@@ -252,6 +256,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
+    // Logger function
+    await logActivity(req, 'UPDATE', 'BOOKING', `Updated booking status: ${booking.status}`, { bookingId: booking._id });
+
     res.json(booking);
   } catch (error) {
     console.error("Update booking error:", error);
@@ -281,6 +288,9 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       });
       await syncMediaStatus(mediaId);
     }
+
+    // Logger function
+    await logActivity(req, 'DELETE', 'BOOKING', `Deleted booking ${req.params.id}`, { bookingId: booking._id });
 
     res.json({ message: 'Booking deleted' });
   } catch (error) {

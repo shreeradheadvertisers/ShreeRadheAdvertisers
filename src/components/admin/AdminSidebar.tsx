@@ -21,26 +21,31 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.png";
 
+// Define navigation items with allowed roles
 const navItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-  { icon: MapPin, label: 'Media Management', path: '/admin/media' },
-  { icon: MessageSquare, label: 'Inquiries', path: '/admin/inquiries' },
-  { icon: PlusCircle, label: 'Add Media', path: '/admin/media/new' },
-  { icon: FileText, label: 'Documents', path: '/admin/documents' },
-  { icon: Users, label: 'Customer Bookings', path: '/admin/bookings' },
-  { icon: CreditCard, label: 'Payments', path: '/admin/payments' },
-  { icon: Calendar, label: 'Availability', path: '/admin/availability' },
-  { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
-  { icon: FileText, label: 'Reports', path: '/admin/reports' },
-  { icon: Clock, label: 'Maintenance', path: '/admin/maintenance' },
-  { icon: UserCog, label: 'User Management', path: '/admin/users', roles: ['admin'] },
-  { icon: ShieldCheck, label: 'Audit Logs', path: '/admin/logs', roles: ['admin'] },
+  // Operational Items - Visible to Staff & Admins
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/admin', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: MapPin, label: 'Media Management', path: '/admin/media', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: MessageSquare, label: 'Inquiries', path: '/admin/inquiries', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: PlusCircle, label: 'Add Media', path: '/admin/media/new', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: FileText, label: 'Documents', path: '/admin/documents', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: Users, label: 'Customer Bookings', path: '/admin/bookings', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: CreditCard, label: 'Payments', path: '/admin/payments', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: Calendar, label: 'Availability', path: '/admin/availability', roles: ['admin', 'staff', 'superadmin'] },
+  { icon: Clock, label: 'Maintenance', path: '/admin/maintenance', roles: ['admin', 'staff', 'superadmin'] },
+
+  // Management Items - STRICTLY Admin Only
+  { icon: BarChart3, label: 'Analytics', path: '/admin/analytics', roles: ['admin', 'superadmin'] },
+  { icon: FileText, label: 'Reports', path: '/admin/reports', roles: ['admin', 'superadmin'] },
+  { icon: UserCog, label: 'User Management', path: '/admin/users', roles: ['admin', 'superadmin'] },
+  { icon: ShieldCheck, label: 'Audit Logs', path: '/admin/logs', roles: ['admin', 'superadmin'] },
 ];
 
 export function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  // Get 'user' from auth context to check role
+  const { logout, user } = useAuth(); 
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
 
@@ -48,6 +53,18 @@ export function AdminSidebar() {
     logout();
     navigate('/admin/login');
   };
+
+  // Filter Logic: Only show items that match the user's role
+  const userRole = user?.role || 'staff'; // Default to staff if role is missing
+
+  const filteredNavItems = navItems.filter(item => {
+    // If roles are defined for the item, check if user has one of them
+    if (item.roles) {
+      return item.roles.includes(userRole);
+    }
+    // If no roles defined, show to everyone
+    return true;
+  });
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -65,7 +82,8 @@ export function AdminSidebar() {
 
       <SidebarContent className="p-3">
         <SidebarMenu className="space-y-1">
-          {navItems.map((item) => {
+          {/* Map over filteredNavItems instead of navItems */}
+          {filteredNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <SidebarMenuItem key={item.path}>

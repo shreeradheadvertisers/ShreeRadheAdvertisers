@@ -1,5 +1,5 @@
 /**
- * Compliance Routes - Tenders and Tax Records
+ * Compliance Routes - With Audit Logging
  * Handles centralized storage and status calculation for MongoDB
  */
 
@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { Tender, TaxRecord } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
+const { logActivity } = require('../services/logger');
 
 /**
  * Unified Compliance Fetch
@@ -51,6 +52,10 @@ router.post('/tenders', authMiddleware, async (req, res) => {
   try {
     const tender = new Tender(req.body);
     await tender.save();
+
+    // LOG ACTIVITY
+    await logActivity(req, 'CREATE', 'SYSTEM', `Created Tender Agreement: ${tender.tenderNumber}`, { tenderId: tender._id });
+
     res.status(201).json({ success: true, data: tender });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create tender' });
@@ -59,7 +64,6 @@ router.post('/tenders', authMiddleware, async (req, res) => {
 
 /**
  * Soft Delete - Move to Recycle Bin
- * Handles: DELETE /api/compliance/tenders/:id or /api/compliance/taxes/:id
  */
 router.delete('/:type/:id', authMiddleware, async (req, res) => {
   try {
@@ -74,13 +78,21 @@ router.delete('/:type/:id', authMiddleware, async (req, res) => {
 
     if (!record) return res.status(404).json({ message: 'Record not found' });
 
-    // CASCADING DELETE: If an agreement is deleted, also hide its pending taxes
+    // CASCADING DELETE
     if (isTender) {
       await TaxRecord.updateMany(
         { tenderId: id, status: 'Pending' }, 
         { deleted: true, deletedAt: new Date() }
       );
     }
+
+    // LOG ACTIVITY
+    const module = isTender ? 'SYSTEM' : 'PAYMENT';
+    const desc = isTender 
+      ? `Moved Agreement to Recycle Bin: ${record.tenderNumber || 'N/A'}` 
+      : `Moved Tax Record to Recycle Bin`;
+    
+    await logActivity(req, 'DELETE', module, desc, { id: id });
 
     res.json({ success: true, message: 'Moved to recycle bin' });
   } catch (error) {
@@ -90,7 +102,6 @@ router.delete('/:type/:id', authMiddleware, async (req, res) => {
 
 /**
  * Permanent Delete - Remove from MongoDB forever
- * DELETE /api/compliance/permanent/:type/:id
  */
 router.delete('/permanent/:type/:id', authMiddleware, async (req, res) => {
   try {
@@ -98,7 +109,6 @@ router.delete('/permanent/:type/:id', authMiddleware, async (req, res) => {
     const isTender = type === 'agreement' || type === 'tenders';
     const Model = isTender ? Tender : TaxRecord;
     
-    // Find the record first to ensure it's already soft-deleted
     const record = await Model.findOne({ _id: id, deleted: true });
     if (!record) {
       return res.status(400).json({ message: 'Only items in the Recycle Bin can be permanently deleted' });
@@ -106,10 +116,13 @@ router.delete('/permanent/:type/:id', authMiddleware, async (req, res) => {
 
     await Model.findByIdAndDelete(id);
 
-    // If it was a tender, permanently remove all its associated taxes too
     if (isTender) {
       await TaxRecord.deleteMany({ tenderId: id });
     }
+
+    // LOG ACTIVITY
+    const module = isTender ? 'SYSTEM' : 'PAYMENT';
+    await logActivity(req, 'DELETE', module, `Permanently Purged ${isTender ? 'Agreement' : 'Tax Record'}`, { id: id });
 
     res.json({ success: true, message: 'Record permanently purged' });
   } catch (error) {
@@ -119,18 +132,15 @@ router.delete('/permanent/:type/:id', authMiddleware, async (req, res) => {
 
 /**
  * Restore from Recycle Bin
- * Handles: POST /api/compliance/restore/:id
  */
 router.post('/restore/:id', authMiddleware, async (req, res) => {
   try {
     const { type } = req.body;
     const { id } = req.params;
     
-    // Normalize type to handle different string inputs
     const isTender = ['agreement', 'tenders', 'tender'].includes(type.toLowerCase());
     const Model = isTender ? Tender : TaxRecord;
     
-    // 1. Restore the main record
     const restoredRecord = await Model.findByIdAndUpdate(id, { 
       deleted: false, 
       deletedAt: null 
@@ -140,13 +150,16 @@ router.post('/restore/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Record not found' });
     }
 
-    // 2. CASCADING RESTORE: If it's an agreement, restore all its taxes automatically
     if (isTender) {
       await TaxRecord.updateMany(
         { tenderId: id }, 
         { deleted: false, deletedAt: null }
       );
     }
+
+    // LOG ACTIVITY
+    const module = isTender ? 'SYSTEM' : 'PAYMENT';
+    await logActivity(req, 'UPDATE', module, `Restored ${isTender ? 'Agreement' : 'Tax Record'} from Recycle Bin`, { id: id });
     
     res.json({ 
       success: true, 
@@ -171,6 +184,10 @@ router.post('/taxes/:id/pay', authMiddleware, async (req, res) => {
     );
     
     if (!tax) return res.status(404).json({ message: 'Tax record not found' });
+
+    // LOG ACTIVITY
+    await logActivity(req, 'UPDATE', 'PAYMENT', `Marked Tax as Paid (Amount: ${tax.amount})`, { taxId: tax._id });
+
     res.json({ success: true, data: tax });
   } catch (error) {
     res.status(500).json({ message: 'Failed to update tax payment' });

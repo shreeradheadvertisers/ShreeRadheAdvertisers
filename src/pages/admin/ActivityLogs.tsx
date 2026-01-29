@@ -20,7 +20,7 @@ export default function ActivityLogs() {
       const query = new URLSearchParams();
       if (filterUser !== 'all') query.append('user', filterUser);
       
-      const res = await apiClient.get(`/analytics/audit-logs?${query.toString()}`);
+      const res = await apiClient.get(`/api/analytics/audit-logs?${query.toString()}`);
       setLogs((res as any).data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -28,7 +28,7 @@ export default function ActivityLogs() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await apiClient.get('/users');
+      const res = await apiClient.get('/api/users');
       setUsers(res as any[]);
     // eslint-disable-next-line no-empty
     } catch(e) {}

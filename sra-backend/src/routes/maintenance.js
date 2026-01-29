@@ -1,11 +1,12 @@
 /**
- * Maintenance Routes
+ * Maintenance Routes - With Audit Logging
  */
 
 const express = require('express');
 const router = express.Router();
 const { Maintenance, Media } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
+const { logActivity } = require('../services/logger');
 
 // Get all maintenance records (protected)
 router.get('/', authMiddleware, async (req, res) => {
@@ -55,6 +56,9 @@ router.post('/', authMiddleware, async (req, res) => {
     if (req.body.mediaId) {
       await Media.findByIdAndUpdate(req.body.mediaId, { status: 'Maintenance' });
     }
+
+    // LOG ACTIVITY
+    await logActivity(req, 'CREATE', 'MEDIA', `Reported Maintenance: ${req.body.issue}`, { taskId: record._id });
     
     res.status(201).json(record);
   } catch (error) {
@@ -69,6 +73,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!record) {
       return res.status(404).json({ message: 'Maintenance record not found' });
     }
+
+    // LOG ACTIVITY
+    await logActivity(req, 'UPDATE', 'MEDIA', `Updated Maintenance Task: ${record.issue}`, { taskId: record._id });
+
     res.json(record);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update maintenance record' });
@@ -92,6 +100,9 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
     if (record.mediaId) {
       await Media.findByIdAndUpdate(record.mediaId, { status: 'Available' });
     }
+
+    // LOG ACTIVITY
+    await logActivity(req, 'UPDATE', 'MEDIA', `Completed Maintenance Task: ${record.issue}`, { taskId: record._id });
     
     res.json(record);
   } catch (error) {

@@ -1,24 +1,25 @@
 /**
- * Contact/Lead Routes
+ * Contact/Lead Routes - With Audit Logging
  */
 
 const express = require('express');
 const router = express.Router();
 const { Contact } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
+const { logActivity } = require('../services/logger');
 
-// Submit contact form (public)
+// Submit contact form (public - no user to log)
 router.post('/', async (req, res) => {
   try {
-    console.log("Data received from frontend:", req.body); // Check what's arriving
+    console.log("Data received from frontend:", req.body);
     const contact = new Contact(req.body);
     await contact.save();
     res.status(201).json(contact);
   } catch (error) {
-    console.error("DETAILED SUBMISSION ERROR:", error); // This shows in Render Logs
+    console.error("DETAILED SUBMISSION ERROR:", error);
     res.status(500).json({ 
       message: 'Failed to submit contact form',
-      error: error.message // Sends error back to frontend for debugging
+      error: error.message 
     });
   }
 });
@@ -47,9 +48,7 @@ router.get('/', authMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const contact = await Contact.findById(req.params.id);
-    if (!contact) {
-      return res.status(404).json({ message: 'Contact not found' });
-    }
+    if (!contact) return res.status(404).json({ message: 'Contact not found' });
     res.json(contact);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch contact' });
@@ -60,34 +59,26 @@ router.get('/:id', authMiddleware, async (req, res) => {
 router.patch('/:id/status', authMiddleware, async (req, res) => {
   try {
     const { status, notes } = req.body;
+    const oldContact = await Contact.findById(req.params.id);
     const contact = await Contact.findByIdAndUpdate(
       req.params.id, 
       { status, notes }, 
       { new: true }
     );
-    if (!contact) {
-      return res.status(404).json({ message: 'Contact not found' });
-    }
+    if (!contact) return res.status(404).json({ message: 'Contact not found' });
+
+    // LOG ACTIVITY
+    await logActivity(
+      req, 
+      'UPDATE', 
+      'CUSTOMER', 
+      `Updated Inquiry Status: ${oldContact.name} (${oldContact.status} -> ${status})`, 
+      { contactId: contact._id }
+    );
+
     res.json(contact);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update contact status' });
-  }
-});
-
-// Get inquiries separated by status
-router.get('/', authMiddleware, async (req, res) => {
-  try {
-    // Get New (Unattended) Inquiries
-    const pending = await Contact.find({ attended: false }).sort({ createdAt: -1 });
-
-    // Get 10 most recent Attended Inquiries
-    const recentAttended = await Contact.find({ attended: true })
-      .sort({ attendedAt: -1 })
-      .limit(10);
-
-    res.json({ pending, recentAttended });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch contacts' });
   }
 });
 
@@ -103,13 +94,19 @@ router.patch('/:id/attend', authMiddleware, async (req, res) => {
       }, 
       { new: true }
     );
+
+    // LOG ACTIVITY
+    if (contact) {
+      await logActivity(req, 'UPDATE', 'CUSTOMER', `Marked Inquiry as Attended: ${contact.name}`, { contactId: contact._id });
+    }
+
     res.json(contact);
   } catch (error) {
     res.status(500).json({ message: 'Update failed' });
   }
 });
 
-// Add this route to allow reverting an inquiry to unattended status
+// Revert to unattended
 router.patch('/:id/unattend', authMiddleware, async (req, res) => {
   try {
     const contact = await Contact.findByIdAndUpdate(
@@ -117,11 +114,15 @@ router.patch('/:id/unattend', authMiddleware, async (req, res) => {
       { 
         attended: false, 
         attendedAt: null,
-        status: 'Pending' // Reset status to pending
+        status: 'Pending' 
       }, 
       { new: true }
     );
     if (!contact) return res.status(404).json({ message: 'Contact not found' });
+
+    // LOG ACTIVITY
+    await logActivity(req, 'UPDATE', 'CUSTOMER', `Reverted Inquiry to Pending: ${contact.name}`, { contactId: contact._id });
+
     res.json(contact);
   } catch (error) {
     res.status(500).json({ message: 'Revert failed' });

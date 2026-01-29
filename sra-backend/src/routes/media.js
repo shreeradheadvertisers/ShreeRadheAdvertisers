@@ -2,17 +2,22 @@ const express = require('express');
 const router = express.Router();
 const Media = require('../models/Media');
 const { authMiddleware, optionalAuth } = require('../middleware/auth');
+const { logActivity } = require('../services/logger');
 
-// 1. CREATE Media (Protected) - FIXES THE 404 ERROR
+// 1. CREATE Media (Protected)
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const media = new Media(req.body);
     await media.save();
+
+    // LOG ACTIVITY
+    await logActivity(req, 'CREATE', 'MEDIA', `Added new media: ${media.name} (${media.type})`, { mediaId: media._id });
+    
     res.status(201).json({ success: true, data: media });
   } catch (error) {
     console.error('Create media error:', error);
     
-    // Check for Duplicate SRA ID (Custom ID)
+    // Check for Duplicate SRA ID
     if (error.code === 11000) {
       return res.status(400).json({ 
         success: false, 
@@ -99,22 +104,18 @@ router.get('/public', async (req, res) => {
       Media.countDocuments(filter)
     ]);
 
-    // --- CRITICAL FIX START: Data Standardization ---
-    // This ensures that items 50+ show images even if field names are inconsistent
+    // Data Standardization (Preserved your critical fix)
     const standardizedData = media.map(item => {
       const doc = item.toObject();
       return {
         ...doc,
-        // If imageUrl is missing but 'image' exists, use it. 
-        // If both are missing, it remains undefined (handled by frontend fallback).
         imageUrl: doc.imageUrl || doc.image || null 
       };
     });
-    // --- CRITICAL FIX END ---
 
     res.json({ 
       success: true,
-      data: standardizedData, // Send the standardized version
+      data: standardizedData, 
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -154,7 +155,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// 5. UPDATE Media (Protected - handles both MongoDB _id and Custom ID)
+// 5. UPDATE Media (Protected - With Logging)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -164,11 +165,26 @@ router.put('/:id', authMiddleware, async (req, res) => {
       ? { $or: [{ _id: id }, { id: id }] } 
       : { id: id };
 
-    const media = await Media.findOneAndUpdate(query, req.body, { new: true });
-
-    if (!media) {
+    // 1. Fetch Old Data (For Logs)
+    const oldMedia = await Media.findOne(query);
+    if (!oldMedia) {
       return res.status(404).json({ success: false, message: 'Media not found' });
     }
+
+    // 2. Perform Update
+    const media = await Media.findOneAndUpdate(query, req.body, { new: true });
+
+    // 3. Log Activity (Compare changes)
+    let changes = [];
+    if (oldMedia.status !== media.status) changes.push(`Status: ${oldMedia.status} -> ${media.status}`);
+    if (oldMedia.pricePerMonth !== media.pricePerMonth) changes.push(`Price: ${oldMedia.pricePerMonth} -> ${media.pricePerMonth}`);
+    if (oldMedia.name !== media.name) changes.push(`Name changed`);
+
+    const desc = changes.length > 0 
+      ? `Updated ${media.name}: ${changes.join(', ')}` 
+      : `Updated details for ${media.name}`;
+
+    await logActivity(req, 'UPDATE', 'MEDIA', desc, { mediaId: media._id });
     
     res.json({ success: true, data: media }); 
   } catch (error) {
@@ -176,7 +192,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// 6. DELETE media (Soft delete)
+// 6. DELETE media (Soft delete - With Logging)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -190,6 +206,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!media) {
       return res.status(404).json({ success: false, message: 'Media not found' });
     }
+
+    // LOG ACTIVITY
+    await logActivity(req, 'DELETE', 'MEDIA', `Moved media to Recycle Bin: ${media.name}`, { mediaId: media._id });
+
     res.json({ success: true, message: 'Media moved to recycle bin' });
   } catch (error) {
     console.error('Delete media error:', error);
@@ -197,7 +217,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// GET all unique locations (States, Districts, Towns) currently in use
+// GET all unique locations
 router.get('/locations/sync', async (req, res) => {
   try {
     const locations = await Media.aggregate([

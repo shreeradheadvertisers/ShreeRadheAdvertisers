@@ -1,9 +1,15 @@
+/**
+ * Upload Routes - With Audit Logging
+ * Handles Images, Documents, Tender Creation, and Tax Receipt Uploads
+ */
+
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const { upload } = require('../middleware/upload');
 const { uploadToCloudinary } = require('../services/cloudinaryService');
 const { authMiddleware } = require('../middleware/auth');
+const { logActivity } = require('../services/logger');
 
 // --- DATABASE MODELS FOR PERSISTENCE ---
 const Tender = require('../models/Tender'); 
@@ -24,6 +30,9 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
     const fileUrl = await uploadToCloudinary(req.file.path, customId, district, 'media');
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     
+    // 👇 LOG ACTIVITY
+    await logActivity(req, 'CREATE', 'MEDIA', `Uploaded image for ${customId}`, { url: fileUrl });
+
     res.json({ success: true, url: fileUrl });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -46,7 +55,8 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
       startDate, 
       endDate, 
       taxFrequency, 
-      licenseFee 
+      licenseFee,
+      taxId 
     } = req.body; 
     
     if (!customId || !district) {
@@ -108,12 +118,12 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
       if (pendingTaxInstallments.length > 0) {
         await TaxRecord.insertMany(pendingTaxInstallments);
       }
+
+      // LOG ACTIVITY
+      await logActivity(req, 'CREATE', 'SYSTEM', `Created Tender Agreement & Generated Taxes: ${customId}`, { tenderId: savedTender._id });
     }
 
     else if (type === 'tax') {
-      // 1. Get the specific Tax Record ID from the request body
-      const { taxId } = req.body;
-
       if (!taxId) {
         return res.status(400).json({ message: 'Tax Record ID is required to mark as paid' });
       }
@@ -122,7 +132,6 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
       const updatedTax = await TaxRecord.findByIdAndUpdate(
         taxId,
         { 
-          // Use 'receiptUrl' as defined in your TaxRecord model
           receiptUrl: fileUrl, 
           status: 'Paid', 
           paymentDate: new Date() 
@@ -133,6 +142,12 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
       if (!updatedTax) {
         return res.status(404).json({ message: 'Target tax record not found' });
       }
+
+      // LOG ACTIVITY
+      await logActivity(req, 'UPDATE', 'PAYMENT', `Uploaded Tax Receipt & Paid: ${updatedTax.tenderNumber}`, { taxId: updatedTax._id });
+    } else {
+      // Generic Document Upload Log
+      await logActivity(req, 'CREATE', 'MEDIA', `Uploaded document: ${req.file.originalname}`, { url: fileUrl });
     }
 
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -156,6 +171,10 @@ router.post('/bulk', authMiddleware, upload.array('files', 10), async (req, res)
     );
     const urls = await Promise.all(uploadPromises);
     req.files.forEach(file => { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); });
+
+    // LOG ACTIVITY
+    await logActivity(req, 'CREATE', 'MEDIA', `Bulk uploaded ${req.files.length} files`, { urls });
+
     res.json({ success: true, urls });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -221,6 +240,13 @@ router.put('/agreement/:id', authMiddleware, async (req, res) => {
         await TaxRecord.insertMany(newInstallments);
       }
     }
+
+    // LOG ACTIVITY
+    const logDesc = termsChanged 
+      ? `Updated Agreement Terms & Regenerated Taxes: ${updatedTender.tenderNumber}`
+      : `Updated Agreement Details: ${updatedTender.tenderNumber}`;
+      
+    await logActivity(req, 'UPDATE', 'SYSTEM', logDesc, { tenderId: id });
 
     res.json({ success: true, message: termsChanged ? "Agreement and Taxes updated" : "Agreement updated" });
   } catch (error) {

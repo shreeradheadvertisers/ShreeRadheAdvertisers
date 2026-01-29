@@ -29,6 +29,7 @@ router.post('/', async (req, res) => {
     user.setPassword(password);
     await user.save();
 
+    // LOG ACTIVITY
     await logActivity(req, 'CREATE', 'USER', `Created user: ${username} (${role})`);
     
     res.status(201).json({ success: true, user: { _id: user._id, username, role } });
@@ -47,7 +48,11 @@ router.put('/:id', async (req, res) => {
       { new: true }
     ).select('-passwordHash -salt');
 
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // LOG ACTIVITY
     await logActivity(req, 'UPDATE', 'USER', `Updated user: ${user.username}`, { changes: req.body });
+    
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update user' });
@@ -59,12 +64,15 @@ router.put('/:id/password', async (req, res) => {
   try {
     const { password } = req.body;
     const user = await AdminUser.findById(req.params.id);
+    
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.setPassword(password);
     await user.save();
 
+    // LOG ACTIVITY
     await logActivity(req, 'UPDATE', 'USER', `Reset password for: ${user.username}`);
+    
     res.json({ success: true, message: 'Password updated' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to reset password' });
@@ -74,11 +82,18 @@ router.put('/:id/password', async (req, res) => {
 // 5. DELETE USER
 router.delete('/:id', async (req, res) => {
   try {
+    // Prevent suicide (Deleting own account)
     if (req.user._id.toString() === req.params.id) {
       return res.status(400).json({ message: 'Cannot delete yourself' });
     }
+
     const user = await AdminUser.findByIdAndDelete(req.params.id);
-    await logActivity(req, 'DELETE', 'USER', `Deleted user: ${user?.username}`);
+    
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // LOG ACTIVITY
+    await logActivity(req, 'DELETE', 'USER', `Deleted user: ${user.username}`);
+    
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete user' });

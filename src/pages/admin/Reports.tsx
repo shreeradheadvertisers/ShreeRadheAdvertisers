@@ -40,6 +40,7 @@ import { useBookings, useUpdateBooking } from "@/hooks/api/useBookings";
 import { useCustomers } from "@/hooks/api/useCustomers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { apiClient } from "@/lib/api/client"; // 👈 ADDED: Import API Client for Logging
 
 // --- IMPORT EDIT DIALOG ---
 import { EditBookingDialog } from "@/components/admin/BookingManagement";
@@ -101,7 +102,6 @@ export default function Reports() {
 
   // --- DATA ENRICHMENT ---
   const bookings = useMemo(() => {
-    // Sort bookings by creation date (oldest first) to ensure stable sequential IDs
     const sortedBookings = [...rawBookings].sort((a, b) => 
         new Date(a.createdAt || a.startDate).getTime() - new Date(b.createdAt || b.startDate).getTime()
     );
@@ -120,7 +120,6 @@ export default function Reports() {
                        || booking.customer 
                        || { company: "", group: "" };
 
-      // --- GENERATE SEQUENTIAL ID WITH ASSESSMENT YEAR ---
       let displayId = "N/A";
       const dateSource = booking.startDate || booking.createdAt;
       
@@ -129,10 +128,7 @@ export default function Reports() {
           if (!isNaN(d.getTime())) {
               const year = d.getFullYear();
               const month = d.getMonth(); 
-              
               let startYear, endYear;
-              
-              // Financial Year / Assessment Year Logic (Apr - Mar)
               if (month < 3) {
                  startYear = year - 1;
                  endYear = year;
@@ -140,7 +136,6 @@ export default function Reports() {
                  startYear = year;
                  endYear = year + 1;
               }
-              
               const ay = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
               const seqNum = 1000 + index + 1;
               displayId = `SRA/${ay}/${seqNum}`;
@@ -367,6 +362,13 @@ export default function Reports() {
     link.href = URL.createObjectURL(blob);
     link.download = `SRA_Report_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+
+    // 👇 ADDED: Log the download action
+    apiClient.post('/analytics/log', {
+      action: 'EXPORT',
+      module: 'REPORTS',
+      description: `Downloaded ${activeTab.toUpperCase()} Report (CSV)`
+    }).catch(err => console.error("Logging failed", err));
   };
 
   const handleDownloadExcel = () => {
@@ -439,6 +441,13 @@ export default function Reports() {
     link.href = URL.createObjectURL(blob);
     link.download = `SRA_Smart_Report_${activeTab}.csv`;
     link.click();
+
+    // 👇 ADDED: Log the download action
+    apiClient.post('/analytics/log', {
+      action: 'EXPORT',
+      module: 'REPORTS',
+      description: `Downloaded ${activeTab.toUpperCase()} Report (Excel)`
+    }).catch(err => console.error("Logging failed", err));
   };
 
   const renderPagination = (totalItems: number) => {

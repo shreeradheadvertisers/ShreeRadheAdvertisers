@@ -1,14 +1,13 @@
 /**
- * Analytics Routes - Fixed Revenue Calculation
- * Excludes Cancelled bookings from Gross Revenue, Collected, and Pending.
+ * Analytics Routes - Fixed Revenue Calculation & Logging
  */
 
 const express = require('express');
 const router = express.Router();
 const { Media, Booking, Customer, Contact, ActivityLog } = require('../models');
-const { authMiddleware } = require('../middleware/auth');
-const { requireRole } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 const { Parser } = require('json2csv');
+const { logActivity } = require('../services/logger');
 
 // Dashboard Stats
 router.get('/dashboard', authMiddleware, async (req, res) => {
@@ -43,15 +42,15 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       { 
         $match: { 
           deleted: false, 
-          status: { $ne: 'Cancelled' } // Strictly exclude cancelled
+          status: { $ne: 'Cancelled' } 
         } 
       },
       { 
         $group: { 
           _id: null, 
-          grossRevenue: { $sum: '$amount' }, // Total Contract Value (Active/Completed)
-          totalRevenue: { $sum: '$amountPaid' }, // Total Collected
-          pendingPayments: { $sum: { $subtract: ['$amount', '$amountPaid'] } } // Pending Dues
+          grossRevenue: { $sum: '$amount' }, 
+          totalRevenue: { $sum: '$amountPaid' }, 
+          pendingPayments: { $sum: { $subtract: ['$amount', '$amountPaid'] } } 
         } 
       }
     ]);
@@ -68,8 +67,8 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
       districtsCount: districtsCount.length,
       totalCustomers,
       activeBookings,
-      grossRevenue: revenue.grossRevenue, // New field for Gross Revenue
-      totalRevenue: revenue.totalRevenue, // Existing field (Collected)
+      grossRevenue: revenue.grossRevenue,
+      totalRevenue: revenue.totalRevenue,
       pendingPayments: revenue.pendingPayments,
       totalInquiries,
       newInquiries
@@ -152,14 +151,14 @@ router.get('/revenue-trend', authMiddleware, async (req, res) => {
       { 
         $match: { 
           deleted: false, 
-          status: { $ne: 'Cancelled' } // Exclude Cancelled
+          status: { $ne: 'Cancelled' }
         } 
       },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m', date: '$startDate' } },
           bookings: { $sum: 1 },
-          revenue: { $sum: '$amountPaid' } // Trend usually tracks collections
+          revenue: { $sum: '$amountPaid' }
         }
       },
       { $sort: { _id: 1 } },
@@ -190,7 +189,7 @@ router.get('/state-revenue', authMiddleware, async (req, res) => {
       { 
         $match: { 
           deleted: false, 
-          status: { $ne: 'Cancelled' } // Exclude Cancelled
+          status: { $ne: 'Cancelled' }
         } 
       },
       {
@@ -291,6 +290,7 @@ router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (re
     const json2csvParser = new Parser({ fields });
     const csv = json2csvParser.parse(logs);
 
+    // LOG ACTIVITY
     await logActivity(req, 'EXPORT', 'SYSTEM', `Exported audit logs`);
 
     res.header('Content-Type', 'text/csv');
@@ -300,6 +300,26 @@ router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (re
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Export failed' });
+  }
+});
+
+// Allow Frontend to report actions (like downloads)
+router.post('/log', authMiddleware, async (req, res) => {
+  try {
+    const { action, module, description } = req.body;
+    
+    await logActivity(
+      req, 
+      action || 'ACTION', 
+      module || 'SYSTEM', 
+      description || 'User performed an action'
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    // Fail silently so it doesn't break the frontend app
+    console.error('Manual logging failed:', error);
+    res.status(500).json({ success: false });
   }
 });
 

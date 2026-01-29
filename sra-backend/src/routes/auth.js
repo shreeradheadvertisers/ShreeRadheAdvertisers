@@ -1,11 +1,12 @@
 /**
- * Authentication Routes
+ * Authentication Routes - With Audit Logging (Fixed)
  */
 
 const express = require('express');
 const router = express.Router();
 const AdminUser = require('../models/AdminUser');
 const { authMiddleware, generateToken, JWT_EXPIRES_IN } = require('../middleware/auth');
+const { logActivity } = require('../services/logger');
 
 // Login
 router.post('/login', async (req, res) => {
@@ -39,6 +40,11 @@ router.post('/login', async (req, res) => {
     await user.save();
 
     const token = generateToken(user);
+
+    // FIXED LOGGING LOGIC
+    // Attach user to the REAL req object instead of spreading it (which kills methods like req.get)
+    req.user = user; 
+    await logActivity(req, 'LOGIN', 'AUTH', `User logged in: ${user.username}`);
 
     res.json({
       success: true,
@@ -97,6 +103,10 @@ router.post('/register', async (req, res) => {
 
     const token = generateToken(user);
 
+    // FIXED LOGGING LOGIC
+    req.user = user;
+    await logActivity(req, 'CREATE', 'AUTH', `New Admin Registered: ${username}`);
+
     res.status(201).json({
       success: true,
       token,
@@ -131,7 +141,8 @@ router.get('/verify', authMiddleware, (req, res) => {
 });
 
 // Logout
-router.post('/logout', authMiddleware, (req, res) => {
+router.post('/logout', authMiddleware, async (req, res) => {
+  await logActivity(req, 'LOGOUT', 'AUTH', `User logged out: ${req.user.username}`);
   res.json({ success: true, message: 'Logged out successfully.' });
 });
 
@@ -151,11 +162,13 @@ router.put('/change-password', authMiddleware, async (req, res) => {
     const user = await AdminUser.findById(req.user._id);
     
     if (!user.validatePassword(currentPassword)) {
-      return res.status(401).json({ message: 'Current password is incorrect.' });
+      return res.status(400).json({ message: 'Current password is incorrect.' });
     }
 
     user.setPassword(newPassword);
     await user.save();
+
+    await logActivity(req, 'UPDATE', 'AUTH', `Password changed for: ${user.username}`);
 
     res.json({ success: true, message: 'Password changed successfully.' });
   } catch (error) {

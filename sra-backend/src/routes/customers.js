@@ -1,5 +1,6 @@
 /**
  * Customer Routes - Fixed to exclude Cancelled bookings from Revenue
+ * Includes Audit Logging
  */
 
 const express = require('express');
@@ -7,6 +8,7 @@ const router = express.Router();
 const { Customer } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 const mongoose = require('mongoose');
+const { logActivity } = require('../services/logger');
 
 // Get all customers (protected)
 router.get('/', authMiddleware, async (req, res) => {
@@ -114,6 +116,10 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const customer = new Customer(req.body);
     await customer.save();
+
+    // LOG ACTIVITY
+    await logActivity(req, 'CREATE', 'CUSTOMER', `Created Customer: ${customer.company || customer.name}`, { customerId: customer._id });
+
     res.status(201).json(customer);
   } catch (error) {
     res.status(500).json({ message: 'Failed to create customer' });
@@ -127,6 +133,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
     }
+
+    // LOG ACTIVITY
+    await logActivity(req, 'UPDATE', 'CUSTOMER', `Updated Customer: ${customer.company || customer.name}`, { customerId: customer._id });
+
     res.json(customer);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update customer' });
@@ -144,6 +154,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!customer) {
       return res.status(404).json({ message: 'Customer not found' });
     }
+
+    // LOG ACTIVITY
+    await logActivity(req, 'DELETE', 'CUSTOMER', `Deleted Customer: ${customer.company || customer.name}`, { customerId: customer._id });
+
     res.json({ message: 'Customer deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete customer' });
