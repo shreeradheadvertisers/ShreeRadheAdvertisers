@@ -3,22 +3,29 @@
  */
 
 const path = require('path');
+
+// 1. CRITICAL: LOAD ENVIRONMENT VARIABLES FIRST
+const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
+const envPath = path.join(__dirname, envFile);
+require('dotenv').config({ path: envPath });
+
+// Debug Log
+console.log('--- ENV CHECK ---');
+console.log('Loading config from:', envFile);
+
+// 2. IMPORT LIBRARIES & LOCAL FILES
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const { initScheduledJobs } = require('./src/services/cronService');
 
-// --- Dynamic Environment Loading ---
-const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
-require('dotenv').config({ path: path.join(__dirname, envFile) });
-
+// Import local files AFTER loading env
+const { initScheduledJobs } = require('./src/services/cronService'); 
 const { connectDB } = require('./src/config/database');
 const { errorHandler } = require('./src/middleware/errorHandler');
 
 // Import generic routes
 const routes = require('./src/routes'); 
-
 const recycleBinRoutes = require('./src/routes/recycleBin'); 
 
 const app = express();

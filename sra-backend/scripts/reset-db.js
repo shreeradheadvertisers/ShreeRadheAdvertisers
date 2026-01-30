@@ -7,10 +7,10 @@ const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
 require('dotenv').config({ path: path.join(__dirname, envFile) });
 
 const mongoose = require('mongoose');
-const { connectDB } = require('./src/config/database');
-const Booking = require('./src/models/Booking');
-const Media = require('./src/models/Media');
-const Customer = require('./src/models/Customer');
+const { connectDB } = require('../src/config/database');
+const Booking = require('../src/models/Booking');
+const Media = require('../src/models/Media');
+const Customer = require('../src/models/Customer');
 
 async function resetDatabase() {
   try {

@@ -1,5 +1,5 @@
 /**
- * Analytics Routes - Fixed Revenue Calculation & Logging
+ * Analytics Routes - Fixed for Dual-Database Architecture
  */
 
 const express = require('express');
@@ -254,8 +254,9 @@ router.get('/audit-logs', authMiddleware, requireRole('admin'), async (req, res)
       filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
 
+    // FIXED: Removed .populate('user') since has now two DBs.
+    // We now use the 'fullName' and 'role' snapshot fields stored in the log itself.
     const logs = await ActivityLog.find(filter)
-      .populate('user', 'name role')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -264,7 +265,7 @@ router.get('/audit-logs', authMiddleware, requireRole('admin'), async (req, res)
 
     res.json({ data: logs, total, pages: Math.ceil(total / limit) });
   } catch (error) {
-    console.error(error);
+    console.error("Audit Logs Error:", error);
     res.status(500).json({ message: 'Failed to fetch logs' });
   }
 });
@@ -276,11 +277,13 @@ router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (re
     const filter = {};
     if (user && user !== 'all') filter.user = user;
 
-    const logs = await ActivityLog.find(filter).populate('user', 'name').sort({ createdAt: -1 }).limit(1000);
+    // FIXED: Removed .populate(). Using snapshot fields.
+    const logs = await ActivityLog.find(filter).sort({ createdAt: -1 }).limit(1000);
 
     const fields = [
       { label: 'Time', value: (row) => new Date(row.createdAt).toLocaleString() },
-      { label: 'User', value: 'user.name' },
+      { label: 'User', value: (row) => row.fullName || row.username || 'System' }, // Use Snapshot
+      { label: 'Role', value: (row) => row.role || 'System' }, // Use Snapshot
       { label: 'Action', value: 'action' },
       { label: 'Module', value: 'module' },
       { label: 'Description', value: 'description' },
@@ -298,21 +301,21 @@ router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (re
     return res.send(csv);
 
   } catch (error) {
-    console.error(error);
+    console.error("Export Error:", error);
     res.status(500).json({ message: 'Export failed' });
   }
 });
 
 // Allow Frontend to report actions (like downloads)
-// UPDATED: Now "sanitizes" the module input to prevent DB crashes
 router.post('/log', authMiddleware, async (req, res) => {
   try {
     const { action, module, description } = req.body;
     
     // 1. Define allowed modules strictly from your DB Schema
-    const allowedModules = ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM'];
+    // Added 'REPORTS' to allowed modules based on your logs schema
+    const allowedModules = ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM', 'REPORTS'];
     
-    // 2. If 'module' is invalid (e.g., 'REPORTS'), force it to 'SYSTEM'
+    // 2. If 'module' is invalid, force it to 'SYSTEM'
     const safeModule = allowedModules.includes(module) ? module : 'SYSTEM';
 
     await logActivity(

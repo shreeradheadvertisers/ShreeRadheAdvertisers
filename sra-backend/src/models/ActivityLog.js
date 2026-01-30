@@ -1,8 +1,14 @@
 const mongoose = require('mongoose');
+const { logsConnection } = require('../config/database'); // Import the separate connection
 
 const ActivityLogSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' }, // Null if login failed
-  username: String, // Store snapshot in case user is deleted
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser' }, // Kept for reference
+  
+  // SNAPSHOT FIELDS (Required because we cannot populate across DBs)
+  username: String, 
+  fullName: String, // e.g. "Ashish"
+  role: String,     // e.g. "admin"
+
   action: { 
     type: String, 
     required: true,
@@ -14,9 +20,10 @@ const ActivityLogSchema = new mongoose.Schema({
     enum: ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM', 'REPORTS'] 
   },
   description: { type: String, required: true },
-  details: { type: Object }, // Flexible bucket for IDs, diffs
+  details: { type: Object }, 
   ipAddress: String,
   userAgent: String
 }, { timestamps: true });
 
-module.exports = mongoose.model('ActivityLog', ActivityLogSchema);
+// 👇 CRITICAL: Use logsConnection.model instead of mongoose.model
+module.exports = logsConnection.model('ActivityLog', ActivityLogSchema);

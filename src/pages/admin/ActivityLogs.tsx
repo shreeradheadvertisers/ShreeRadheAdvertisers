@@ -15,8 +15,8 @@ import { useNavigate } from "react-router-dom";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; 
 
 // Constants for Filters
-const MODULES = ["MEDIA", "BOOKING", "PAYMENT", "USER", "CUSTOMER", "AUTH", "SYSTEM"];
-const ACTIONS = ["CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "EXPORT"];
+const MODULES = ["MEDIA", "BOOKING", "PAYMENT", "USER", "CUSTOMER", "AUTH", "SYSTEM", "REPORTS"];
+const ACTIONS = ["CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "EXPORT", "FAILED_LOGIN"];
 
 export default function ActivityLogs() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -255,6 +255,13 @@ export default function ActivityLogs() {
                   const displayId = log.details?.customId || log.details?.mediaId;
                   const isClickable = ['MEDIA', 'BOOKING', 'PAYMENT', 'CUSTOMER'].includes(log.module) && log.details;
 
+                  // Logic to read Snapshot fields OR Fallback to old 'user' object
+                  const displayName = log.fullName || log.username || (log.user?.name) || "System";
+                  const displayRole = log.role || (log.user?.role) || "System";
+                  
+                  // Handle filtering ID safely (New logs have string ID, old logs have object)
+                  const userId = typeof log.user === 'string' ? log.user : log.user?._id;
+
                   return (
                     <tr key={log._id} className="hover:bg-muted/20 group transition-colors">
                       {/* 1. Time */}
@@ -262,18 +269,18 @@ export default function ActivityLogs() {
                         {format(new Date(log.createdAt), "MMM dd, HH:mm")}
                       </td>
 
-                      {/* 2. User (UPDATED: Shows Deactivated Badge) */}
+                      {/* 2. User (UPDATED to use snapshot vars) */}
                       <td className="py-3 px-4 font-medium align-top">
                         <div 
                           className="cursor-pointer hover:text-primary hover:underline inline-block"
-                          onClick={() => log.user?._id && setFilterUser(log.user._id)}
+                          onClick={() => userId && setFilterUser(userId)}
                           title="Filter by this user"
                         >
                           <div className="flex items-center gap-2">
                              {/* Name */}
-                            {log.user?.name || log.username || <span className="italic text-muted-foreground">Unknown</span>}
+                            {displayName}
                             
-                            {/* Deactivated Badge */}
+                            {/* Deactivated Badge (Only works for old logs where populate worked) */}
                             {log.user?.deleted && (
                               <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase tracking-widest">
                                 Deactivated
@@ -281,7 +288,7 @@ export default function ActivityLogs() {
                             )}
                           </div>
                         </div>
-                        <div className="text-xs text-muted-foreground font-normal">{log.user?.role || "System"}</div>
+                        <div className="text-xs text-muted-foreground font-normal">{displayRole}</div>
                       </td>
 
                       {/* 3. Module */}

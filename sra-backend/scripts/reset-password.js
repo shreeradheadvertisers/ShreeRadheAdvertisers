@@ -6,7 +6,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const readline = require('readline');
-const AdminUser = require('./src/models/AdminUser'); // Ensure path is correct
+const AdminUser = require('../src/models/AdminUser'); // Ensure path is correct
 
 // --- SECURITY HELPER: HIDDEN INPUT PROMPT ---
 const askHidden = (query) => {
