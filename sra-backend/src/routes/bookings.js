@@ -1,5 +1,5 @@
 /**
- * Booking Routes
+ * Booking Routes - Concurrency Safe Edition
  */
 
 const express = require('express');
@@ -16,14 +16,36 @@ const resolveId = async (Model, id) => {
   return doc ? doc._id : null;
 };
 
+// --- HELPER: CONCURRENCY CHECK (Double Booking) ---
+const checkForOverlap = async (mediaId, startDate, endDate, excludeBookingId = null) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  const query = {
+    mediaId: mediaId,
+    deleted: false,
+    status: { $ne: 'Cancelled' }, // Cancelled bookings don't block availability
+    $or: [
+      // Check if New Date Range overlaps with any existing range
+      { startDate: { $lte: end }, endDate: { $gte: start } }
+    ]
+  };
+
+  // When updating, don't count the current booking as a conflict
+  if (excludeBookingId) {
+    query._id = { $ne: excludeBookingId };
+  }
+
+  const conflict = await Booking.findOne(query);
+  return conflict;
+};
+
 // --- SYNC MEDIA STATUS (Based on Booking Status) ---
-// We trust the "Active" status stored in the DB.
 const syncMediaStatus = async (mediaId) => {
   try {
     if (!mediaId) return;
 
     // 1. Find ANY booking that is explicitly marked 'Active'
-    // We do NOT check dates here. We trust the booking status.
     const activeBooking = await Booking.findOne({
       mediaId: mediaId,
       deleted: false,
@@ -34,16 +56,15 @@ const syncMediaStatus = async (mediaId) => {
     if (!media) return;
 
     if (activeBooking) {
-      // If an Active booking exists, Media MUST be Booked
       if (media.status !== 'Booked') {
-        console.log(`[Sync] Locking Media ${mediaId} (Found Active Booking)`);
+        console.log(`[Sync] Locking Media ${mediaId}`);
         await Media.findByIdAndUpdate(mediaId, { status: 'Booked' });
       }
     } else {
-      // If NO Active booking exists, Media should be Available
-      // (Only revert if it was 'Booked', to preserve Maintenance/Coming Soon)
+      // If NO Active booking exists, revert to Available 
+      // (Only if it was 'Booked', preserving 'Maintenance'/'Coming Soon')
       if (media.status === 'Booked') {
-        console.log(`[Sync] Freeing Media ${mediaId} (No Active Bookings)`);
+        console.log(`[Sync] Freeing Media ${mediaId}`);
         await Media.findByIdAndUpdate(mediaId, { status: 'Available' });
       }
     }
@@ -127,29 +148,39 @@ router.get('/customer/:customerId', authMiddleware, async (req, res) => {
   }
 });
 
-// Create booking
+// Create booking (With Overlap Check)
 router.post('/', authMiddleware, async (req, res) => {
   try {
     console.log("Received Booking Payload:", req.body); 
 
-    let { mediaId, customerId, ...bookingData } = req.body;
+    let { mediaId, customerId, startDate, endDate, ...bookingData } = req.body;
 
     const resolvedMediaId = await resolveId(Media, mediaId);
-    if (!resolvedMediaId) return res.status(404).json({ message: `Media with ID ${mediaId} not found` });
+    if (!resolvedMediaId) return res.status(404).json({ message: `Media not found` });
     
     const resolvedCustId = await resolveId(Customer, customerId);
     const finalCustId = resolvedCustId || (customerId.match(/^[0-9a-fA-F]{24}$/) ? customerId : null);
     
-    if (!finalCustId) return res.status(404).json({ message: `Customer with ID ${customerId} not found` });
+    if (!finalCustId) return res.status(404).json({ message: `Customer not found` });
 
-    // FIX: Default to 'Upcoming' only if status is completely missing.
-    // Otherwise, trust the frontend (which might send 'Active' for today's bookings).
-    if (!bookingData.status) {
-        bookingData.status = 'Upcoming';
+    // 👇 CONCURRENCY CHECK: Prevent Double Booking
+    if (startDate && endDate) {
+      const conflict = await checkForOverlap(resolvedMediaId, startDate, endDate);
+      if (conflict) {
+        return res.status(409).json({ 
+          message: 'Double Booking Detected! This media is already booked for these dates.',
+          conflictId: conflict._id
+        });
+      }
     }
+
+    // Default status if missing
+    if (!bookingData.status) bookingData.status = 'Upcoming';
 
     const booking = new Booking({
       ...bookingData,
+      startDate,
+      endDate,
       mediaId: resolvedMediaId,
       customerId: finalCustId,
       status: bookingData.status 
@@ -157,7 +188,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await booking.save();
     
-    // Update customer stats
+    // Atomic Update for Customer Stats
     const amountToAdd = booking.amountPaid || 0; 
     await Customer.findByIdAndUpdate(finalCustId, {
       $inc: { totalBookings: 1, totalSpent: amountToAdd }
@@ -167,17 +198,17 @@ router.post('/', authMiddleware, async (req, res) => {
     await Media.findByIdAndUpdate(resolvedMediaId, {
       $push: { 
         bookedDates: { 
-          start: bookingData.startDate, 
-          end: bookingData.endDate, 
+          start: startDate, 
+          end: endDate, 
           bookingId: booking._id 
         } 
       }
     });
 
-    // Sync Media Status based on the saved booking
+    // Sync Media Status
     await syncMediaStatus(resolvedMediaId);
 
-    // Logger function
+    // Logger
     await logActivity(req, 'CREATE', 'BOOKING', `Created booking for Customer ${finalCustId}`, { bookingId: booking._id });
     
     res.status(201).json(booking);
@@ -190,65 +221,88 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-// Update booking
+// Update booking (With Optimistic Locking via .save())
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const bookingId = req.params.id;
     const updateData = { ...req.body };
 
-    if (updateData.mediaId && typeof updateData.mediaId === 'object') {
-      updateData.mediaId = updateData.mediaId._id || updateData.mediaId.id;
-    }
-    if (updateData.customerId && typeof updateData.customerId === 'object') {
-      updateData.customerId = updateData.customerId._id || updateData.customerId.id;
+    // 1. Fetch Document (Do NOT use findByIdAndUpdate)
+    // We need the document instance to check versioning (__v)
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    const oldAmountPaid = booking.amountPaid || 0;
+    const oldMediaId = booking.mediaId; // Could be ID or Object
+
+    // 2. Concurrency Check: Date Overlap
+    // Only check if dates are changing
+    if (updateData.startDate || updateData.endDate) {
+      const newStart = updateData.startDate || booking.startDate;
+      const newEnd = updateData.endDate || booking.endDate;
+      const targetMediaId = updateData.mediaId || oldMediaId;
+
+      // Extract raw ID if mediaId is an object
+      const rawMediaId = (typeof targetMediaId === 'object' && targetMediaId !== null) 
+        ? (targetMediaId._id || targetMediaId.id) 
+        : targetMediaId;
+
+      const conflict = await checkForOverlap(rawMediaId, newStart, newEnd, bookingId);
+      if (conflict) {
+         return res.status(409).json({ message: 'Conflict! These dates overlap with another active booking.' });
+      }
     }
 
-    // 1. Get Old Booking
-    const oldBooking = await Booking.findById(bookingId);
-    if (!oldBooking) return res.status(404).json({ message: 'Booking not found' });
-
-    // FIX: REMOVED CALCULATE STATUS LOGIC
-    // We blindly trust the frontend. If the frontend says "Active", we save "Active".
-    // This prevents the backend's timezone differences from overwriting the correct status.
+    // 3. Apply Updates Manually
+    // This marks fields as modified for Mongoose
+    Object.keys(updateData).forEach(key => {
+      // Protect immutable fields
+      if (key !== '_id' && key !== 'mediaId' && key !== 'customerId') {
+        booking[key] = updateData[key];
+      }
+    });
 
     // Payment Logic
-    if (updateData.status === 'Cancelled') {
-      updateData.paymentStatus = 'Cancelled';
-    }
-    else if (oldBooking.status === 'Cancelled' && updateData.status !== 'Cancelled') {
-       const currentPaid = updateData.amountPaid !== undefined ? Number(updateData.amountPaid) : (oldBooking.amountPaid || 0);
-       const currentTotal = updateData.amount !== undefined ? Number(updateData.amount) : oldBooking.amount;
+    if (booking.status === 'Cancelled') {
+      booking.paymentStatus = 'Cancelled';
+    } else {
+       const currentPaid = booking.amountPaid !== undefined ? Number(booking.amountPaid) : 0;
+       const currentTotal = booking.amount !== undefined ? Number(booking.amount) : 0;
        
-       if (currentPaid >= currentTotal) updateData.paymentStatus = 'Paid';
-       else if (currentPaid > 0) updateData.paymentStatus = 'Partially Paid';
-       else updateData.paymentStatus = 'Pending';
+       if (currentPaid >= currentTotal) booking.paymentStatus = 'Paid';
+       else if (currentPaid > 0) booking.paymentStatus = 'Partially Paid';
+       else booking.paymentStatus = 'Pending';
     }
 
-    // 2. Perform Update
-    const booking = await Booking.findByIdAndUpdate(bookingId, updateData, { new: true });
+    // 4. SAVE (Optimistic Locking)
+    // If 'booking' was modified by another user since we fetched it,
+    // Mongoose will throw a VersionError here.
+    await booking.save();
 
-    // 3. Manage Calendar Dates
-    const mediaId = booking.mediaId && (booking.mediaId._id || booking.mediaId);
+    // 5. Post-Save Logic (Calendar & Stats)
+    
+    // Manage Calendar Dates
+    // Use the stored ID (handle population edge case)
+    const mediaIdToUpdate = oldMediaId._id || oldMediaId;
 
-    if (mediaId) {
-      await Media.findByIdAndUpdate(mediaId, { 
+    if (mediaIdToUpdate) {
+      // Remove old date entry for this booking
+      await Media.findByIdAndUpdate(mediaIdToUpdate, { 
         $pull: { bookedDates: { bookingId: booking._id } }
       });
 
-      // If still active/upcoming/completed (not cancelled), add new dates
+      // If active, push new date entry
       if (booking.status !== 'Cancelled') {
-        await Media.findByIdAndUpdate(mediaId, {
+        await Media.findByIdAndUpdate(mediaIdToUpdate, {
            $push: { bookedDates: { start: booking.startDate, end: booking.endDate, bookingId: booking._id } }
         });
       }
-
-      // 4. Sync Media Status (Based on the 'Active' status we just saved)
-      await syncMediaStatus(mediaId);
+      await syncMediaStatus(mediaIdToUpdate);
     }
 
-    // 5. Stats
-    if (booking.amountPaid !== oldBooking.amountPaid) {
-      const difference = (booking.amountPaid || 0) - (oldBooking.amountPaid || 0);
+    // Stats - Atomic Update (Difference Only)
+    if (booking.amountPaid !== oldAmountPaid) {
+      const difference = (booking.amountPaid || 0) - oldAmountPaid;
       if (difference !== 0) {
         await Customer.findByIdAndUpdate(booking.customerId, {
           $inc: { totalSpent: difference }
@@ -256,11 +310,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    // Logger function
     await logActivity(req, 'UPDATE', 'BOOKING', `Updated booking status: ${booking.status}`, { bookingId: booking._id });
 
     res.json(booking);
   } catch (error) {
+    if (error.name === 'VersionError') {
+      return res.status(409).json({ message: 'Data has changed since you loaded it. Please refresh and try again.' });
+    }
     console.error("Update booking error:", error);
     res.status(500).json({ message: 'Failed to update booking' });
   }
@@ -277,6 +333,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
+    // Atomic Decrement
     await Customer.findByIdAndUpdate(booking.customerId, {
       $inc: { totalBookings: -1, totalSpent: -(booking.amountPaid || 0) }
     });
@@ -289,7 +346,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       await syncMediaStatus(mediaId);
     }
 
-    // Logger function
+    // Logger
     await logActivity(req, 'DELETE', 'BOOKING', `Deleted booking ${req.params.id}`, { bookingId: booking._id });
 
     res.json({ message: 'Booking deleted' });

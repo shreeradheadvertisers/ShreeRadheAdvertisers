@@ -4,16 +4,23 @@
 
 const path = require('path');
 
+// -----------------------------------------------------------
 // 1. CRITICAL: LOAD ENVIRONMENT VARIABLES FIRST
+// -----------------------------------------------------------
 const envFile = process.env.NODE_ENV === 'development' ? '.env.local' : '.env';
 const envPath = path.join(__dirname, envFile);
 require('dotenv').config({ path: envPath });
 
-// Debug Log
+// Debug Log (To confirm it worked)
 console.log('--- ENV CHECK ---');
 console.log('Loading config from:', envFile);
+// Confirm Logs DB variable is found (Critical for Dual-DB setup)
+console.log('MONGODB_LOGS_URI found:', !!process.env.MONGODB_LOGS_URI ? 'YES' : 'NO');
+console.log('-----------------');
 
+// -----------------------------------------------------------
 // 2. IMPORT LIBRARIES & LOCAL FILES
+// -----------------------------------------------------------
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -61,8 +68,12 @@ app.use(cors({
 }));
 
 app.use(morgan('dev'));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// CONCURRENCY FIX: Lowered limit from 50mb to 5mb
+// This prevents OOM (Out of Memory) crashes if multiple users send large JSONs.
+// Image uploads are handled by 'multer' (multipart/form-data) and are NOT limited by this.
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // --- LIGHTWEIGHT HEALTH CHECK ---
 app.get('/api/health', (req, res) => {

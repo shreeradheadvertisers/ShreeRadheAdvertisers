@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useCustomers } from "@/hooks/api/useCustomers";
-import { useMedia, useMediaById } from "@/hooks/api/useMedia"; // Added useMediaById
+import { useMedia, useMediaById } from "@/hooks/api/useMedia"; 
 import { useCreateBooking, useBookings } from "@/hooks/api/useBookings"; 
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -79,6 +79,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
 
   const { data: customerRes } = useCustomers();
   const { data: mediaRes } = useMedia({ limit: 100 } as any);
+  // We fetch existing bookings for frontend conflict checking (First line of defense)
   const { data: existingBookingsRes } = useBookings({ limit: 200 } as any); 
   
   const createBookingMutation = useCreateBooking();
@@ -107,15 +108,13 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
   });
 
   // --- NEW: Fetch specific media details if ID is present ---
-  // This ensures we get the Name and Price even if it's not in the 'mediaLocations' list
   const { data: prefilledMedia } = useMediaById(currentItem.mediaId || "");
 
-  // Resolve the current media object (Prefer specific fetch, fallback to list)
   const currentMedia = useMemo(() => {
     return prefilledMedia || mediaLocations.find((m: any) => getId(m) === currentItem.mediaId);
   }, [prefilledMedia, mediaLocations, currentItem.mediaId]);
 
-  // --- EFFECT: Handle Initial Data & Price Update ---
+  // --- EFFECT: Handle Initial Data ---
   useEffect(() => {
     if (open && initialData) {
         setCurrentItem(prev => ({
@@ -129,7 +128,6 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
   }, [open, initialData]);
 
   // --- EFFECT: Update Price when Media Loads ---
-  // If we have a media object but no amount yet, set the price
   useEffect(() => {
     if (currentMedia && !currentItem.amount && open) {
         setCurrentItem(prev => ({
@@ -138,11 +136,10 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
         }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMedia, open]); // Removed currentItem.amount dependency to avoid loop
+  }, [currentMedia, open]); 
 
   const selectedCustomer = customers.find((c: any) => getId(c) === customerId);
 
-  // Optimized Filtering
   const filteredCustomers = useMemo(() => {
     if (!customerSearch) return customers.slice(0, 50);
     const searchLower = customerSearch.toLowerCase();
@@ -183,6 +180,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
     return "Active";
   };
 
+  // Frontend Conflict Check (Instant Feedback)
   const checkConflicts = () => {
     if (!currentItem.mediaId || !currentItem.startDate || !currentItem.endDate) return null;
 
@@ -190,6 +188,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
     const newEnd = new Date(currentItem.endDate);
     const targetMediaId = currentItem.mediaId;
 
+    // 1. Check against Database Bookings (Frontend cache)
     const dbConflict = existingBookings.find((b: any) => {
       if (getId(b.mediaId) !== targetMediaId) return false;
       if (b.status === 'Cancelled') return false;
@@ -203,6 +202,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
 
     if (dbConflict) return "Already booked by another client for these dates.";
 
+    // 2. Check against Current Queue
     const queueConflict = bookingQueue.find((item) => {
       if (item.mediaId !== targetMediaId) return false;
       return areIntervalsOverlapping(
@@ -234,7 +234,6 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
       return;
     }
 
-    // Use the resolved currentMedia which might come from useMediaById
     if (!currentMedia) return;
 
     const autoStatus = calculateStatus(currentItem.startDate, currentItem.endDate);
@@ -259,6 +258,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
     setBookingQueue((prev) => prev.filter((item) => item.tempId !== id));
   };
 
+  // --- UPDATED HANDLER: Robust 409 Error Handling ---
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -268,7 +268,10 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
       return;
     }
 
+    const successfulTempIds: string[] = [];
+
     try {
+      // Process bookings sequentially to catch individual errors
       for (const item of bookingQueue) {
         const paidAmount = item.paymentStatus === 'Paid' ? Number(item.amount) : 0;
 
@@ -285,22 +288,54 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
           paymentStatus: item.paymentStatus,
         } as any;
 
-        await createBookingMutation.mutateAsync(payload);
+        try {
+          await createBookingMutation.mutateAsync(payload);
+          successfulTempIds.push(item.tempId);
+        } catch (innerError: any) {
+          // Throw specific object to be caught below
+          throw { item, error: innerError };
+        }
       }
 
-      toast({ title: "Success", description: `Bookings created successfully.` });
+      // If loop completes without throwing, all were successful
+      toast({ title: "Success", description: `All bookings created successfully.` });
       setBookingQueue([]);
       setCustomerId("");
       resetCurrentItem();
       onOpenChange(false);
 
-    } catch (error: any) {
-      console.error("❌ API Error:", error.response?.data || error);
-      toast({
-        variant: "destructive",
-        title: "Booking Failed",
-        description: error?.response?.data?.message || "Check console for details.",
-      });
+    } catch (err: any) {
+      // Partial Failure Handling
+      if (err.item && err.error) {
+        // 1. Remove successful items from the queue
+        setBookingQueue((prev) => prev.filter(i => !successfulTempIds.includes(i.tempId)));
+        
+        // 2. Extract meaningful error message
+        const apiError = err.error;
+        const failedItemName = err.item.mediaName;
+        let errorMessage = "Something went wrong.";
+        
+        // Handle specific Double Booking (409) or other API errors
+        if (apiError.response?.status === 409) {
+          errorMessage = `Double Booking: ${apiError.response.data.message}`;
+        } else {
+          errorMessage = apiError.response?.data?.message || errorMessage;
+        }
+
+        toast({
+          variant: "destructive",
+          title: `Failed to book: ${failedItemName}`,
+          description: errorMessage,
+        });
+      } else {
+        // Generic Fallback
+        console.error("❌ API Error:", err);
+        toast({
+          variant: "destructive",
+          title: "Booking Failed",
+          description: "An unexpected error occurred.",
+        });
+      }
     }
   };
 
@@ -375,7 +410,6 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
                 <Popover open={mediaOpen} onOpenChange={setMediaOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" role="combobox" className="w-full justify-between font-normal bg-background mt-1">
-                      {/* FIX: Use currentMedia which now correctly resolves via useMediaById */}
                       {currentMedia ? currentMedia.name : "Search media..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
@@ -412,7 +446,6 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
                 </Popover>
               </div>
 
-              {/* ... (Rest of the component remains unchanged) ... */}
               <div className="flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground uppercase">Start Date</Label>
                 <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
