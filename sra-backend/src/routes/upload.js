@@ -14,6 +14,7 @@ const { logActivity } = require('../services/logger');
 // --- DATABASE MODELS FOR PERSISTENCE ---
 const Tender = require('../models/Tender'); 
 const TaxRecord = require('../models/TaxRecord'); 
+const Media = require('../models/Media'); // 👈 ADDED: To fetch media name
 
 /**
  * Image Upload - Organizes by District and ID
@@ -30,8 +31,34 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
     const fileUrl = await uploadToCloudinary(req.file.path, customId, district, 'media');
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     
-    // 👇 LOG ACTIVITY
-    await logActivity(req, 'CREATE', 'MEDIA', `Uploaded image for ${customId}`, { url: fileUrl });
+    // UPDATED: Fetch Media Name AND MongoDB ID for logging & redirection
+    let mediaName = 'Unknown';
+    let mediaMongoId = null;
+
+    try {
+      // Find media by the custom SRA ID and select name + _id
+      const mediaItem = await Media.findOne({ id: customId }).select('name _id');
+      if (mediaItem) {
+        mediaName = mediaItem.name;
+        mediaMongoId = mediaItem._id; // Capture _id for frontend redirection
+      }
+    } catch (e) { 
+      console.error("Log lookup error", e); 
+    }
+
+    // LOG ACTIVITY WITH NAME AND ID
+    await logActivity(
+      req, 
+      'CREATE', 
+      'MEDIA', 
+      `Uploaded image for ${mediaName} (${customId})`, 
+      { 
+        url: fileUrl, 
+        customId, 
+        mediaName,
+        mediaId: mediaMongoId // This enables the click-to-redirect functionality
+      }
+    );
 
     res.json({ success: true, url: fileUrl });
   } catch (error) {
@@ -146,8 +173,30 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
       // LOG ACTIVITY
       await logActivity(req, 'UPDATE', 'PAYMENT', `Uploaded Tax Receipt & Paid: ${updatedTax.tenderNumber}`, { taxId: updatedTax._id });
     } else {
-      // Generic Document Upload Log
-      await logActivity(req, 'CREATE', 'MEDIA', `Uploaded document: ${req.file.originalname}`, { url: fileUrl });
+      
+      // Generic Document Upload Log - Try to link to Media if possible
+      let mediaMongoId = null;
+      let mediaName = 'Unknown';
+      try {
+         const mediaItem = await Media.findOne({ id: customId }).select('name _id');
+         if(mediaItem) {
+            mediaMongoId = mediaItem._id;
+            mediaName = mediaItem.name;
+         }
+      } catch(e) {}
+
+      // LOG ACTIVITY
+      await logActivity(
+        req, 
+        'CREATE', 
+        'MEDIA', 
+        `Uploaded document for ${mediaName}: ${req.file.originalname}`, 
+        { 
+          url: fileUrl, 
+          customId, 
+          mediaId: mediaMongoId // Pass ID here too for generic documents
+        }
+      );
     }
 
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input"; 
+import { Label } from "@/components/ui/label";
 import { 
   Download, RefreshCw, FileText, Calendar, CreditCard, Users, 
   MessageSquare, Filter, X, Search 
@@ -144,86 +145,108 @@ export default function ActivityLogs() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Audit Trail</h1>
           <p className="text-muted-foreground text-sm">Track system activities and user actions.</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Quick User Filter */}
-          <Select value={filterUser} onValueChange={setFilterUser}>
-            <SelectTrigger className="w-[160px] bg-background">
-              <Users className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="All Users" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
-              {users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          {/* Module Filter */}
-          <Select value={filterModule} onValueChange={setFilterModule}>
-            <SelectTrigger className="w-[140px] bg-background">
-              <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="All Modules" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Modules</SelectItem>
-              {MODULES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          {/* More Filters Popover */}
+        <div className="flex items-center gap-2">
+          {/* Unified Filter Popover */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="gap-2">
-                <Filter className="h-4 w-4" /> Filters
-                {hasActiveFilters && <span className="flex h-2 w-2 rounded-full bg-primary" />}
+                <Filter className="h-4 w-4" /> 
+                Filters
+                {hasActiveFilters && (
+                  <span className="flex h-2 w-2 rounded-full bg-primary" />
+                )}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 p-4" align="end">
               <div className="space-y-4">
-                <h4 className="font-medium leading-none">Filter Logs</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium leading-none">Filter Logs</h4>
+                  {hasActiveFilters && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearFilters} 
+                      className="h-auto p-0 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      Clear All
+                    </Button>
+                  )}
+                </div>
                 
-                <div className="space-y-2">
-                  <span className="text-xs font-medium">Action Type</span>
-                  <Select value={filterAction} onValueChange={setFilterAction}>
-                    <SelectTrigger><SelectValue placeholder="Select Action" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Actions</SelectItem>
-                      {ACTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium">Start Date</span>
-                    <Input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} />
+                <div className="grid gap-3">
+                  {/* User Filter */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">User</Label>
+                    <Select value={filterUser} onValueChange={setFilterUser}>
+                      <SelectTrigger>
+                        <Users className="w-3 h-3 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="All Users" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Users</SelectItem>
+                        {users.map(u => <SelectItem key={u._id} value={u._id}>{u.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium">End Date</span>
-                    <Input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} />
+
+                  {/* Module Filter */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Module</Label>
+                    <Select value={filterModule} onValueChange={setFilterModule}>
+                      <SelectTrigger>
+                        <FileText className="w-3 h-3 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="All Modules" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Modules</SelectItem>
+                        {MODULES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Action Filter */}
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Action Type</Label>
+                    <Select value={filterAction} onValueChange={setFilterAction}>
+                      <SelectTrigger><SelectValue placeholder="All Actions" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Actions</SelectItem>
+                        {ACTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Date Range */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Start Date</Label>
+                      <Input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({...prev, start: e.target.value}))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">End Date</Label>
+                      <Input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({...prev, end: e.target.value}))} />
+                    </div>
                   </div>
                 </div>
-
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full text-destructive hover:text-destructive">
-                    <X className="h-3 w-3 mr-2" /> Clear All Filters
-                  </Button>
-                )}
               </div>
             </PopoverContent>
           </Popover>
 
-          <Button variant="ghost" size="icon" onClick={fetchLogs} disabled={loading}>
+          <Button variant="ghost" size="icon" onClick={fetchLogs} disabled={loading} title="Refresh">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
           
-          <Button onClick={handleDownload} variant="secondary">
+          <Button onClick={handleDownload} variant="secondary" className="hidden sm:flex">
             <Download className="h-4 w-4 mr-2" /> Export
+          </Button>
+          <Button onClick={handleDownload} variant="secondary" size="icon" className="sm:hidden">
+            <Download className="h-4 w-4" />
           </Button>
         </div>
       </div>

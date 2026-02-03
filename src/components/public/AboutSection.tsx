@@ -59,11 +59,11 @@ export function AboutSection() {
                 </div>
 
                 <div className="glass-card rounded-xl p-6 text-center">
-                  <div className="text-3xl font-bold text-peacock mb-1">500+</div>
+                  <div className="text-3xl font-bold text-peacock mb-1">300+</div>
                   <div className="text-sm text-muted-foreground">Happy Clients</div>
                 </div>
                 <div className="glass-card rounded-xl p-6 text-center">
-                  <div className="text-3xl font-bold text-accent mb-1">1000+</div>
+                  <div className="text-3xl font-bold text-accent mb-1">500+</div>
                   <div className="text-sm text-muted-foreground">Media Locations</div>
                 </div>
                 <div className="glass-card rounded-xl p-6 text-center">

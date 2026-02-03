@@ -3,11 +3,25 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const [isDark, setIsDark] = useState(true);
+  // Default to false (light mode) to match your requirement
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    setIsDark(isDarkMode);
+    const savedTheme = localStorage.getItem('theme');
+    // Check if the user's OS is set to dark mode
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    // Logic:
+    // 1. If 'dark' is explicitly saved -> Dark
+    // 2. If nothing is saved, but system is dark -> Dark
+    // 3. Otherwise -> Light
+    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+      document.documentElement.classList.add('dark');
+      setIsDark(true);
+    } else {
+      document.documentElement.classList.remove('dark');
+      setIsDark(false);
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -22,17 +36,6 @@ export function ThemeToggle() {
       localStorage.setItem('theme', 'light');
     }
   };
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-      document.documentElement.classList.remove('dark');
-      setIsDark(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      setIsDark(true);
-    }
-  }, []);
 
   return (
     <Button variant="ghost" size="icon" onClick={toggleTheme} className="relative">

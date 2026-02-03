@@ -245,11 +245,15 @@ router.get('/occupancy', authMiddleware, async (req, res) => {
 // GET LOGS (Paginated & Filtered)
 router.get('/audit-logs', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    const { user, action, startDate, endDate, page = 1, limit = 50 } = req.query;
+    // UPDATED: Added 'module' to destructuring
+    const { user, action, module, startDate, endDate, page = 1, limit = 50 } = req.query;
     
     const filter = {};
     if (user && user !== 'all') filter.user = user;
     if (action && action !== 'all') filter.action = action;
+    // UPDATED: Added module filter logic
+    if (module && module !== 'all') filter.module = module; 
+    
     if (startDate && endDate) {
       filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
@@ -273,9 +277,17 @@ router.get('/audit-logs', authMiddleware, requireRole('admin'), async (req, res)
 // EXPORT LOGS (CSV)
 router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    const { user } = req.query;
+    // UPDATED: Added 'module', 'action', and date params to export
+    const { user, action, module, startDate, endDate } = req.query;
+    
     const filter = {};
     if (user && user !== 'all') filter.user = user;
+    if (action && action !== 'all') filter.action = action;
+    if (module && module !== 'all') filter.module = module;
+    
+    if (startDate && endDate) {
+      filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
 
     // FIXED: Removed .populate(). Using snapshot fields.
     const logs = await ActivityLog.find(filter).sort({ createdAt: -1 }).limit(1000);
@@ -311,11 +323,10 @@ router.post('/log', authMiddleware, async (req, res) => {
   try {
     const { action, module, description } = req.body;
     
-    // 1. Define allowed modules strictly from your DB Schema
-    // Added 'REPORTS' to allowed modules based on your logs schema
+    // Define allowed modules strictly from your DB Schema
     const allowedModules = ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM', 'REPORTS'];
     
-    // 2. If 'module' is invalid, force it to 'SYSTEM'
+    // If 'module' is invalid, force it to 'SYSTEM'
     const safeModule = allowedModules.includes(module) ? module : 'SYSTEM';
 
     await logActivity(

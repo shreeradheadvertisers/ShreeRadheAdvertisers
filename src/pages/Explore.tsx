@@ -159,7 +159,7 @@ const Explore = () => {
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-3 font-display">Explore Media Locations</h1>
             <p className="text-muted-foreground">
-              Discover <span className="text-foreground font-semibold">{totalCount}</span> advertising opportunities across India
+              Discover <span className="text-foreground font-semibold">500+</span> advertising opportunities across India
             </p>
           </div>
           {isFetching && !isLoading && (
@@ -283,10 +283,6 @@ const Explore = () => {
                         </Button>
                       </form>
                     </div>
-                    
-                    <p className="text-xs text-muted-foreground">
-                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} billboards
-                    </p>
                   </div>
                 )}
               </>

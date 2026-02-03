@@ -157,7 +157,7 @@ export function HeroSection() {
                 </div>
               </div>
               <div className="text-3xl font-bold mb-1">
-                <Counter end={1000} duration={4000} />
+                <Counter end={500} duration={4000} />
               </div>
               <div className="text-sm text-muted-foreground">Media Locations</div>
             </div>
@@ -170,7 +170,7 @@ export function HeroSection() {
                 </div>
               </div>
               <div className="text-3xl font-bold mb-1">
-                <Counter end={500} duration={4000} />
+                <Counter end={300} duration={4000} />
               </div>
               <div className="text-sm text-muted-foreground">Happy Clients</div>
             </div>
