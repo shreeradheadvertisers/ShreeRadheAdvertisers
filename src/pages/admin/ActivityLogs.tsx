@@ -278,6 +278,15 @@ export default function ActivityLogs() {
                   const displayId = log.details?.customId || log.details?.mediaId;
                   const isClickable = ['MEDIA', 'BOOKING', 'PAYMENT', 'CUSTOMER'].includes(log.module) && log.details;
 
+                  // UPDATED: Clean the description text
+                  let cleanDescription = log.description || "";
+                  if (displayId) {
+                     cleanDescription = cleanDescription
+                        .replace(`(${displayId})`, "") // Remove "(ID)"
+                        .replace(displayId, "")        // Remove "ID"
+                        .trim();
+                  }
+
                   // Logic to read Snapshot fields OR Fallback to old 'user' object
                   const displayName = log.fullName || log.username || (log.user?.name) || "System";
                   const displayRole = log.role || (log.user?.role) || "System";
@@ -336,7 +345,8 @@ export default function ActivityLogs() {
                           onClick={() => handleLogClick(log)}
                           title={isClickable ? "Click to open details" : ""}
                         >
-                          {log.description}
+                          {cleanDescription}
+                          {/* Always show Blue Tag for ID */}
                           {displayId && <span className="ml-2 font-mono text-[11px] text-primary">({displayId})</span>}
                         </div>
                         {renderLogChanges(log)}
