@@ -44,7 +44,6 @@ const navItems = [
 export function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  // Get 'user' from auth context to check role
   const { logout, user } = useAuth(); 
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
@@ -54,35 +53,38 @@ export function AdminSidebar() {
     navigate('/admin/login');
   };
 
-  // Filter Logic: Only show items that match the user's role
-  const userRole = user?.role || 'staff'; // Default to staff if role is missing
+  const userRole = user?.role || 'staff'; 
 
   const filteredNavItems = navItems.filter(item => {
-    // If roles are defined for the item, check if user has one of them
     if (item.roles) {
       return item.roles.includes(userRole);
     }
-    // If no roles defined, show to everyone
     return true;
   });
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+      {/* HEADER: Left aligned and Big Enough */}
       <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-start w-full">
           {collapsed ? (
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
-              <MapPin className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0">
+              <MapPin className="h-6 w-6" />
             </div>
           ) : (
-            <img src={logo} alt="Shree Radhe" className="h-14 w-auto" />
+            // Logo: h-14 (56px) is large and readable. justify-start puts it on the left.
+            <img 
+              src={logo} 
+              alt="Shree Radhe" 
+              className="h-14 w-auto object-contain transition-all" 
+            />
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="p-3">
-        <SidebarMenu className="space-y-1">
-          {/* Map over filteredNavItems instead of navItems */}
+      {/* CONTENT: Compact items (py-2) to prevent overflow */}
+      <SidebarContent className="p-2 scrollbar-thin scrollbar-thumb-sidebar-border">
+        <SidebarMenu className="space-y-1 pb-10">
           {filteredNavItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -92,15 +94,16 @@ export function AdminSidebar() {
                   isActive={isActive}
                   tooltip={item.label}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 h-auto rounded-lg transition-all",
+                    // Reduced padding (py-2) to keep list compact
+                    "flex items-center gap-3 px-3 py-2 h-auto rounded-lg transition-all",
                     isActive 
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" 
-                      : "text-sidebar-foreground hover:bg-sidebar-accent"
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground shadow-sm" 
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
                   <Link to={item.path}>
-                    <item.icon className="h-5 w-5 shrink-0" />
-                    {!collapsed && <span className="font-medium">{item.label}</span>}
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -109,18 +112,18 @@ export function AdminSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 border-t border-sidebar-border space-y-2">
-        <SidebarMenu className="space-y-2">
+      <SidebarFooter className="p-2 border-t border-sidebar-border space-y-1">
+        <SidebarMenu className="space-y-1">
           <SidebarMenuItem>
             <SidebarMenuButton 
               className={cn(
-                "w-full gap-3 h-auto py-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+                "w-full gap-3 h-auto py-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10",
                 collapsed && "justify-center"
               )}
               tooltip="Logout"
               onClick={handleLogout}
             >
-              <LogOut className="h-5 w-5 shrink-0" />
+              <LogOut className="h-4 w-4 shrink-0" />
               {!collapsed && <span>Logout</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -128,8 +131,8 @@ export function AdminSidebar() {
           <SidebarMenuItem>
             <Button 
               variant="ghost" 
-              size="icon" 
-              className="w-full" 
+              size="sm" 
+              className="w-full h-8" 
               onClick={toggleSidebar}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
