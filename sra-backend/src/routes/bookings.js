@@ -80,13 +80,27 @@ router.get('/', authMiddleware, async (req, res) => {
     
     const filter = { deleted: false };
 
+    // FIX: Handle Invalid Customer ID -> Return Empty
+    // Previously, if ID was invalid, it was ignored, returning ALL bookings.
     if (customerId) {
       const resolvedCustId = await resolveId(Customer, customerId);
-      if (resolvedCustId) filter.customerId = resolvedCustId;
+      if (resolvedCustId) {
+        filter.customerId = resolvedCustId;
+      } else {
+        // ID provided but not found = No matches possible
+        return res.json({ data: [], total: 0, page: parseInt(page), pages: 0 });
+      }
     }
+
+    // FIX: Handle Invalid Media ID -> Return Empty
     if (mediaId) {
       const resolvedMediaId = await resolveId(Media, mediaId);
-      if (resolvedMediaId) filter.mediaId = resolvedMediaId;
+      if (resolvedMediaId) {
+        filter.mediaId = resolvedMediaId;
+      } else {
+        // ID provided but not found = No matches possible
+        return res.json({ data: [], total: 0, page: parseInt(page), pages: 0 });
+      }
     }
 
     if (status) filter.status = status;
