@@ -1,6 +1,6 @@
 {
   "name": "sra-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backend server for Shree Radhe Advertisers",
   "main": "server.js",
   "scripts": {
