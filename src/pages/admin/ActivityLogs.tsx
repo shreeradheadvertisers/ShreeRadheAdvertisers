@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
   Download, RefreshCw, FileText, Calendar, CreditCard, Users, 
-  MessageSquare, Filter, X, Search 
+  MessageSquare, Filter, Search, 
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight 
 } from "lucide-react"; 
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -31,23 +32,39 @@ export default function ActivityLogs() {
   const [filterAction, setFilterAction] = useState("all");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
+  // --- PAGINATION STATE ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [limit] = useState(20); 
+  const [jumpPage, setJumpPage] = useState("1"); // Local state for input
+
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const query = new URLSearchParams();
       
-      // Append filters if they are set
       if (filterUser !== 'all') query.append('user', filterUser);
       if (filterModule !== 'all') query.append('module', filterModule);
       if (filterAction !== 'all') query.append('action', filterAction);
       if (dateRange.start) query.append('startDate', dateRange.start);
       if (dateRange.end) query.append('endDate', dateRange.end);
       
-      const res = await apiClient.get(`/api/analytics/audit-logs?${query.toString()}`);
-      setLogs((res as any).data || []);
+      query.append('page', currentPage.toString());
+      query.append('limit', limit.toString());
+      
+      const res: any = await apiClient.get(`/api/analytics/audit-logs?${query.toString()}`);
+      
+      if (res.data) {
+        setLogs(res.data);
+        if (res.pagination) {
+          setTotalPages(res.pagination.totalPages);
+          // Sync jump input to current page
+          setJumpPage(res.pagination.page.toString());
+        }
+      }
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [filterUser, filterModule, filterAction, dateRange]);
+  }, [filterUser, filterModule, filterAction, dateRange, currentPage, limit]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -58,17 +75,35 @@ export default function ActivityLogs() {
 
   useEffect(() => { fetchLogs(); fetchUsers(); }, [fetchLogs, fetchUsers]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setJumpPage("1");
+  }, [filterUser, filterModule, filterAction, dateRange]);
+
+  // Handle "Go to Page" submit
+  const handleJumpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pageNum = parseInt(jumpPage);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      setCurrentPage(pageNum);
+    } else {
+      setJumpPage(currentPage.toString()); // Reset on invalid input
+    }
+  };
+
   const clearFilters = () => {
     setFilterUser("all");
     setFilterModule("all");
     setFilterAction("all");
     setDateRange({ start: "", end: "" });
+    setCurrentPage(1);
+    setJumpPage("1");
   };
 
   const handleDownload = async () => {
     try {
       const token = localStorage.getItem('sra_admin_token');
-      // Build export URL with current filters
       const query = new URLSearchParams();
       if (filterUser !== 'all') query.append('user', filterUser);
       if (filterModule !== 'all') query.append('module', filterModule);
@@ -92,7 +127,6 @@ export default function ActivityLogs() {
     } catch (e) { alert("Download failed"); }
   };
 
-  // 👇 DEEP LINK LOGIC
   const handleLogClick = (log: any) => {
     const { module, details } = log;
     if (!details) return;
@@ -152,7 +186,6 @@ export default function ActivityLogs() {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Unified Filter Popover */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -180,7 +213,6 @@ export default function ActivityLogs() {
                 </div>
                 
                 <div className="grid gap-3">
-                  {/* User Filter */}
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">User</Label>
                     <Select value={filterUser} onValueChange={setFilterUser}>
@@ -195,7 +227,6 @@ export default function ActivityLogs() {
                     </Select>
                   </div>
 
-                  {/* Module Filter */}
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Module</Label>
                     <Select value={filterModule} onValueChange={setFilterModule}>
@@ -210,7 +241,6 @@ export default function ActivityLogs() {
                     </Select>
                   </div>
 
-                  {/* Action Filter */}
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Action Type</Label>
                     <Select value={filterAction} onValueChange={setFilterAction}>
@@ -222,7 +252,6 @@ export default function ActivityLogs() {
                     </Select>
                   </div>
 
-                  {/* Date Range */}
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Start Date</Label>
@@ -251,8 +280,8 @@ export default function ActivityLogs() {
         </div>
       </div>
 
-      <Card className="overflow-hidden border-t-4 border-t-primary/20">
-        <div className="overflow-x-auto">
+      <Card className="overflow-hidden border-t-4 border-t-primary/20 flex flex-col min-h-[500px]">
+        <div className="overflow-x-auto flex-grow">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
@@ -278,30 +307,23 @@ export default function ActivityLogs() {
                   const displayId = log.details?.customId || log.details?.mediaId;
                   const isClickable = ['MEDIA', 'BOOKING', 'PAYMENT', 'CUSTOMER'].includes(log.module) && log.details;
 
-                  // UPDATED: Clean the description text
                   let cleanDescription = log.description || "";
                   if (displayId) {
                      cleanDescription = cleanDescription
-                        .replace(`(${displayId})`, "") // Remove "(ID)"
-                        .replace(displayId, "")        // Remove "ID"
+                        .replace(`(${displayId})`, "")
+                        .replace(displayId, "")
                         .trim();
                   }
 
-                  // Logic to read Snapshot fields OR Fallback to old 'user' object
                   const displayName = log.fullName || log.username || (log.user?.name) || "System";
                   const displayRole = log.role || (log.user?.role) || "System";
-                  
-                  // Handle filtering ID safely (New logs have string ID, old logs have object)
                   const userId = typeof log.user === 'string' ? log.user : log.user?._id;
 
                   return (
                     <tr key={log._id} className="hover:bg-muted/20 group transition-colors">
-                      {/* 1. Time */}
                       <td className="py-3 px-4 whitespace-nowrap text-muted-foreground align-top">
                         {format(new Date(log.createdAt), "MMM dd, HH:mm")}
                       </td>
-
-                      {/* 2. User (UPDATED to use snapshot vars) */}
                       <td className="py-3 px-4 font-medium align-top">
                         <div 
                           className="cursor-pointer hover:text-primary hover:underline inline-block"
@@ -309,10 +331,7 @@ export default function ActivityLogs() {
                           title="Filter by this user"
                         >
                           <div className="flex items-center gap-2">
-                             {/* Name */}
                             {displayName}
-                            
-                            {/* Deactivated Badge (Only works for old logs where populate worked) */}
                             {log.user?.deleted && (
                               <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase tracking-widest">
                                 Deactivated
@@ -322,8 +341,6 @@ export default function ActivityLogs() {
                         </div>
                         <div className="text-xs text-muted-foreground font-normal">{displayRole}</div>
                       </td>
-
-                      {/* 3. Module */}
                       <td className="py-3 px-4 align-top">
                         <Badge variant="outline" className="font-mono text-[10px] uppercase tracking-wider">
                           {log.action}
@@ -337,8 +354,6 @@ export default function ActivityLogs() {
                           {log.module}
                         </div>
                       </td>
-
-                      {/* 4. Description */}
                       <td className="py-3 px-4 max-w-xl align-top">
                         <div 
                           className={`font-medium text-gray-900 ${isClickable ? "cursor-pointer hover:text-primary hover:underline" : ""}`}
@@ -346,7 +361,6 @@ export default function ActivityLogs() {
                           title={isClickable ? "Click to open details" : ""}
                         >
                           {cleanDescription}
-                          {/* Always show Blue Tag for ID */}
                           {displayId && <span className="ml-2 font-mono text-[11px] text-primary">({displayId})</span>}
                         </div>
                         {renderLogChanges(log)}
@@ -358,6 +372,73 @@ export default function ActivityLogs() {
             </tbody>
           </table>
         </div>
+
+        {/* --- ENHANCED PAGINATION CONTROLS --- */}
+        {totalPages > 1 && (
+          <div className="border-t p-3 bg-muted/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            
+            {/* Left: Page Info */}
+            <div className="text-sm text-muted-foreground">
+              Showing page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
+            </div>
+
+            {/* Right: Controls */}
+            <div className="flex items-center gap-2">
+              {/* Begin / Previous */}
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="outline" size="icon" className="h-8 w-8"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1 || loading}
+                  title="First Page"
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" size="icon" className="h-8 w-8"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || loading}
+                  title="Previous Page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Jump to Page Input */}
+              <form onSubmit={handleJumpSubmit} className="flex items-center gap-2 mx-2">
+                <span className="text-xs text-muted-foreground hidden sm:inline">Go to</span>
+                <Input 
+                  type="number" 
+                  min={1} 
+                  max={totalPages}
+                  value={jumpPage} 
+                  onChange={(e) => setJumpPage(e.target.value)} 
+                  className="h-8 w-16 text-center px-1"
+                />
+              </form>
+
+              {/* Next / End */}
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="outline" size="icon" className="h-8 w-8"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages || loading}
+                  title="Next Page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" size="icon" className="h-8 w-8"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages || loading}
+                  title="Last Page"
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

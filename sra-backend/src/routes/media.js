@@ -10,12 +10,12 @@ router.post('/', authMiddleware, async (req, res) => {
     const media = new Media(req.body);
     await media.save();
 
-    // 👇 CRITICAL FIX: Use .get('id') to bypass Mongoose's default virtual 'id'
+    // CRITICAL FIX: Use .get('id') to bypass Mongoose's default virtual 'id'
     const customId = media.get('id');
 
     await logActivity(req, 'CREATE', 'MEDIA', `Added new media: ${media.name}`, { 
       mediaId: media._id,       // Internal DB ID
-      customId: customId,       // 👈 YOUR CUSTOM ID (e.g. H020002332)
+      customId: customId,       // YOUR CUSTOM ID (e.g. H020002332)
       name: media.name,
       type: media.type,
       location: `${media.city}, ${media.district}`
@@ -161,12 +161,15 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// 5. UPDATE Media (Protected - With Logging)
+// 5. UPDATE Media (Protected - With Detailed Diff Logging)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
     
+    // Safety: prevent updating _id in the body
+    delete req.body._id;
+
+    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
     const query = isObjectId 
       ? { $or: [{ _id: id }, { id: id }] } 
       : { id: id };
@@ -180,20 +183,51 @@ router.put('/:id', authMiddleware, async (req, res) => {
     // 2. Perform Update
     const media = await Media.findOneAndUpdate(query, req.body, { new: true });
 
-    // 3. Log Activity
+    // 3. GENERATE DIFF
+    // Added 'isPublic' to fieldsToTrack
+    const fieldsToTrack = [
+      'status', 'pricePerMonth', 'name', 'type', 
+      'width', 'height', 'illumination', 'isPublic',
+      'city', 'district', 'state', 'address'
+    ];
+
     let changes = [];
-    if (oldMedia.status !== media.status) changes.push(`Status: ${oldMedia.status} -> ${media.status}`);
-    if (oldMedia.pricePerMonth !== media.pricePerMonth) changes.push(`Price: ${oldMedia.pricePerMonth} -> ${media.pricePerMonth}`);
-    if (oldMedia.name !== media.name) changes.push(`Name changed`);
     
+    // Helper to safely get value (so 'false' doesn't become 'N/A')
+    const getVal = (obj, key) => (obj[key] === undefined || obj[key] === null) ? 'N/A' : obj[key];
+
+    fieldsToTrack.forEach(field => {
+      const oldRaw = getVal(oldMedia, field);
+      const newRaw = getVal(media, field);
+      
+      const oldVal = String(oldRaw);
+      const newVal = String(newRaw);
+
+      if (oldVal !== newVal) {
+        let label = field.charAt(0).toUpperCase() + field.slice(1);
+        let from = oldVal;
+        let to = newVal;
+
+        // Special handling for Visibility Toggle to make it readable
+        if (field === 'isPublic') {
+           label = 'Visibility';
+           from = oldRaw === true ? 'Visible' : (oldRaw === false ? 'Hidden' : oldRaw);
+           to = newRaw === true ? 'Visible' : (newRaw === false ? 'Hidden' : newRaw);
+        }
+
+        changes.push(`${label}: ${from} -> ${to}`);
+      }
+    });
+    
+    // If something changed but not in our track list (e.g., imageURL), add generic message
     if (changes.length === 0) changes.push('Details updated');
 
-    // 👇 FIXED: Use .get('id') here as well
     const customId = media.get('id');
 
-    await logActivity(req, 'UPDATE', 'MEDIA', `Updated media: ${media.name}`, { 
+    // 4. Log with detailed changes
+    await logActivity(req, 'UPDATE', 'MEDIA', `Updated media: ${changes.join(', ')}`, { 
       mediaId: media._id,
-      customId: customId, // 👈 FORCED CUSTOM ID
+      customId: customId,
       name: media.name,
       changes: changes
     });
@@ -219,12 +253,12 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Media not found' });
     }
 
-    // 👇 FIXED: Use .get('id')
+    // FIXED: Use .get('id')
     const customId = media.get('id');
 
     await logActivity(req, 'DELETE', 'MEDIA', `Moved media to Recycle Bin: ${media.name}`, { 
       mediaId: media._id,
-      customId: customId, // 👈 FORCED CUSTOM ID
+      customId: customId, // FORCED CUSTOM ID
       name: media.name,
       type: media.type
     });
