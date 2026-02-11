@@ -33,8 +33,10 @@ import {
   AlertCircle, 
   Wallet, 
   ShieldAlert, 
-  FileText 
+  FileText,
+  Plus
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatIndianRupee } from "@/lib/utils";
@@ -69,14 +71,12 @@ const Dashboard = () => {
   
   // --- 1. FETCH LIVE DATA FROM API ---
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: revenueTrend, isLoading: trendLoading } = useRevenueTrend();
+  const { data: revenueTrend, isLoading: trendLoading } = useRevenueTrend(); 
   const { data: paymentStats } = usePaymentStatsAnalytics();
   const { data: complianceStats } = useComplianceStats();
   
-  // Fetch more bookings to get correct index estimation if needed, but display only recent 5
   const { data: recentBookingsRes, refetch: refetchRecent } = useBookings({ limit: 100 });
   
-  // Manage pagination for the All Bookings Dialog
   const [reportPage, setReportPage] = useState(1);
   const { data: allBookingsRes, refetch: refetchAll } = useBookings({ limit: 10, page: reportPage });
   const allBookings = allBookingsRes?.data || [];
@@ -85,6 +85,7 @@ const Dashboard = () => {
   const deleteBookingMutation = useDeleteBooking();
 
   // --- 2. DIALOG STATES ---
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paymentFilter, setPaymentFilter] = useState<'All' | 'Pending' | 'Partially Paid' | 'Paid'>('All');
   
@@ -93,15 +94,11 @@ const Dashboard = () => {
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [allBookingsOpen, setAllBookingsOpen] = useState(false);
 
-  // Sort "recent" bookings by date descending for display, but calculating index needs ascending logic
-  // We'll process the recent list
   const rawBookings = recentBookingsRes?.data || [];
-  // Sort oldest first to determine index
   const sortedForIndex = [...rawBookings].sort((a: any, b: any) => 
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
   
-  // But display newest first (slice last 5 and reverse)
   const displayBookings = [...sortedForIndex].reverse().slice(0, 5);
 
   const openPaymentDetails = (filter: 'All' | 'Pending' | 'Partially Paid' | 'Paid') => {
@@ -149,7 +146,11 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
           <p className="text-muted-foreground">Live advertising platform overview.</p>
         </div>
-        <CreateBookingDialog />
+        
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> New Booking
+        </Button>
+        <CreateBookingDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
       </div>
 
       {/* Compliance Alerts */}
@@ -188,15 +189,16 @@ const Dashboard = () => {
       {/* Recent Bookings Table */}
       <Card className="p-6 bg-card border-border/50">
         <h3 className="text-lg font-semibold mb-4">Recent Bookings</h3>
+        {/* FIX: overflow-x-auto allows horizontal scrolling on mobile without hiding columns */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[600px]"> {/* min-w forces scroll if screen is smaller */}
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Booking ID</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Media</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Client</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                <th className="text-right py-3 px-4 font-medium text-muted-foreground">Amount</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Booking ID</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Media</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Client</th>
+                <th className="text-left py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Status</th>
+                <th className="text-right py-3 px-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -204,7 +206,6 @@ const Dashboard = () => {
                 <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No recent bookings found.</td></tr>
               ) : (
                 displayBookings.map((booking: any) => {
-                  // Find original index in full sorted list for consistent ID
                   const index = sortedForIndex.findIndex(b => (b._id || b.id) === (booking._id || booking.id));
                   return (
                     <tr 
@@ -212,19 +213,27 @@ const Dashboard = () => {
                       className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors" 
                       onClick={() => setEditBooking(booking)}
                     >
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <span className="font-mono text-xs font-medium text-primary hover:underline">
                           {generateDisplayId(booking, index)}
                         </span>
                       </td>
-                      <td className="py-3 px-4"><Badge variant="secondary" className="font-mono">{booking.mediaId?.name || "N/A"}</Badge></td>
-                      <td className="py-3 px-4 font-medium">{booking.customerId?.company || booking.customerId?.name || "Unknown"}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <Badge variant="secondary" className="font-mono">
+                          {booking.mediaId?.name || "N/A"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 font-medium whitespace-nowrap">
+                        {booking.customerId?.company || booking.customerId?.name || "Unknown"}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
                         <Badge variant={booking.status === 'Active' ? 'success' : 'outline'}>
                           {getStatusLabel(booking.status)}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-right font-medium">₹{formatIndianRupee(booking.amount)}</td>
+                      <td className="py-3 px-4 text-right font-medium whitespace-nowrap">
+                        ₹{formatIndianRupee(booking.amount)}
+                      </td>
                     </tr>
                   );
                 })
