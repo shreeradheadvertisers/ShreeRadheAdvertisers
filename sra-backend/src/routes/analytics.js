@@ -245,29 +245,36 @@ router.get('/occupancy', authMiddleware, async (req, res) => {
 // GET LOGS (Paginated & Filtered)
 router.get('/audit-logs', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // UPDATED: Added 'module' to destructuring
     const { user, action, module, startDate, endDate, page = 1, limit = 50 } = req.query;
     
     const filter = {};
     if (user && user !== 'all') filter.user = user;
     if (action && action !== 'all') filter.action = action;
-    // UPDATED: Added module filter logic
     if (module && module !== 'all') filter.module = module; 
     
     if (startDate && endDate) {
       filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
 
-    // FIXED: Removed .populate('user') since has now two DBs.
-    // We now use the 'fullName' and 'role' snapshot fields stored in the log itself.
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+
     const logs = await ActivityLog.find(filter)
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum);
       
     const total = await ActivityLog.countDocuments(filter);
 
-    res.json({ data: logs, total, pages: Math.ceil(total / limit) });
+    res.json({ 
+      data: logs, 
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: total,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    });
   } catch (error) {
     console.error("Audit Logs Error:", error);
     res.status(500).json({ message: 'Failed to fetch logs' });
@@ -277,7 +284,6 @@ router.get('/audit-logs', authMiddleware, requireRole('admin'), async (req, res)
 // EXPORT LOGS (CSV)
 router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // UPDATED: Added 'module', 'action', and date params to export
     const { user, action, module, startDate, endDate } = req.query;
     
     const filter = {};
@@ -289,13 +295,12 @@ router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (re
       filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
 
-    // FIXED: Removed .populate(). Using snapshot fields.
     const logs = await ActivityLog.find(filter).sort({ createdAt: -1 }).limit(1000);
 
     const fields = [
       { label: 'Time', value: (row) => new Date(row.createdAt).toLocaleString() },
-      { label: 'User', value: (row) => row.fullName || row.username || 'System' }, // Use Snapshot
-      { label: 'Role', value: (row) => row.role || 'System' }, // Use Snapshot
+      { label: 'User', value: (row) => row.fullName || row.username || 'System' }, 
+      { label: 'Role', value: (row) => row.role || 'System' },
       { label: 'Action', value: 'action' },
       { label: 'Module', value: 'module' },
       { label: 'Description', value: 'description' },
@@ -305,7 +310,6 @@ router.get('/audit-logs/export', authMiddleware, requireRole('admin'), async (re
     const json2csvParser = new Parser({ fields });
     const csv = json2csvParser.parse(logs);
 
-    // LOG ACTIVITY
     await logActivity(req, 'EXPORT', 'SYSTEM', `Exported audit logs`);
 
     res.header('Content-Type', 'text/csv');
