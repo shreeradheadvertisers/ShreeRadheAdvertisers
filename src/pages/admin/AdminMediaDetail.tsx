@@ -123,7 +123,12 @@ const AdminMediaDetail = () => {
               alt={media.name}
               className="w-full aspect-video object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://placehold.co/800x450?text=Error+Loading+Image';
+                const target = e.target as HTMLImageElement;
+                const fallback = 'https://placehold.co/800x450?text=Error+Loading+Image';
+                // FIX: Prevent infinite loop if fallback image also fails
+                if (target.src !== fallback) {
+                  target.src = fallback;
+                }
               }}
             />
           </Card>
@@ -161,13 +166,13 @@ const AdminMediaDetail = () => {
                 </div>
               ) : sortedBookings.length > 0 ? (
                 sortedBookings.map((booking: any) => {
-                  // FIX: Handle populated data in either customerId (raw) or customer (adapted)
+                  // Handle populated data in either customerId (raw) or customer (adapted)
                   const customerObj = booking.customer || (typeof booking.customerId === 'object' ? booking.customerId : null);
                   const customerName = customerObj?.company || customerObj?.name || "Deleted Customer";
                   
-                  // FIX: Format dates
-                  const startDate = format(new Date(booking.startDate), "dd MMM yyyy");
-                  const endDate = format(new Date(booking.endDate), "dd MMM yyyy");
+                  // FIX: Safely parse dates to prevent React crashes if data is missing/malformed
+                  const startDate = booking.startDate ? format(new Date(booking.startDate), "dd MMM yyyy") : "N/A";
+                  const endDate = booking.endDate ? format(new Date(booking.endDate), "dd MMM yyyy") : "N/A";
                   const isActive = booking.status === 'Active';
 
                   return (
