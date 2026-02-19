@@ -37,27 +37,50 @@ const MediaManagement = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeState, districts } = useLocationData();
   
-  // --- UPDATED: Initialize state with default values (No sessionStorage) ---
-  const [searchQuery, setSearchQuery] = useState("");
-  const [districtFilter, setDistrictFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
+  // --- UPDATED: Safely initialize from URL first, then SessionStorage, then default ---
+  const getInitialFilter = (key: string, defaultValue: string) => {
+    const urlValue = searchParams.get(key);
+    if (urlValue !== null) return urlValue; // URL takes priority
+    
+    const storedValue = sessionStorage.getItem(`media_filter_${key}`);
+    if (storedValue !== null) return storedValue; // Fallback to memory if redirected without params
+    
+    return defaultValue;
+  };
+
+  const [searchQuery, setSearchQuery] = useState(() => getInitialFilter("search", ""));
+  const [districtFilter, setDistrictFilter] = useState(() => getInitialFilter("district", "all"));
+  const [typeFilter, setTypeFilter] = useState(() => getInitialFilter("type", "all"));
+  const [statusFilter, setStatusFilter] = useState(() => getInitialFilter("status", "all"));
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = getInitialFilter("page", "1");
+    return Number(page) || 1;
+  });
   
   const itemsPerPage = 12;
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MediaLocation | null>(null);
 
-  // --- SYNC URL PARAMETERS (Dashboard clicks: Available / Booked) ---
+  // --- SYNC URL PARAMETERS AND STORAGE ---
   useEffect(() => {
-    const statusParam = searchParams.get('status');
-    if (statusParam) {
-      setStatusFilter(statusParam);
-      setCurrentPage(1);
-      // Clean up URL so the filter doesn't "stick" on next visit
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
+    const params = new URLSearchParams();
+    if (searchQuery) params.set("search", searchQuery);
+    if (districtFilter !== "all") params.set("district", districtFilter);
+    if (typeFilter !== "all") params.set("type", typeFilter);
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (currentPage !== 1) params.set("page", currentPage.toString());
+
+    // Update URL quietly
+    setSearchParams(params, { replace: true });
+
+    // Persist to session storage so filters survive hard redirects (like Edit -> Save -> Redirect)
+    sessionStorage.setItem("media_filter_search", searchQuery);
+    sessionStorage.setItem("media_filter_district", districtFilter);
+    sessionStorage.setItem("media_filter_type", typeFilter);
+    sessionStorage.setItem("media_filter_status", statusFilter);
+    sessionStorage.setItem("media_filter_page", currentPage.toString());
+
+  }, [searchQuery, districtFilter, typeFilter, statusFilter, currentPage, setSearchParams]);
 
   // --- Reset to page 1 when filters change ---
   const isFirstRender = useRef(true);
@@ -132,9 +155,7 @@ const MediaManagement = () => {
     updateMedia.mutate({ id, data: { status: nextStatus as MediaStatus } });
   };
 
-  // --- NEW: Handle Public Visibility Toggle ---
   const handleVisibilityToggle = (id: string, isVisible: boolean) => {
-    // Cast to any to bypass strict type checking until interface is updated
     updateMedia.mutate({ id, data: { isPublic: isVisible } as any });
   };
 
@@ -222,7 +243,7 @@ const MediaManagement = () => {
               }}
               onEdit={(id) => navigate(`/admin/media/edit/${id}`)}
               onToggleStatus={handleStatusToggle}
-              onToggleVisibility={handleVisibilityToggle} // Pass the new handler
+              onToggleVisibility={handleVisibilityToggle}
             />
           )}
         </CardContent>
