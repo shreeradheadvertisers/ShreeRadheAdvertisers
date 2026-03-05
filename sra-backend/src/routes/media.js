@@ -55,11 +55,12 @@ router.get('/', authMiddleware, async (req, res) => {
     }
     
     if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { city: { $regex: search, $options: 'i' } },
-        { id: { $regex: search, $options: 'i' } },
-        { address: { $regex: search, $options: 'i' } }
+        { name: { $regex: escapedSearch, $options: 'i' } },
+        { city: { $regex: escapedSearch, $options: 'i' } },
+        { id: { $regex: escapedSearch, $options: 'i' } },
+        { address: { $regex: escapedSearch, $options: 'i' } }
       ];
     }
 
@@ -98,10 +99,11 @@ router.get('/public', async (req, res) => {
     if (status && status !== 'all') filter.status = status;
     
     if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { city: { $regex: search, $options: 'i' } },
-        { id: { $regex: search, $options: 'i' } }
+        { name: { $regex: escapedSearch, $options: 'i' } },
+        { city: { $regex: escapedSearch, $options: 'i' } },
+        { id: { $regex: escapedSearch, $options: 'i' } }
       ];
     }
 
@@ -132,6 +134,24 @@ router.get('/public', async (req, res) => {
   } catch (error) {
     console.error('Public media list error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch media' });
+  }
+});
+
+// 3b. GET all unique locations (MUST be before /:id to avoid being shadowed)
+router.get('/locations/sync', async (req, res) => {
+  try {
+    const locations = await Media.aggregate([
+      { $match: { deleted: false } },
+      {
+        $group: {
+          _id: { state: "$state", district: "$district" },
+          towns: { $addToSet: "$city" }
+        }
+      }
+    ]);
+    res.json({ success: true, data: locations });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -267,24 +287,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Delete media error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete media' });
-  }
-});
-
-// GET all unique locations
-router.get('/locations/sync', async (req, res) => {
-  try {
-    const locations = await Media.aggregate([
-      { $match: { deleted: false } },
-      {
-        $group: {
-          _id: { state: "$state", district: "$district" },
-          towns: { $addToSet: "$city" }
-        }
-      }
-    ]);
-    res.json({ success: true, data: locations });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
   }
 });
 

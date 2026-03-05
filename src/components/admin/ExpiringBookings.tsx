@@ -27,7 +27,7 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
   const allBookings = bookingsRes?.data || [];
 
   // Sort all bookings by date first to ensure stable IDs
-  const sortedAllBookings = [...allBookings].sort((a: any, b: any) => 
+  const sortedAllBookings = [...allBookings].sort((a: any, b: any) =>
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
 
@@ -43,10 +43,10 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
     .map((b: any) => {
       const endDate = new Date(b.endDate);
       const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       // Find original index for consistent ID generation
       const originalIndex = sortedAllBookings.findIndex(item => item._id === b._id);
-      
+
       return { ...b, daysLeft, originalIndex };
     })
     .sort((a, b) => a.daysLeft - b.daysLeft);
@@ -63,11 +63,11 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-150 transition-transform text-white">
           <TrendingDown className="h-32 w-32" />
         </div>
-        
+
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="flex items-center gap-2 text-xl tracking-tight font-medium relative z-10">
-              <AlertTriangle className="h-6 w-6" /> 
+              <AlertTriangle className="h-6 w-6" />
               Expiring Soon
             </CardTitle>
             <Badge className="bg-white/20 text-white border-none font-medium backdrop-blur-sm px-3">
@@ -75,7 +75,7 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
             </Badge>
           </div>
           <p className="text-orange-50/80 text-sm relative z-10">
-            {expiringBookings.length > 0 
+            {expiringBookings.length > 0
               ? `Detecting ${expiringBookings.length} campaigns expiring within 15 days.`
               : "No campaigns expiring in the next 15 days."}
           </p>
@@ -93,8 +93,8 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
                 const contactPerson = booking.customerId?.name;
 
                 return (
-                  <div 
-                    key={booking._id} 
+                  <div
+                    key={booking._id}
                     className="flex items-center justify-between p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 hover:bg-white/20 transition-all cursor-pointer animate-in fade-in slide-in-from-right duration-500"
                     style={{ animationDelay: `${(i + 1) * 150}ms` }}
                     onClick={() => onViewBooking?.(booking)}
@@ -110,13 +110,13 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
                         <p className="text-xs text-white/70 truncate">{customerName}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2 shrink-0 items-center">
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-9 w-9 rounded-full bg-white/20 hover:bg-white/40 text-white border-0"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -147,7 +147,7 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
                                 </div>
                               </div>
                             )}
-                            
+
                             {email && (
                               <div className="flex items-center justify-between gap-2 p-2 rounded-md bg-secondary/50">
                                 <div className="flex items-center gap-2 overflow-hidden">
@@ -184,12 +184,12 @@ export function ExpiringBookings({ onViewBooking, onViewReport }: ExpiringBookin
                 );
               })}
             </div>
-            
+
             <div className="mt-6 flex justify-center">
-                <Button 
-                    variant="outline" 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
+                <Button
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setIsReportOpen(true); // Open the local detailed dialog
                     }}
                     className="w-full bg-white/5 border-white/20 text-white hover:bg-white/20 gap-2 py-6 rounded-xl font-medium"

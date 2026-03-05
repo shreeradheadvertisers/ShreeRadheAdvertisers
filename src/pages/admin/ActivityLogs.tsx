@@ -4,17 +4,17 @@ import { apiClient } from "@/lib/api/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input"; 
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Download, RefreshCw, FileText, Calendar, CreditCard, Users, 
-  MessageSquare, Filter, Search, 
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight 
-} from "lucide-react"; 
+import {
+  Download, RefreshCw, FileText, Calendar, CreditCard, Users,
+  MessageSquare, Filter, Search,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
+} from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom"; 
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"; 
+import { useNavigate } from "react-router-dom";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Constants for Filters
 const MODULES = ["MEDIA", "BOOKING", "PAYMENT", "USER", "CUSTOMER", "AUTH", "SYSTEM", "REPORTS"];
@@ -24,7 +24,7 @@ export default function ActivityLogs() {
   const [logs, setLogs] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   // --- FILTERS STATE ---
   const [filterUser, setFilterUser] = useState("all");
@@ -35,25 +35,25 @@ export default function ActivityLogs() {
   // --- PAGINATION STATE ---
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(20); 
+  const [limit] = useState(20);
   const [jumpPage, setJumpPage] = useState("1"); // Local state for input
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const query = new URLSearchParams();
-      
+
       if (filterUser !== 'all') query.append('user', filterUser);
       if (filterModule !== 'all') query.append('module', filterModule);
       if (filterAction !== 'all') query.append('action', filterAction);
       if (dateRange.start) query.append('startDate', dateRange.start);
       if (dateRange.end) query.append('endDate', dateRange.end);
-      
+
       query.append('page', currentPage.toString());
       query.append('limit', limit.toString());
-      
+
       const res: any = await apiClient.get(`/api/analytics/audit-logs?${query.toString()}`);
-      
+
       if (res.data) {
         setLogs(res.data);
         if (res.pagination) {
@@ -73,7 +73,8 @@ export default function ActivityLogs() {
     } catch(e) { console.error(e); }
   }, []);
 
-  useEffect(() => { fetchLogs(); fetchUsers(); }, [fetchLogs, fetchUsers]);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function ActivityLogs() {
 
   const handleDownload = async () => {
     try {
-      const token = localStorage.getItem('sra_admin_token');
+      const token = localStorage.getItem('sra_auth_token');
       const query = new URLSearchParams();
       if (filterUser !== 'all') query.append('user', filterUser);
       if (filterModule !== 'all') query.append('module', filterModule);
@@ -111,8 +112,9 @@ export default function ActivityLogs() {
       if (dateRange.start) query.append('startDate', dateRange.start);
       if (dateRange.end) query.append('endDate', dateRange.end);
 
-      const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/analytics/audit-logs/export?${query.toString()}`;
-      
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const url = `${baseUrl}/api/analytics/audit-logs/export?${query.toString()}`;
+
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -184,12 +186,12 @@ export default function ActivityLogs() {
           <h1 className="text-2xl font-bold tracking-tight">Audit Trail</h1>
           <p className="text-muted-foreground text-sm">Track system activities and user actions.</p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="gap-2">
-                <Filter className="h-4 w-4" /> 
+                <Filter className="h-4 w-4" />
                 Filters
                 {hasActiveFilters && (
                   <span className="flex h-2 w-2 rounded-full bg-primary" />
@@ -201,17 +203,17 @@ export default function ActivityLogs() {
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium leading-none">Filter Logs</h4>
                   {hasActiveFilters && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={clearFilters} 
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
                       className="h-auto p-0 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       Clear All
                     </Button>
                   )}
                 </div>
-                
+
                 <div className="grid gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">User</Label>
@@ -270,7 +272,7 @@ export default function ActivityLogs() {
           <Button variant="ghost" size="icon" onClick={fetchLogs} disabled={loading} title="Refresh">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          
+
           <Button onClick={handleDownload} variant="secondary" className="hidden sm:flex">
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
@@ -325,7 +327,7 @@ export default function ActivityLogs() {
                         {format(new Date(log.createdAt), "MMM dd, HH:mm")}
                       </td>
                       <td className="py-3 px-4 font-medium align-top">
-                        <div 
+                        <div
                           className="cursor-pointer hover:text-primary hover:underline inline-block"
                           onClick={() => userId && setFilterUser(userId)}
                           title="Filter by this user"
@@ -345,7 +347,7 @@ export default function ActivityLogs() {
                         <Badge variant="outline" className="font-mono text-[10px] uppercase tracking-wider">
                           {log.action}
                         </Badge>
-                        <div 
+                        <div
                           className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1.5 cursor-pointer hover:text-foreground"
                           onClick={() => setFilterModule(log.module)}
                           title="Filter by this module"
@@ -355,8 +357,8 @@ export default function ActivityLogs() {
                         </div>
                       </td>
                       <td className="py-3 px-4 max-w-xl align-top">
-                        <div 
-                          className={`font-medium text-gray-900 ${isClickable ? "cursor-pointer hover:text-primary hover:underline" : ""}`}
+                        <div
+                          className={`font-medium text-foreground ${isClickable ? "cursor-pointer hover:text-primary hover:underline" : ""}`}
                           onClick={() => handleLogClick(log)}
                           title={isClickable ? "Click to open details" : ""}
                         >
@@ -376,7 +378,7 @@ export default function ActivityLogs() {
         {/* --- ENHANCED PAGINATION CONTROLS --- */}
         {totalPages > 1 && (
           <div className="border-t p-3 bg-muted/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            
+
             {/* Left: Page Info */}
             <div className="text-sm text-muted-foreground">
               Showing page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
@@ -386,7 +388,7 @@ export default function ActivityLogs() {
             <div className="flex items-center gap-2">
               {/* Begin / Previous */}
               <div className="flex items-center gap-1">
-                <Button 
+                <Button
                   variant="outline" size="icon" className="h-8 w-8"
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1 || loading}
@@ -394,7 +396,7 @@ export default function ActivityLogs() {
                 >
                   <ChevronsLeft className="h-4 w-4" />
                 </Button>
-                <Button 
+                <Button
                   variant="outline" size="icon" className="h-8 w-8"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1 || loading}
@@ -407,19 +409,19 @@ export default function ActivityLogs() {
               {/* Jump to Page Input */}
               <form onSubmit={handleJumpSubmit} className="flex items-center gap-2 mx-2">
                 <span className="text-xs text-muted-foreground hidden sm:inline">Go to</span>
-                <Input 
-                  type="number" 
-                  min={1} 
+                <Input
+                  type="number"
+                  min={1}
                   max={totalPages}
-                  value={jumpPage} 
-                  onChange={(e) => setJumpPage(e.target.value)} 
+                  value={jumpPage}
+                  onChange={(e) => setJumpPage(e.target.value)}
                   className="h-8 w-16 text-center px-1"
                 />
               </form>
 
               {/* Next / End */}
               <div className="flex items-center gap-1">
-                <Button 
+                <Button
                   variant="outline" size="icon" className="h-8 w-8"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages || loading}
@@ -427,7 +429,7 @@ export default function ActivityLogs() {
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-                <Button 
+                <Button
                   variant="outline" size="icon" className="h-8 w-8"
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages || loading}

@@ -1,18 +1,18 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { 
-  LayoutDashboard, MapPin, PlusCircle, Calendar, BarChart3, 
-  Clock, Users, FileText, CreditCard, ChevronLeft, 
+import {
+  LayoutDashboard, MapPin, PlusCircle, Calendar, BarChart3,
+  Clock, Users, FileText, CreditCard, ChevronLeft,
   ChevronRight, LogOut, MessageSquare,
   UserCog, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarHeader, 
-  SidebarMenu, 
-  SidebarMenuButton, 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
   SidebarRail,
@@ -44,7 +44,7 @@ const navItems = [
 export function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout, user } = useAuth(); 
+  const { logout, user } = useAuth();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
 
@@ -53,7 +53,7 @@ export function AdminSidebar() {
     navigate('/admin/login');
   };
 
-  const userRole = user?.role || 'staff'; 
+  const userRole = user?.role || 'staff';
 
   const filteredNavItems = navItems.filter(item => {
     if (item.roles) {
@@ -73,10 +73,10 @@ export function AdminSidebar() {
             </div>
           ) : (
             // Logo: h-14 (56px) is large and readable. justify-start puts it on the left.
-            <img 
-              src={logo} 
-              alt="Shree Radhe" 
-              className="h-14 w-auto object-contain transition-all" 
+            <img
+              src={logo}
+              alt="Shree Radhe"
+              className="h-14 w-auto object-contain transition-all"
             />
           )}
         </div>
@@ -89,15 +89,15 @@ export function AdminSidebar() {
             const isActive = location.pathname === item.path;
             return (
               <SidebarMenuItem key={item.path}>
-                <SidebarMenuButton 
-                  asChild 
+                <SidebarMenuButton
+                  asChild
                   isActive={isActive}
                   tooltip={item.label}
                   className={cn(
                     // Reduced padding (py-2) to keep list compact
                     "flex items-center gap-3 px-3 py-2 h-auto rounded-lg transition-all",
-                    isActive 
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground shadow-sm" 
+                    isActive
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground shadow-sm"
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
@@ -115,7 +115,7 @@ export function AdminSidebar() {
       <SidebarFooter className="p-2 border-t border-sidebar-border space-y-1">
         <SidebarMenu className="space-y-1">
           <SidebarMenuItem>
-            <SidebarMenuButton 
+            <SidebarMenuButton
               className={cn(
                 "w-full gap-3 h-auto py-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10",
                 collapsed && "justify-center"
@@ -129,10 +129,10 @@ export function AdminSidebar() {
           </SidebarMenuItem>
 
           <SidebarMenuItem>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full h-8" 
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full h-8"
               onClick={toggleSidebar}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}

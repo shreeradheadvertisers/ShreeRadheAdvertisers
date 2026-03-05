@@ -23,8 +23,8 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
   const { states, allDistricts } = useLocationData();
 
   // 2. Derive available districts based on the selected state from context
-  const availableDistricts = filters.state && filters.state !== 'all' 
-    ? allDistricts[filters.state] || [] 
+  const availableDistricts = filters.state && filters.state !== 'all'
+    ? allDistricts[filters.state] || []
     : [];
 
   const clearFilters = () => {
@@ -54,7 +54,7 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
       <div className="space-y-5">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
+          <Input
             placeholder="Search by location or ID..."
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
@@ -64,8 +64,8 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
 
         <div className="space-y-2">
           <Label>State</Label>
-          <Select 
-            value={filters.state} 
+          <Select
+            value={filters.state}
             onValueChange={(value) => setFilters({ ...filters, state: value, district: '' })}
           >
             <SelectTrigger>
@@ -83,8 +83,8 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
 
         <div className="space-y-2">
           <Label>District</Label>
-          <Select 
-            value={filters.district} 
+          <Select
+            value={filters.district}
             onValueChange={(value) => setFilters({ ...filters, district: value })}
             disabled={!filters.state || filters.state === 'all'}
           >
@@ -103,8 +103,8 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
 
         <div className="space-y-2">
           <Label>Media Type</Label>
-          <Select 
-            value={filters.type} 
+          <Select
+            value={filters.type}
             onValueChange={(value) => setFilters({ ...filters, type: value })}
           >
             <SelectTrigger>
@@ -121,8 +121,8 @@ export function FilterPanel({ filters, setFilters }: FilterPanelProps) {
 
         <div className="space-y-2">
           <Label>Availability</Label>
-          <Select 
-            value={filters.status} 
+          <Select
+            value={filters.status}
             onValueChange={(value) => setFilters({ ...filters, status: value })}
           >
             <SelectTrigger>

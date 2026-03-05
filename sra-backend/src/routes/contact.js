@@ -11,7 +11,6 @@ const { logActivity } = require('../services/logger');
 // Submit contact form (public - no user to log)
 router.post('/', async (req, res) => {
   try {
-    console.log("Data received from frontend:", req.body);
     const contact = new Contact(req.body);
     await contact.save();
     res.status(201).json(contact);

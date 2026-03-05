@@ -16,7 +16,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { mediaLocations, mediaTypes } from "@/lib/data";
+import { mediaTypes } from "@/lib/data";
 import { CalendarDays, Search, Loader2, Info, MapPin, PlusCircle, ChevronsUpDown, Check } from "lucide-react";
 import { useBookings } from "@/hooks/api/useBookings";
 import { useMedia, useMediaById } from "@/hooks/api/useMedia";
@@ -30,7 +30,7 @@ const Availability = () => {
   const [selectedMedia, setSelectedMedia] = useState<string>('');
   const [selectedDates, setSelectedDates] = useState<Date[] | undefined>([]);
   const [openCombobox, setOpenCombobox] = useState(false);
-  
+
   // Filter States
   const [typeFilter, setTypeFilter] = useState('All');
   const [stateFilter, setStateFilter] = useState('All');
@@ -38,22 +38,21 @@ const Availability = () => {
   const [cityFilter, setCityFilter] = useState('All');
 
   // Fetch Media Data
-  const { data: mediaData, isLoading: isLoadingList } = useMedia({ 
-    limit: 1000 
+  const { data: mediaData, isLoading: isLoadingList } = useMedia({
+    limit: 1000
   });
 
   const sourceMedia = useMemo(() => {
-    return mediaData?.data && mediaData.data.length > 0 ? mediaData.data : mediaLocations;
+    return mediaData?.data || [];
   }, [mediaData]);
 
   // --- FIX: AUTO-FILL FROM URL PARAMETER ---
   useEffect(() => {
     const mediaIdParam = searchParams.get('mediaId');
-    // Only set if we have a parameter and it's different from current
-    if (mediaIdParam && mediaIdParam !== selectedMedia) {
+    if (mediaIdParam) {
       setSelectedMedia(mediaIdParam);
     }
-  }, [searchParams, selectedMedia]);
+  }, [searchParams]);
 
   // --- DYNAMIC FILTER OPTIONS ---
   const uniqueStates = useMemo(() => {
@@ -62,16 +61,16 @@ const Availability = () => {
   }, [sourceMedia]);
 
   const uniqueDistricts = useMemo(() => {
-    const relevantMedia = stateFilter === 'All' 
-      ? sourceMedia 
+    const relevantMedia = stateFilter === 'All'
+      ? sourceMedia
       : sourceMedia.filter(m => m.state === stateFilter);
     const districts = relevantMedia.map(m => (m as any).district).filter(Boolean);
     return ['All', ...new Set(districts)].sort();
   }, [sourceMedia, stateFilter]);
 
   const uniqueCities = useMemo(() => {
-    let relevantMedia = stateFilter === 'All' 
-      ? sourceMedia 
+    let relevantMedia = stateFilter === 'All'
+      ? sourceMedia
       : sourceMedia.filter(m => m.state === stateFilter);
     if (districtFilter !== 'All') {
       relevantMedia = relevantMedia.filter(m => (m as any).district === districtFilter);
@@ -83,7 +82,7 @@ const Availability = () => {
   // --- MAIN FILTERING LOGIC ---
   const filteredMedia = useMemo(() => {
     if (!sourceMedia) return [];
-    
+
     return sourceMedia.filter(media => {
       const matchesType = typeFilter === 'All' || media.type === typeFilter;
       const matchesState = stateFilter === 'All' || media.state === stateFilter;
@@ -95,9 +94,9 @@ const Availability = () => {
 
   // Fetch Details & Bookings for the selected media
   const { data: selectedMediaDetails } = useMediaById(selectedMedia);
-  const { data: bookingsData, isLoading: isLoadingBookings } = useBookings({ 
+  const { data: bookingsData, isLoading: isLoadingBookings } = useBookings({
     mediaId: selectedMedia,
-    limit: 100 
+    limit: 100
   });
 
   const currentMedia = selectedMediaDetails || sourceMedia.find(m => m.id === selectedMedia);
@@ -122,15 +121,15 @@ const Availability = () => {
     const endDate = sortedDates[sortedDates.length - 1].toISOString();
 
     // Navigate to the correct Bookings route with State
-    navigate('/admin/bookings', { 
-      state: { 
-        openCreateDialog: true, 
+    navigate('/admin/bookings', {
+      state: {
+        openCreateDialog: true,
         prefill: {
           mediaId: selectedMedia,
           startDate: startDate,
           endDate: endDate
         }
-      } 
+      }
     });
   };
 
@@ -147,15 +146,15 @@ const Availability = () => {
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <Search className="h-4 w-4 text-primary" /> Find Media
           </h3>
-          
+
           <div className="space-y-4 mb-6">
-            
+
             {/* LOCATION FILTERS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">State</Label>
-                <Select 
-                  value={stateFilter} 
+                <Select
+                  value={stateFilter}
                   onValueChange={(val) => { setStateFilter(val); setDistrictFilter('All'); setCityFilter('All'); }}
                 >
                   <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
@@ -167,8 +166,8 @@ const Availability = () => {
 
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">District</Label>
-                <Select 
-                  value={districtFilter} 
+                <Select
+                  value={districtFilter}
                   onValueChange={(val) => { setDistrictFilter(val); setCityFilter('All'); }}
                 >
                   <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
@@ -260,7 +259,7 @@ const Availability = () => {
 
           {/* PREVIEW */}
           {currentMedia && (
-            <div className="mt-6 p-4 rounded-lg bg-muted/50 animate-fade-in border border-border/50">
+            <div className="mt-6 p-4 rounded-lg bg-muted/50 animate-fade-in border border-border/50 cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all" onClick={() => navigate(`/admin/media/${selectedMedia}`)}>
                 <div className="space-y-2 text-sm">
                   <div className="font-bold text-foreground text-base">{currentMedia.name}</div>
                   <div className="text-muted-foreground text-xs flex items-center gap-1">
@@ -310,7 +309,7 @@ const Availability = () => {
             )}
           </div>
 
-          <div className="flex justify-center border rounded-xl p-6 bg-white shadow-sm flex-grow">
+          <div className="flex justify-center border rounded-xl p-6 bg-card shadow-sm flex-grow">
             {selectedMedia ? (
                 <Calendar
                 mode="multiple"
@@ -321,6 +320,7 @@ const Availability = () => {
                 fixedWeeks={false}
                 modifiers={{ booked: (date) => bookedDays.some(range => isWithinInterval(startOfDay(date), { start: range.from, end: range.to })) }}
                 modifiersStyles={{ booked: { backgroundColor: '#b91c1c', color: 'white', textDecoration: 'line-through', fontWeight: '600', opacity: 0.9, border: '1px solid #991b1b' } }}
+                disabled={(date) => bookedDays.some(range => isWithinInterval(startOfDay(date), { start: range.from, end: range.to }))}
                 classNames={{
                     months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
                     month: "space-y-4",

@@ -33,8 +33,8 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useCustomers } from "@/hooks/api/useCustomers";
-import { useMedia, useMediaById } from "@/hooks/api/useMedia"; 
-import { useCreateBooking, useBookings } from "@/hooks/api/useBookings"; 
+import { useMedia, useMediaById } from "@/hooks/api/useMedia";
+import { useCreateBooking, useBookings } from "@/hooks/api/useBookings";
 import { useToast } from "@/hooks/use-toast";
 import {
   Check,
@@ -57,8 +57,8 @@ interface BookingItem {
   mediaId: string;
   mediaName: string;
   mediaType: string;
-  startDate: string; 
-  endDate: string;   
+  startDate: string;
+  endDate: string;
   amount: string;
   status: string;
   paymentStatus: string;
@@ -80,8 +80,8 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
   const { data: customerRes } = useCustomers();
   const { data: mediaRes } = useMedia({ limit: 100 } as any);
   // We fetch existing bookings for frontend conflict checking (First line of defense)
-  const { data: existingBookingsRes } = useBookings({ limit: 200 } as any); 
-  
+  const { data: existingBookingsRes } = useBookings({ limit: 200 } as any);
+
   const createBookingMutation = useCreateBooking();
 
   const customers = useMemo(() => customerRes?.data || [], [customerRes?.data]);
@@ -90,12 +90,12 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
 
   const [customerId, setCustomerId] = useState("");
   const [bookingQueue, setBookingQueue] = useState<BookingItem[]>([]);
-  
+
   const [customerOpen, setCustomerOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
-  
+
   const [customerSearch, setCustomerSearch] = useState("");
   const [mediaSearch, setMediaSearch] = useState("");
 
@@ -136,15 +136,15 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
         }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMedia, open]); 
+  }, [currentMedia, open]);
 
   const selectedCustomer = customers.find((c: any) => getId(c) === customerId);
 
   const filteredCustomers = useMemo(() => {
     if (!customerSearch) return customers.slice(0, 50);
     const searchLower = customerSearch.toLowerCase();
-    return customers.filter((c: any) => 
-      c.name.toLowerCase().includes(searchLower) || 
+    return customers.filter((c: any) =>
+      c.name.toLowerCase().includes(searchLower) ||
       c.company?.toLowerCase().includes(searchLower)
     ).slice(0, 50);
   }, [customers, customerSearch]);
@@ -152,8 +152,8 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
   const filteredMedia = useMemo(() => {
     if (!mediaSearch) return mediaLocations.slice(0, 50);
     const searchLower = mediaSearch.toLowerCase();
-    return mediaLocations.filter((m: any) => 
-      m.name.toLowerCase().includes(searchLower) || 
+    return mediaLocations.filter((m: any) =>
+      m.name.toLowerCase().includes(searchLower) ||
       m.city?.toLowerCase().includes(searchLower) ||
       m.type?.toLowerCase().includes(searchLower)
     ).slice(0, 50);
@@ -283,8 +283,8 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
           startDate: new Date(item.startDate).toISOString(),
           endDate: new Date(item.endDate).toISOString(),
           amount: Number(item.amount),
-          amountPaid: paidAmount, 
-          status: item.status, 
+          amountPaid: paidAmount,
+          status: item.status,
           paymentStatus: item.paymentStatus,
         } as any;
 
@@ -309,12 +309,12 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
       if (err.item && err.error) {
         // 1. Remove successful items from the queue
         setBookingQueue((prev) => prev.filter(i => !successfulTempIds.includes(i.tempId)));
-        
+
         // 2. Extract meaningful error message
         const apiError = err.error;
         const failedItemName = err.item.mediaName;
         let errorMessage = "Something went wrong.";
-        
+
         // Handle specific Double Booking (409) or other API errors
         if (apiError.response?.status === 409) {
           errorMessage = `Double Booking: ${apiError.response.data.message}`;
@@ -343,7 +343,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto flex flex-col"
         aria-describedby="booking-desc"
       >
@@ -366,8 +366,8 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0">
                 <Command shouldFilter={false}>
-                  <CommandInput 
-                    placeholder="Search customer..." 
+                  <CommandInput
+                    placeholder="Search customer..."
                     value={customerSearch}
                     onValueChange={setCustomerSearch}
                   />
@@ -403,7 +403,7 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
                     </Badge>
                 )}
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label className="text-xs text-muted-foreground uppercase">Media Location</Label>
@@ -416,8 +416,8 @@ export function CreateBookingDialog({ open, onOpenChange, initialData }: CreateB
                   </PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0">
                     <Command shouldFilter={false}>
-                      <CommandInput 
-                        placeholder="Search media..." 
+                      <CommandInput
+                        placeholder="Search media..."
                         value={mediaSearch}
                         onValueChange={setMediaSearch}
                       />

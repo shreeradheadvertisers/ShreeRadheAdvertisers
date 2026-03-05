@@ -3,11 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS, isBackendConfigured } from '@/lib/api/config';
-import { 
-  getDashboardStats as getMockDashboardStats, 
-  getChartData, 
+import {
+  getDashboardStats as getMockDashboardStats,
+  getChartData,
   getPaymentStats,
-  getComplianceStats 
+  getComplianceStats
 } from '@/lib/data';
 import type {
   RevenueData,
@@ -29,11 +29,12 @@ export interface DashboardStats {
   districtsCount: number;
   totalCustomers: number;
   activeBookings: number;
+  grossRevenue: number;
   totalRevenue: number;
   pendingPayments: number;
   // Live leads data from your Inquiry Management update
-  totalInquiries: number; 
-  newInquiries: number;   
+  totalInquiries: number;
+  newInquiries: number;
 }
 
 // Types for analytics data
@@ -156,7 +157,7 @@ export function useComplianceStats() {
   });
 }
 
-// 5. Fetch revenue data
+// 5. Fetch revenue data (uses revenue-trend endpoint)
 export function useRevenueData(period: 'monthly' | 'quarterly' | 'yearly' = 'monthly') {
   return useQuery({
     queryKey: analyticsKeys.revenue(period),
@@ -165,11 +166,11 @@ export function useRevenueData(period: 'monthly' | 'quarterly' | 'yearly' = 'mon
         return [] as RevenueData[];
       }
 
-      const response = await apiClient.get<ApiResponse<RevenueData[]>>(
-        API_ENDPOINTS.ANALYTICS.REVENUE,
+      const response = await apiClient.get<RevenueData[]>(
+        API_ENDPOINTS.ANALYTICS.REVENUE_TREND,
         { period }
       );
-      return response.data;
+      return response;
     },
     staleTime: 10 * 60 * 1000,
   });

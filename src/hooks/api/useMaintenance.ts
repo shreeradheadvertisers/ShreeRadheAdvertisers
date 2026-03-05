@@ -43,17 +43,17 @@ const staticMaintenance = [
 export const maintenanceKeys = {
   all: ['maintenance'] as const,
   lists: () => [...maintenanceKeys.all, 'list'] as const,
-  list: (filters?: { status?: MaintenanceStatus; priority?: MaintenancePriority; mediaId?: string }) => 
+  list: (filters?: { status?: MaintenanceStatus; priority?: MaintenancePriority; mediaId?: string }) =>
     [...maintenanceKeys.lists(), filters] as const,
   details: () => [...maintenanceKeys.all, 'detail'] as const,
   detail: (id: string) => [...maintenanceKeys.details(), id] as const,
 };
 
 // Fetch all maintenance records
-export function useMaintenance(filters?: { 
-  status?: MaintenanceStatus; 
-  priority?: MaintenancePriority; 
-  mediaId?: string 
+export function useMaintenance(filters?: {
+  status?: MaintenanceStatus;
+  priority?: MaintenancePriority;
+  mediaId?: string
 }) {
   return useQuery({
     queryKey: maintenanceKeys.list(filters),
@@ -157,7 +157,8 @@ export function useCompleteMaintenance() {
         throw new Error('Backend not configured. Please set VITE_API_URL.');
       }
 
-      const response = await apiClient.patch<ApiResponse<MaintenanceRecord>>(
+      // Backend uses POST /:id/complete
+      const response = await apiClient.post<ApiResponse<MaintenanceRecord>>(
         API_ENDPOINTS.MAINTENANCE.COMPLETE(id),
         { notes }
       );

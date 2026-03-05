@@ -17,25 +17,25 @@ export function Footer() {
               Premium outdoor advertising platform connecting brands with strategic billboard and media locations across India.
             </p>
             <div className="flex items-center gap-3">
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 onClick={scrollToTop}
                 className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 <Linkedin className="h-4 w-4" />
               </Link>
-              
-              <Link 
-                to="/" 
+
+              <Link
+                to="/"
                 onClick={scrollToTop}
                 className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 <Facebook className="h-4 w-4" />
               </Link>
-              
-              <a 
-                href="https://www.instagram.com/shreeradheadvertisers" 
-                target="_blank" 
+
+              <a
+                href="https://www.instagram.com/shreeradheadvertisers"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-lg bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors"
               >
@@ -95,8 +95,8 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-primary" />
-                <a 
-                  href="mailto:info@shreeradheadvertisers.com" 
+                <a
+                  href="mailto:info@shreeradheadvertisers.com"
                   className="hover:text-primary transition-colors"
                 >
                   info@shreeradheadvertisers.com
@@ -104,8 +104,8 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary" />
-                <a 
-                  href="tel:+919131034818" 
+                <a
+                  href="tel:+919131034818"
                   className="hover:text-primary transition-colors"
                 >
                   +91 91310 34818
@@ -113,9 +113,9 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 text-primary" />
-                <a 
-                  href="https://www.google.com/maps/search/Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump+Durg,+Chhattisgarh+491001" 
-                  target="_blank" 
+                <a
+                  href="https://www.google.com/maps/search/Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump+Durg,+Chhattisgarh+491001"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-primary transition-colors text-left"
                 >

@@ -35,10 +35,69 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+// --- FIXED STATISTICS ROUTE (MUST be before /:id to avoid being shadowed) ---
+router.get('/stats/summary', authMiddleware, async (req, res) => {
+  try {
+    // 1. Calculate Total Collected (Strictly ignoring Cancelled bookings)
+    const stats = await Payment.aggregate([
+      { $match: { status: 'Completed', deleted: { $ne: true } } },
+      {
+        $lookup: {
+          from: 'bookings',
+          localField: 'bookingId',
+          foreignField: '_id',
+          as: 'bookingDetails'
+        }
+      },
+      { $unwind: '$bookingDetails' },
+      { 
+        $match: { 
+          'bookingDetails.deleted': false,
+          'bookingDetails.status': { $ne: 'Cancelled' }
+        } 
+      },
+      { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
+    ]);
+
+    // 2. Calculate Pending Dues (Strictly ignoring Cancelled bookings)
+    const pendingBookings = await Booking.aggregate([
+      { 
+        $match: { 
+          deleted: false, 
+          status: { $ne: 'Cancelled' },
+          paymentStatus: { $in: ['Pending', 'Partially Paid'] } 
+        } 
+      },
+      {
+        $group: {
+          _id: null,
+          pending: { 
+            $sum: { 
+              $subtract: [
+                { $ifNull: ['$amount', 0] }, 
+                { $ifNull: ['$amountPaid', 0] }
+              ] 
+            } 
+          }
+        }
+      }
+    ]);
+
+    res.json({
+      totalCollected: stats[0]?.totalCollected || 0,
+      pending: pendingBookings[0]?.pending || 0,
+      overdue: 0
+    });
+  } catch (error) {
+    console.error('Payment Stats Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch payment stats' });
+  }
+});
+
 // Get single payment (protected)
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id)
+    const payment = await Payment.findOne({ _id: req.params.id, deleted: { $ne: true } })
       .populate('bookingId')
       .populate('customerId');
     if (!payment) {
@@ -56,20 +115,25 @@ router.post('/', authMiddleware, async (req, res) => {
     const payment = new Payment(req.body);
     await payment.save();
     
-    // Update booking payment status
+    // Update booking payment status using atomic $inc to prevent race conditions
     const booking = await Booking.findById(req.body.bookingId);
     if (booking) {
-      const newAmountPaid = (booking.amountPaid || 0) + req.body.amount;
+      const updatedBooking = await Booking.findByIdAndUpdate(
+        req.body.bookingId,
+        { $inc: { amountPaid: req.body.amount } },
+        { new: true }
+      );
+      
+      // Update payment status based on new total
       let paymentStatus = 'Partially Paid';
-      if (newAmountPaid >= booking.amount) {
+      if (updatedBooking.amountPaid >= updatedBooking.amount) {
         paymentStatus = 'Paid';
       }
-      await Booking.findByIdAndUpdate(req.body.bookingId, {
-        amountPaid: newAmountPaid,
-        paymentStatus
-      });
+      if (paymentStatus !== updatedBooking.paymentStatus) {
+        await Booking.findByIdAndUpdate(req.body.bookingId, { paymentStatus });
+      }
       
-      // Update customer total spent
+      // Update customer total spent atomically
       await Customer.findByIdAndUpdate(req.body.customerId, {
         $inc: { totalSpent: req.body.amount }
       });
@@ -137,65 +201,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     res.json({ message: 'Payment deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete payment' });
-  }
-});
-
-// --- FIXED STATISTICS ROUTE ---
-router.get('/stats/summary', authMiddleware, async (req, res) => {
-  try {
-    // 1. Calculate Total Collected (Strictly ignoring Cancelled bookings)
-    const stats = await Payment.aggregate([
-      { $match: { status: 'Completed', deleted: false } }, // Ensure payment itself isn't deleted
-      {
-        $lookup: {
-          from: 'bookings',
-          localField: 'bookingId',
-          foreignField: '_id',
-          as: 'bookingDetails'
-        }
-      },
-      { $unwind: '$bookingDetails' },
-      { 
-        $match: { 
-          'bookingDetails.deleted': false,
-          'bookingDetails.status': { $ne: 'Cancelled' } // STRICT EXCLUSION
-        } 
-      },
-      { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
-    ]);
-
-    // 2. Calculate Pending Dues (Strictly ignoring Cancelled bookings)
-    const pendingBookings = await Booking.aggregate([
-      { 
-        $match: { 
-          deleted: false, 
-          status: { $ne: 'Cancelled' }, // STRICT EXCLUSION
-          paymentStatus: { $in: ['Pending', 'Partially Paid'] } 
-        } 
-      },
-      {
-        $group: {
-          _id: null,
-          pending: { 
-            $sum: { 
-              $subtract: [
-                { $ifNull: ['$amount', 0] }, 
-                { $ifNull: ['$amountPaid', 0] }
-              ] 
-            } 
-          }
-        }
-      }
-    ]);
-
-    res.json({
-      totalCollected: stats[0]?.totalCollected || 0,
-      pending: pendingBookings[0]?.pending || 0,
-      overdue: 0
-    });
-  } catch (error) {
-    console.error('Payment Stats Error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch payment stats' });
   }
 });
 

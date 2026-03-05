@@ -16,7 +16,7 @@ export const customerKeys = {
   all: ['customers'] as const,
   lists: () => [...customerKeys.all, 'list'] as const,
   // Added page and limit to the key for proper caching
-  list: (filters?: { search?: string; group?: string; page?: number; limit?: number }) => 
+  list: (filters?: { search?: string; group?: string; page?: number; limit?: number }) =>
     [...customerKeys.lists(), filters] as const,
   details: () => [...customerKeys.all, 'detail'] as const,
   detail: (id: string) => [...customerKeys.details(), id] as const,
@@ -32,7 +32,7 @@ export function useCustomers(filters?: { search?: string; group?: string; page?:
         let data = [...staticCustomers];
         if (filters?.search) {
           const q = filters.search.toLowerCase();
-          data = data.filter(c => 
+          data = data.filter(c =>
             c.name.toLowerCase().includes(q) ||
             c.company.toLowerCase().includes(q) ||
             c.email.toLowerCase().includes(q)
@@ -46,9 +46,9 @@ export function useCustomers(filters?: { search?: string; group?: string; page?:
         const limit = filters?.limit || 12;
         const total = data.length;
 
-        return { 
-          success: true, 
-          data: data.slice((page - 1) * limit, page * limit) as unknown as Customer[], 
+        return {
+          success: true,
+          data: data.slice((page - 1) * limit, page * limit) as unknown as Customer[],
           pagination: {
             page,
             limit,

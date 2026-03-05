@@ -1,17 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useNavigate } from "react-router-dom";
-import { getMediaById } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Maximize, 
-  Lightbulb, 
-  Compass, 
+import {
+  ArrowLeft,
+  MapPin,
+  Maximize,
+  Lightbulb,
+  Compass,
   Calendar,
   Edit,
   TrendingUp,
@@ -27,19 +26,19 @@ import { format } from "date-fns"; // Import date formatter
 const AdminMediaDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   // 1. Fetch Media Details
   const { data: apiMedia, isLoading: isLoadingMedia } = useMediaById(id || '');
-  
+
   // 2. Fetch Full Booking History (to get Customer Names & Status)
-  const { data: bookingsData, isLoading: isLoadingBookings } = useBookings({ 
+  const { data: bookingsData, isLoading: isLoadingBookings } = useBookings({
     mediaId: id,
     limit: 50 // Get the last 50 bookings
   });
-  
-  const media = (isBackendConfigured() && apiMedia 
+
+  const media = (apiMedia
     ? adaptMediaLocation(apiMedia as any)
-    : getMediaById(id || '')) as MediaLocation | null;
+    : null) as MediaLocation | null;
 
   if (isBackendConfigured() && isLoadingMedia) {
     return (
@@ -76,12 +75,12 @@ const AdminMediaDetail = () => {
 
   const displayImage = media.imageUrl || media.image || 'https://placehold.co/800x450?text=Image+Not+Available';
 
-  const statusVariant = 
+  const statusVariant =
     media.status === 'Available' ? 'success' :
     media.status === 'Booked' ? 'destructive' : 'warning';
 
   // Sort bookings: Newest first
-  const sortedBookings = bookingsData?.data 
+  const sortedBookings = bookingsData?.data
     ? [...bookingsData.data].sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
     : [];
 
@@ -118,8 +117,8 @@ const AdminMediaDetail = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Main Media Image */}
           <Card className="overflow-hidden bg-card border-border/50 shadow-sm">
-            <img 
-              src={displayImage} 
+            <img
+              src={displayImage}
               alt={media.name}
               className="w-full aspect-video object-cover"
               onError={(e) => {
@@ -136,15 +135,15 @@ const AdminMediaDetail = () => {
           {/* Specs Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { icon: Maximize, label: 'Size', value: media.size || 'N/A', color: 'primary' },
-              { icon: Lightbulb, label: 'Lighting', value: media.lighting || 'Non-Lit', color: 'warning' },
-              { icon: Compass, label: 'Facing', value: media.facing || 'N/A', color: 'success' },
-              { icon: MapPin, label: 'District', value: media.district || 'N/A', color: 'destructive' },
+              { icon: Maximize, label: 'Size', value: media.size || 'N/A', bg: 'bg-primary/10', text: 'text-primary' },
+              { icon: Lightbulb, label: 'Lighting', value: media.lighting || 'Non-Lit', bg: 'bg-yellow-500/10', text: 'text-yellow-600' },
+              { icon: Compass, label: 'Facing', value: media.facing || 'N/A', bg: 'bg-emerald-500/10', text: 'text-emerald-600' },
+              { icon: MapPin, label: 'District', value: media.district || 'N/A', bg: 'bg-destructive/10', text: 'text-destructive' },
             ].map((spec) => (
               <Card key={spec.label} className="p-4 bg-card border-border/50">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg bg-${spec.color}/10`}>
-                    <spec.icon className={`h-4 w-4 text-${spec.color}`} />
+                  <div className={`p-2 rounded-lg ${spec.bg}`}>
+                    <spec.icon className={`h-4 w-4 ${spec.text}`} />
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">{spec.label}</div>
@@ -169,15 +168,15 @@ const AdminMediaDetail = () => {
                   // Handle populated data in either customerId (raw) or customer (adapted)
                   const customerObj = booking.customer || (typeof booking.customerId === 'object' ? booking.customerId : null);
                   const customerName = customerObj?.company || customerObj?.name || "Deleted Customer";
-                  
+
                   // FIX: Safely parse dates to prevent React crashes if data is missing/malformed
                   const startDate = booking.startDate ? format(new Date(booking.startDate), "dd MMM yyyy") : "N/A";
                   const endDate = booking.endDate ? format(new Date(booking.endDate), "dd MMM yyyy") : "N/A";
                   const isActive = booking.status === 'Active';
 
                   return (
-                    <div 
-                      key={booking._id || booking.id} 
+                    <div
+                      key={booking._id || booking.id}
                       className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${
                         isActive ? 'bg-primary/5 border-primary/20' : 'bg-card border-border/50'
                       }`}
@@ -185,7 +184,7 @@ const AdminMediaDetail = () => {
                       <div className={`p-2 rounded-full ${isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                         <User className="h-4 w-4" />
                       </div>
-                      
+
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
                           <div>
@@ -247,18 +246,18 @@ const AdminMediaDetail = () => {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-muted-foreground">Occupancy Rate</span>
-                  <span className="font-medium">{media.occupancyRate}%</span>
+                  <span className="font-medium">{media.occupancyRate ?? 0}%</span>
                 </div>
-                <Progress value={media.occupancyRate} className="h-2" />
+                <Progress value={media.occupancyRate ?? 0} className="h-2" />
               </div>
               <div className="flex items-center justify-between py-3 border-t border-border">
                 <span className="text-sm text-muted-foreground">Monthly Rate</span>
-                <span className="font-medium">₹{media.pricePerMonth?.toLocaleString()}</span>
+                <span className="font-medium">₹{(media.pricePerMonth ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between py-3 border-t border-border">
                 <span className="text-sm text-muted-foreground">Estimated Revenue</span>
                 <span className="font-medium text-success">
-                  ₹{((media.pricePerMonth * 12 * media.occupancyRate) / 100).toLocaleString()}
+                  ₹{(((media.pricePerMonth ?? 0) * 12 * (media.occupancyRate ?? 0)) / 100).toLocaleString()}
                 </span>
               </div>
             </div>

@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Maintenance, Media } = require('../models');
+const { Maintenance, Media, Booking } = require('../models');
 const { authMiddleware } = require('../middleware/auth');
 const { logActivity } = require('../services/logger');
 
@@ -96,9 +96,19 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Maintenance record not found' });
     }
     
-    // Update media status back to Available
+    // Update media status: check for active bookings before defaulting to Available
     if (record.mediaId) {
-      await Media.findByIdAndUpdate(record.mediaId, { status: 'Available' });
+      const now = new Date();
+      const activeBooking = await Booking.findOne({
+        mediaId: record.mediaId,
+        deleted: false,
+        status: { $nin: ['Cancelled', 'Completed'] },
+        startDate: { $lte: now },
+        endDate: { $gte: now }
+      });
+      
+      const newStatus = activeBooking ? 'Booked' : 'Available';
+      await Media.findByIdAndUpdate(record.mediaId, { status: newStatus });
     }
 
     // LOG ACTIVITY

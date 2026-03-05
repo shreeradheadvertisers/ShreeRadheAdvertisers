@@ -1,82 +1,65 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
-import { useNavigate } from "react-router-dom"; 
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { StatsCard } from "@/components/admin/StatsCard";
 import { DistrictBreakdown } from "@/components/admin/DistrictBreakdown";
 import { ExpiringBookings } from "@/components/admin/ExpiringBookings";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { PaymentListDialog } from "@/components/admin/PaymentManagement";
-import { 
-  ViewBookingDialog, 
-  AllBookingsDialog, 
-  EditBookingDialog, 
+import {
+  ViewBookingDialog,
+  AllBookingsDialog,
+  EditBookingDialog,
   DeleteBookingDialog,
-  getStatusLabel 
+  getStatusLabel
 } from "@/components/admin/BookingManagement";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  useDashboardStats, 
-  usePaymentStatsAnalytics, 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import {
+  useDashboardStats,
+  usePaymentStatsAnalytics,
   useComplianceStats,
-  useRevenueTrend 
+  useRevenueTrend
 } from "@/hooks/api/useAnalytics";
+import { useMedia } from "@/hooks/api/useMedia";
 import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
-import { 
-  MapPin, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  Building2, 
-  TrendingUp, 
-  IndianRupee, 
-  AlertCircle, 
-  Wallet, 
-  ShieldAlert, 
+import {
+  MapPin,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Building2,
+  TrendingUp,
+  IndianRupee,
+  AlertCircle,
+  Wallet,
+  ShieldAlert,
   FileText,
-  Plus
+  Plus,
+  ChevronRight,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { formatIndianRupee } from "@/lib/utils";
-
-// --- HELPER: Generate Custom Booking ID (SRA/AY/XXXX) ---
-const generateDisplayId = (booking: any, index: number) => {
-  if (!booking) return "N/A";
-  const dateSource = booking.startDate || booking.createdAt;
-  let ay = "0000";
-  if (dateSource) {
-      const d = new Date(dateSource);
-      if (!isNaN(d.getTime())) {
-          const year = d.getFullYear();
-          const month = d.getMonth();
-          let startYear, endYear;
-          if (month < 3) {
-             startYear = year - 1;
-             endYear = year;
-          } else {
-             startYear = year;
-             endYear = year + 1;
-          }
-          ay = `${String(startYear).slice(-2)}${String(endYear).slice(-2)}`;
-      }
-  }
-  const sequence = 1000 + index + 1;
-  return `SRA/${ay}/${sequence}`;
-};
+import { formatIndianRupee, generateBookingId } from "@/lib/utils";
 
 const Dashboard = () => {
-  const navigate = useNavigate(); 
-  
+  const navigate = useNavigate();
+
   // --- 1. FETCH LIVE DATA FROM API ---
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: revenueTrend, isLoading: trendLoading } = useRevenueTrend(); 
+  const { data: revenueTrend, isLoading: trendLoading } = useRevenueTrend();
   const { data: paymentStats } = usePaymentStatsAnalytics();
   const { data: complianceStats } = useComplianceStats();
-  
+
   const { data: recentBookingsRes, refetch: refetchRecent } = useBookings({ limit: 100 });
-  
+  const { data: allMediaRes } = useMedia({ limit: 2000 });
+
   const [reportPage, setReportPage] = useState(1);
   const { data: allBookingsRes, refetch: refetchAll } = useBookings({ limit: 10, page: reportPage });
   const allBookings = allBookingsRes?.data || [];
@@ -88,17 +71,69 @@ const Dashboard = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [paymentFilter, setPaymentFilter] = useState<'All' | 'Pending' | 'Partially Paid' | 'Paid'>('All');
-  
+
   const [viewBooking, setViewBooking] = useState<any>(null);
   const [editBooking, setEditBooking] = useState<any>(null);
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [allBookingsOpen, setAllBookingsOpen] = useState(false);
 
+  // --- DRILL-DOWN DIALOG STATES ---
+  const [inventoryDrillOpen, setInventoryDrillOpen] = useState(false);
+  const [inventoryDrillFilter, setInventoryDrillFilter] = useState<string>('all');
+  const [statesDialogOpen, setStatesDialogOpen] = useState(false);
+  const [districtsDialogOpen, setDistrictsDialogOpen] = useState(false);
+
+  // --- COMPUTED: Inventory breakdown for drill-down ---
+  const allMedia = useMemo(() => allMediaRes?.data || [], [allMediaRes?.data]);
+  const inventoryBreakdown = useMemo(() => {
+    const byStatus: Record<string, any[]> = { Available: [], Booked: [], 'Coming Soon': [], Maintenance: [] };
+    allMedia.forEach((m: any) => {
+      const status = m.status || 'Unknown';
+      if (!byStatus[status]) byStatus[status] = [];
+      byStatus[status].push(m);
+    });
+    return byStatus;
+  }, [allMedia]);
+
+  const filteredInventory = useMemo(() => {
+    if (inventoryDrillFilter === 'all') return allMedia;
+    return inventoryBreakdown[inventoryDrillFilter] || [];
+  }, [allMedia, inventoryBreakdown, inventoryDrillFilter]);
+
+  // --- COMPUTED: State & District breakdowns ---
+  const stateBreakdown = useMemo(() => {
+    const map: Record<string, { total: number; available: number; booked: number }> = {};
+    allMedia.forEach((m: any) => {
+      const state = m.state || 'Unknown';
+      if (!map[state]) map[state] = { total: 0, available: 0, booked: 0 };
+      map[state].total++;
+      if (m.status === 'Available') map[state].available++;
+      if (m.status === 'Booked') map[state].booked++;
+    });
+    return Object.entries(map)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total);
+  }, [allMedia]);
+
+  const districtBreakdown = useMemo(() => {
+    const map: Record<string, { total: number; available: number; booked: number; state: string }> = {};
+    allMedia.forEach((m: any) => {
+      const district = m.district || 'Unknown';
+      if (!map[district]) map[district] = { total: 0, available: 0, booked: 0, state: m.state || '' };
+      map[district].total++;
+      if (m.status === 'Available') map[district].available++;
+      if (m.status === 'Booked') map[district].booked++;
+    });
+    return Object.entries(map)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.total - a.total);
+  }, [allMedia]);
+
   const rawBookings = recentBookingsRes?.data || [];
-  const sortedForIndex = [...rawBookings].sort((a: any, b: any) => 
+  const sortedForIndex = [...rawBookings].sort((a: any, b: any) =>
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
-  
+
   const displayBookings = [...sortedForIndex].reverse().slice(0, 5);
 
   const openPaymentDetails = (filter: 'All' | 'Pending' | 'Partially Paid' | 'Paid') => {
@@ -108,9 +143,9 @@ const Dashboard = () => {
 
   const handleEditSave = async (updatedData: any) => {
     try {
-      await updateBookingMutation.mutateAsync({ 
-          id: updatedData._id || updatedData.id, 
-          data: updatedData 
+      await updateBookingMutation.mutateAsync({
+          id: updatedData._id || updatedData.id,
+          data: updatedData
       });
       toast.success("Booking updated successfully");
       setEditBooking(null);
@@ -146,7 +181,7 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
           <p className="text-muted-foreground">Live advertising platform overview.</p>
         </div>
-        
+
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> New Booking
         </Button>
@@ -169,9 +204,9 @@ const Dashboard = () => {
         <StatsCard title="Total Media" value={stats?.totalMedia || 0} icon={MapPin} variant="primary" onClick={() => navigate('/admin/media')} />
         <StatsCard title="Available" value={stats?.available || 0} icon={CheckCircle} variant="success" onClick={() => navigate('/admin/media?status=Available')} />
         <StatsCard title="Booked" value={stats?.booked || 0} icon={XCircle} variant="danger" onClick={() => navigate('/admin/media?status=Booked')} />
-        <StatsCard title="Coming Soon" value={stats?.comingSoon || 0} icon={Clock} variant="warning" onClick={() => navigate('/admin/media?status=Coming Soon')} />
-        <StatsCard title="States" value={stats?.statesCount || 0} icon={Building2} variant="default" />
-        <StatsCard title="Districts" value={stats?.districtsCount || 0} icon={TrendingUp} variant="default" />
+        <StatsCard title="Coming Soon" value={stats?.comingSoon || 0} icon={Clock} variant="warning" onClick={() => navigate('/admin/maintenance')} />
+        <StatsCard title="States" value={stats?.statesCount || 0} icon={Building2} variant="default" onClick={() => setStatesDialogOpen(true)} />
+        <StatsCard title="Districts" value={stats?.districtsCount || 0} icon={TrendingUp} variant="default" onClick={() => setDistrictsDialogOpen(true)} />
       </div>
 
       {/* Financial Insights */}
@@ -188,7 +223,12 @@ const Dashboard = () => {
 
       {/* Recent Bookings Table */}
       <Card className="p-6 bg-card border-border/50">
-        <h3 className="text-lg font-semibold mb-4">Recent Bookings</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Recent Bookings</h3>
+          <Button variant="ghost" size="sm" className="gap-1 text-primary" onClick={() => navigate('/admin/bookings')}>
+            View All <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
         {/* FIX: overflow-x-auto allows horizontal scrolling on mobile without hiding columns */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[600px]"> {/* min-w forces scroll if screen is smaller */}
@@ -208,14 +248,14 @@ const Dashboard = () => {
                 displayBookings.map((booking: any) => {
                   const index = sortedForIndex.findIndex(b => (b._id || b.id) === (booking._id || booking.id));
                   return (
-                    <tr 
-                      key={booking._id} 
-                      className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors" 
+                    <tr
+                      key={booking._id}
+                      className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
                       onClick={() => setEditBooking(booking)}
                     >
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="font-mono text-xs font-medium text-primary hover:underline">
-                          {generateDisplayId(booking, index)}
+                          {generateBookingId(booking, index)}
                         </span>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
@@ -244,7 +284,7 @@ const Dashboard = () => {
       </Card>
 
       {/* Dialogs */}
-      <PaymentListDialog 
+      <PaymentListDialog
         open={isPaymentOpen}
         onOpenChange={setIsPaymentOpen}
         bookings={allBookings}
@@ -254,39 +294,138 @@ const Dashboard = () => {
       />
 
       {viewBooking && <ViewBookingDialog booking={viewBooking} open={!!viewBooking} onOpenChange={() => setViewBooking(null)} />}
-      
+
       {editBooking && (
-        <EditBookingDialog 
-          booking={editBooking} 
-          open={!!editBooking} 
-          onOpenChange={() => setEditBooking(null)} 
-          onSave={handleEditSave} 
+        <EditBookingDialog
+          booking={editBooking}
+          open={!!editBooking}
+          onOpenChange={() => setEditBooking(null)}
+          onSave={handleEditSave}
         />
       )}
 
       {deleteBookingId && (
-        <DeleteBookingDialog 
-          booking={allBookings.find(b => (b._id || b.id) === deleteBookingId)} 
-          open={!!deleteBookingId} 
-          onOpenChange={() => setDeleteBookingId(null)} 
-          onConfirm={(id: string) => { deleteBookingMutation.mutate(id); setDeleteBookingId(null); }} 
+        <DeleteBookingDialog
+          booking={allBookings.find(b => (b._id || b.id) === deleteBookingId)}
+          open={!!deleteBookingId}
+          onOpenChange={() => setDeleteBookingId(null)}
+          onConfirm={(id: string) => { deleteBookingMutation.mutate(id); setDeleteBookingId(null); }}
         />
       )}
 
-      <AllBookingsDialog 
-        open={allBookingsOpen} 
-        onOpenChange={setAllBookingsOpen} 
+      <AllBookingsDialog
+        open={allBookingsOpen}
+        onOpenChange={setAllBookingsOpen}
         bookings={allBookings}
-        customers={[]} 
-        onEdit={(b: any) => setEditBooking(b)} 
+        customers={[]}
+        onEdit={(b: any) => setEditBooking(b)}
         onDelete={(b: any) => setDeleteBookingId(b._id || b.id)}
         onView={(b: any) => { setAllBookingsOpen(false); setViewBooking(b); }}
-        pagination={{ 
-          currentPage: allBookingsRes?.pagination?.page || 1, 
-          totalPages: allBookingsRes?.pagination?.totalPages || 1, 
-          onPageChange: (page: number) => setReportPage(page) 
+        pagination={{
+          currentPage: allBookingsRes?.pagination?.page || 1,
+          totalPages: allBookingsRes?.pagination?.totalPages || 1,
+          onPageChange: (page: number) => setReportPage(page)
         }}
       />
+
+      {/* ===== STATES DRILL-DOWN DIALOG ===== */}
+      <Dialog open={statesDialogOpen} onOpenChange={setStatesDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Globe className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle>State-wise Inventory</DialogTitle>
+                <DialogDescription>{stateBreakdown.length} states with media presence</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="flex-1 p-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>State</TableHead>
+                  <TableHead className="text-center">Total</TableHead>
+                  <TableHead className="text-center">Available</TableHead>
+                  <TableHead className="text-center">Booked</TableHead>
+                  <TableHead className="text-center">Occupancy</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {stateBreakdown.map(s => (
+                  <TableRow
+                    key={s.name}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => { setStatesDialogOpen(false); navigate(`/admin/media?status=all&state=${encodeURIComponent(s.name)}`); }}
+                  >
+                    <TableCell className="font-bold">{s.name}</TableCell>
+                    <TableCell className="text-center">{s.total}</TableCell>
+                    <TableCell className="text-center"><Badge variant="success">{s.available}</Badge></TableCell>
+                    <TableCell className="text-center"><Badge variant="destructive">{s.booked}</Badge></TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center gap-2">
+                        <Progress value={s.total ? (s.booked / s.total) * 100 : 0} className="h-2 w-16" />
+                        <span className="text-xs text-muted-foreground">{s.total ? Math.round((s.booked / s.total) * 100) : 0}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== DISTRICTS DRILL-DOWN DIALOG ===== */}
+      <Dialog open={districtsDialogOpen} onOpenChange={setDistrictsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <MapPin className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle>District-wise Inventory</DialogTitle>
+                <DialogDescription>{districtBreakdown.length} districts with media presence</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <ScrollArea className="flex-1 p-6">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>District</TableHead>
+                  <TableHead>State</TableHead>
+                  <TableHead className="text-center">Total</TableHead>
+                  <TableHead className="text-center">Available</TableHead>
+                  <TableHead className="text-center">Booked</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {districtBreakdown.map(d => (
+                  <TableRow
+                    key={d.name}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => { setDistrictsDialogOpen(false); navigate(`/admin/media?district=${encodeURIComponent(d.name)}`); }}
+                  >
+                    <TableCell className="font-bold">{d.name}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{d.state}</TableCell>
+                    <TableCell className="text-center">{d.total}</TableCell>
+                    <TableCell className="text-center"><Badge variant="success">{d.available}</Badge></TableCell>
+                    <TableCell className="text-center"><Badge variant="destructive">{d.booked}</Badge></TableCell>
+                    <TableCell><ChevronRight className="h-4 w-4 text-muted-foreground" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -19,10 +19,11 @@ router.get('/', authMiddleware, async (req, res) => {
     const matchStage = { deleted: false };
     if (group) matchStage.group = group;
     if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       matchStage.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { company: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { name: { $regex: escapedSearch, $options: 'i' } },
+        { company: { $regex: escapedSearch, $options: 'i' } },
+        { email: { $regex: escapedSearch, $options: 'i' } }
       ];
     }
 

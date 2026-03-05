@@ -22,22 +22,22 @@ const AddMedia = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
-  
+
   const createMedia = useCreateMedia();
   const uploadImage = useUploadMediaImage();
-  
-  const { 
-    activeState, 
-    states, 
-    getCitiesForDistrict, 
-    getDistrictsForState 
+
+  const {
+    activeState,
+    states,
+    getCitiesForDistrict,
+    getDistrictsForState
   } = useLocationData();
-  
+
   const [formData, setFormData] = useState({
-    id: '', 
+    id: '',
     name: '',
     type: '',
-    state: activeState || 'Chhattisgarh', 
+    state: activeState || 'Chhattisgarh',
     district: '',
     city: '', // This stores the selected Town/Tehsil
     address: '',
@@ -68,7 +68,7 @@ const AddMedia = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // --- CLEAN DATA START ---
     // Trim all inputs to prevent Cloudinary/DB whitespace errors
     const cleanId = formData.id.trim();
@@ -80,7 +80,7 @@ const AddMedia = () => {
     const cleanFacing = formData.facing.trim();
     const cleanState = formData.state.trim();
     // --- CLEAN DATA END ---
-    
+
     if (!cleanId || !cleanName || !formData.type || !cleanState || !cleanDistrict || !cleanCity || !formData.pricePerMonth) {
       toast({
         title: "Missing Fields",
@@ -97,12 +97,12 @@ const AddMedia = () => {
 
       // 1. Upload to Cloudinary with TRIMMED metadata
       if (selectedFile && isBackendConfigured()) {
-        const uploadResponse: any = await uploadImage.mutateAsync({ 
+        const uploadResponse: any = await uploadImage.mutateAsync({
           file: selectedFile,
           customId: cleanId,     // Organized naming (e.g. SRA-101)
           district: cleanDistrict // Organized folder (e.g. Raipur)
         } as any);
-        permanentImageUrl = uploadResponse.url; 
+        permanentImageUrl = uploadResponse.url;
       }
 
       if (isBackendConfigured()) {
@@ -167,7 +167,7 @@ const AddMedia = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="id">Media ID *</Label>
-                  <Input 
+                  <Input
                     id="id"
                     placeholder="e.g., SRA-RPR-001"
                     value={formData.id}
@@ -177,7 +177,7 @@ const AddMedia = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="name">Media Name *</Label>
-                  <Input 
+                  <Input
                     id="name"
                     placeholder="e.g., Telibandha Unipole 1"
                     value={formData.name}
@@ -187,7 +187,7 @@ const AddMedia = () => {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="type">Media Type *</Label>
-                  <Select 
+                  <Select
                     value={formData.type}
                     onValueChange={(v) => setFormData({ ...formData, type: v })}
                   >
@@ -220,7 +220,7 @@ const AddMedia = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>District *</Label>
-                  <Select 
+                  <Select
                     value={formData.district}
                     onValueChange={handleDistrictChange}
                     disabled={!formData.state}
@@ -235,7 +235,7 @@ const AddMedia = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Town / Tehsil *</Label>
-                  <Select 
+                  <Select
                     value={formData.city}
                     onValueChange={(v) => setFormData({ ...formData, city: v })}
                     disabled={!formData.district}
@@ -251,7 +251,7 @@ const AddMedia = () => {
               </div>
               <div className="mt-5 space-y-2">
                 <Label htmlFor="address">Full Address *</Label>
-                <Textarea 
+                <Textarea
                   id="address"
                   placeholder="Enter complete address"
                   value={formData.address}
@@ -322,7 +322,7 @@ const AddMedia = () => {
               <h3 className="font-semibold mb-4">Pricing</h3>
               <div className="space-y-2">
                 <Label htmlFor="price">Monthly Rate (₹) *</Label>
-                <Input 
+                <Input
                   id="price"
                   type="number"
                   placeholder="e.g., 100000"

@@ -29,7 +29,9 @@ const PaymentSchema = new mongoose.Schema({
   transactionId: String,
   receiptUrl: String,
   notes: String,
-  date: { type: Date, default: Date.now }
+  date: { type: Date, default: Date.now },
+  deleted: { type: Boolean, default: false },
+  deletedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 // Indexes

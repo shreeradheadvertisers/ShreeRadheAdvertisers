@@ -20,7 +20,7 @@ const logActivity = async (req, action, module, description, details = {}) => {
       module,
       description,
       details,
-      ipAddress: req.ip || req.connection.remoteAddress,
+      ipAddress: req.ip || req.socket?.remoteAddress,
       userAgent: req.get('User-Agent')
     });
   } catch (error) {

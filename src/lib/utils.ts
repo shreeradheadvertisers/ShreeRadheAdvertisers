@@ -29,35 +29,35 @@ export function getOptimizedImage(url: string | undefined, type: 'thumbnail' | '
  */
 export function formatIndianRupee(amount: number): string {
   if (amount === 0) return "0";
-  
+
   const isNegative = amount < 0;
   const absAmount = Math.abs(amount);
-  
+
   const [integerPart, decimalPart] = absAmount.toString().split(".");
-  
+
   let result = "";
   const len = integerPart.length;
-  
+
   if (len <= 3) {
     result = integerPart;
   } else {
     result = integerPart.slice(-3);
     let remaining = integerPart.slice(0, -3);
-    
+
     while (remaining.length > 2) {
       result = remaining.slice(-2) + "," + result;
       remaining = remaining.slice(0, -2);
     }
-    
+
     if (remaining.length > 0) {
       result = remaining + "," + result;
     }
   }
-  
+
   if (decimalPart) {
     result += "." + decimalPart.slice(0, 2); // Limit to 2 decimal places
   }
-  
+
   return (isNegative ? "-" : "") + result;
 }
 

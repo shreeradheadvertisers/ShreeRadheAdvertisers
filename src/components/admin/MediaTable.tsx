@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch"; 
+import { Switch } from "@/components/ui/switch";
 import {
     Table,
     TableBody,
@@ -33,7 +33,7 @@ interface MediaTableProps {
     onDelete: (id: string) => void;
     onEdit: (id: string) => void;
     onToggleStatus: (id: string, currentStatus: string) => void;
-    onToggleVisibility: (id: string, currentVal: boolean) => void; 
+    onToggleVisibility: (id: string, currentVal: boolean) => void;
 }
 
 export function MediaTable({
@@ -43,7 +43,7 @@ export function MediaTable({
     onDelete,
     onEdit,
     onToggleStatus,
-    onToggleVisibility, 
+    onToggleVisibility,
 }: MediaTableProps) {
     const navigate = useNavigate();
 
@@ -77,7 +77,7 @@ export function MediaTable({
                             const isPublic = (media as any).isPublic !== false;
 
                             return (
-                                <TableRow key={itemId} className="hover:bg-muted/10 group">
+                                <TableRow key={itemId} className="hover:bg-muted/10 group cursor-pointer transition-colors" onClick={() => navigate(`/admin/media/${itemId}`)}>
                                     <TableCell className="font-mono text-[10px] pl-6 text-muted-foreground">
                                         {media.id}
                                     </TableCell>
@@ -95,7 +95,7 @@ export function MediaTable({
                                             {media.type}
                                         </Badge>
                                     </TableCell>
-                                    
+
                                     {/* Added Price Cell */}
                                     <TableCell className="text-sm font-medium">
                                         ₹{media.pricePerMonth?.toLocaleString() || "0"}
@@ -107,6 +107,7 @@ export function MediaTable({
                                                 checked={isPublic}
                                                 onCheckedChange={(checked) => onToggleVisibility(itemId, checked)}
                                                 className="data-[state=checked]:bg-green-600 scale-90"
+                                                onClick={(e) => e.stopPropagation()}
                                             />
                                             <span className="text-[10px] text-muted-foreground w-8">
                                                 {isPublic ? "Visible" : "Hidden"}
@@ -128,7 +129,7 @@ export function MediaTable({
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8"
-                                                onClick={() => navigate(`/admin/media/${itemId}`)}
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/admin/media/${itemId}`); }}
                                             >
                                                 <Eye className="h-4 w-4" />
                                             </Button>
@@ -136,7 +137,7 @@ export function MediaTable({
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 text-orange-500 hover:bg-orange-50"
-                                                onClick={() => onToggleStatus(itemId, media.status || "Available")}
+                                                onClick={(e) => { e.stopPropagation(); onToggleStatus(itemId, media.status || "Available"); }}
                                             >
                                                 <Power className="h-4 w-4" />
                                             </Button>
@@ -144,7 +145,7 @@ export function MediaTable({
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 text-primary hover:bg-primary/5"
-                                                onClick={() => onEdit(itemId)}
+                                                onClick={(e) => { e.stopPropagation(); onEdit(itemId); }}
                                             >
                                                 <Edit className="h-4 w-4" />
                                             </Button>
@@ -152,7 +153,7 @@ export function MediaTable({
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                                onClick={() => onDelete(itemId)}
+                                                onClick={(e) => { e.stopPropagation(); onDelete(itemId); }}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>

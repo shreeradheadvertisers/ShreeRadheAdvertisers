@@ -1,6 +1,6 @@
 import ReactGA from "react-ga4";
 
-const GA_MEASUREMENT_ID = "G-Y0B6G27337"; 
+const GA_MEASUREMENT_ID = "G-Y0B6G27337";
 
 export const initGA = () => {
   // Initialize GA4 only once

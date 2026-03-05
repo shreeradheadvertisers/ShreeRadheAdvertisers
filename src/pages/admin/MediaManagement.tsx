@@ -3,10 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MapPin, PlusCircle, Upload, Loader2, FileSpreadsheet, FileText, FileBox } from "lucide-react"; 
-import { useNavigate, useSearchParams } from "react-router-dom"; 
+import { Search, MapPin, PlusCircle, Upload, Loader2, FileSpreadsheet, FileText, FileBox } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { MediaTable } from "@/components/admin/MediaTable";
-import { mediaTypes } from "@/lib/data"; 
+import { mediaTypes } from "@/lib/data";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -36,15 +36,15 @@ const MediaManagement = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeState, districts } = useLocationData();
-  
+
   // --- UPDATED: Safely initialize from URL first, then SessionStorage, then default ---
   const getInitialFilter = (key: string, defaultValue: string) => {
     const urlValue = searchParams.get(key);
     if (urlValue !== null) return urlValue; // URL takes priority
-    
+
     const storedValue = sessionStorage.getItem(`media_filter_${key}`);
     if (storedValue !== null) return storedValue; // Fallback to memory if redirected without params
-    
+
     return defaultValue;
   };
 
@@ -56,7 +56,7 @@ const MediaManagement = () => {
     const page = getInitialFilter("page", "1");
     return Number(page) || 1;
   });
-  
+
   const itemsPerPage = 12;
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<MediaLocation | null>(null);
@@ -233,10 +233,10 @@ const MediaManagement = () => {
               <p>Fetching billboards...</p>
             </div>
           ) : (
-            <MediaTable 
-              data={(mediaResponse?.data || []) as any} 
-              pagination={mediaResponse?.pagination} 
-              onPageChange={setCurrentPage}         
+            <MediaTable
+              data={(mediaResponse?.data || []) as any}
+              pagination={mediaResponse?.pagination}
+              onPageChange={setCurrentPage}
               onDelete={(id) => {
                 const item = mediaResponse?.data.find(m => m._id === id || m.id === id);
                 if (item) setItemToDelete(item);

@@ -63,13 +63,14 @@ router.delete('/permanent-delete', authMiddleware, requireRole('admin', 'superad
       return res.status(400).json({ message: "ID and Type are required." });
     }
 
+    // SAFETY: Only delete items that are already soft-deleted (in the recycle bin)
     let result;
     switch (type.toLowerCase()) {
-      case 'media': result = await Media.findByIdAndDelete(id); break;
-      case 'booking': result = await Booking.findByIdAndDelete(id); break;
-      case 'customer': result = await Customer.findByIdAndDelete(id); break;
-      case 'agreement': result = await Tender.findByIdAndDelete(id); break;
-      case 'tax': result = await TaxRecord.findByIdAndDelete(id); break;
+      case 'media': result = await Media.findOneAndDelete({ _id: id, deleted: true }); break;
+      case 'booking': result = await Booking.findOneAndDelete({ _id: id, deleted: true }); break;
+      case 'customer': result = await Customer.findOneAndDelete({ _id: id, deleted: true }); break;
+      case 'agreement': result = await Tender.findOneAndDelete({ _id: id, deleted: true }); break;
+      case 'tax': result = await TaxRecord.findOneAndDelete({ _id: id, deleted: true }); break;
       default: return res.status(400).json({ message: "Invalid item type" });
     }
 

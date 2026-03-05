@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Maximize, 
-  Lightbulb, 
-  Compass, 
+import {
+  ArrowLeft,
+  MapPin,
+  Maximize,
+  Lightbulb,
+  Compass,
   Calendar as CalendarIcon,
   Mail,
   Loader2
@@ -36,7 +36,7 @@ const MediaDetail = () => {
     // We check media.bookedDates (from the MediaLocation interface)
     // The previous code failed because useBookings (protected route) returned 401 for public users
     if (!media?.bookedDates) return [];
-    
+
     return media.bookedDates.map(range => ({
       from: startOfDay(parseISO(range.start)),
       to: startOfDay(parseISO(range.end))
@@ -65,7 +65,7 @@ const MediaDetail = () => {
     );
   }
 
-  const statusVariant = 
+  const statusVariant =
     media.status === 'Available' ? 'success' :
     media.status === 'Booked' ? 'destructive' : 'warning';
 
@@ -79,8 +79,8 @@ const MediaDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="relative aspect-video rounded-xl overflow-hidden bg-muted">
-              <img 
-                src={media.imageUrl || (media as any).image} 
+              <img
+                src={media.imageUrl || (media as any).image}
                 alt={media.name}
                 className="w-full h-full object-cover"
               />
@@ -169,17 +169,17 @@ const MediaDetail = () => {
                   <Button className="w-full" size="lg" onClick={() => navigate('/contact')}>
                     <Mail className="h-4 w-4 mr-2" /> Inquire Now
                   </Button>
-                  
+
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full" size="lg">
                         <CalendarIcon className="h-4 w-4 mr-2" /> Check Availability
                       </Button>
                     </PopoverTrigger>
-                    
+
                     {/* WHITE Background for Calendar Container */}
                     <PopoverContent className="w-auto p-0 border shadow-xl rounded-xl bg-white" align="end">
-                      
+
                       {/* White Header with Status Legend */}
                       <div className="p-3 border-b bg-muted/20 flex justify-between items-center text-xs">
                         <span className="font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
@@ -198,17 +198,17 @@ const MediaDetail = () => {
                       <div className="p-3">
                         <Calendar
                           mode="single"
-                          showOutsideDays={true} 
+                          showOutsideDays={true}
                           fixedWeeks={false}
                           fromDate={new Date()}
                           disabled={{ before: new Date() }}
                           modifiers={{
-                            booked: (date) => bookedDays.some(range => 
+                            booked: (date) => bookedDays.some(range =>
                               isWithinInterval(startOfDay(date), { start: range.from, end: range.to })
                             )
                           }}
                           modifiersStyles={{
-                            booked: { 
+                            booked: {
                               backgroundColor: '#b91c1c', // red-700
                               color: 'white',
                               textDecoration: 'line-through',

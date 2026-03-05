@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Centralized Recycle Bin Context
 // Manages soft-deleted items across all modules with 30-day retention
 
@@ -39,8 +40,8 @@ export function RecycleBinProvider({ children }: { children: React.ReactNode }) 
   const clearExpiredItems = useCallback(() => {
     const now = new Date().getTime();
     const retentionMs = RETENTION_DAYS * 24 * 60 * 60 * 1000;
-    
-    setDeletedItems(prev => 
+
+    setDeletedItems(prev =>
       prev.filter(item => {
         const deletedTime = new Date(item.deletedAt).getTime();
         return (now - deletedTime) < retentionMs;

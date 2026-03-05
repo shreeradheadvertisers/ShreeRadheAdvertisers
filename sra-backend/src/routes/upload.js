@@ -20,6 +20,7 @@ const Media = require('../models/Media'); // 👈 ADDED: To fetch media name
  * Image Upload - Organizes by District and ID
  */
 router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
+  const filePath = req.file?.path;
   try {
     if (!req.file) return res.status(400).json({ message: 'No image provided' });
     const { customId, district } = req.body; 
@@ -28,8 +29,7 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
       return res.status(400).json({ message: 'SRA ID and District required' });
     }
 
-    const fileUrl = await uploadToCloudinary(req.file.path, customId, district, 'media');
-    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    const fileUrl = await uploadToCloudinary(filePath, customId, district, 'media');
     
     // UPDATED: Fetch Media Name AND MongoDB ID for logging & redirection
     let mediaName = 'Unknown';
@@ -63,6 +63,9 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
     res.json({ success: true, url: fileUrl });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  } finally {
+    // Always clean up temp file
+    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
 });
 
@@ -70,6 +73,7 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
  * Document Upload - Now with Automatic Tax Registry Population
  */
 router.post('/document', authMiddleware, upload.single('file'), async (req, res) => {
+  const filePath = req.file?.path;
   try {
     if (!req.file) return res.status(400).json({ message: 'No document provided' });
 
@@ -91,7 +95,7 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
     }
 
     // 1. Upload to Cloudinary
-    const fileUrl = await uploadToCloudinary(req.file.path, customId, district, type || 'documents');
+    const fileUrl = await uploadToCloudinary(filePath, customId, district, type || 'documents');
     
     // 2. PERMANENT SAVE TO MONGODB
     if (type === 'tender') {
@@ -199,7 +203,7 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
       );
     }
 
-    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
     
     res.json({ 
       success: true, 
@@ -209,6 +213,9 @@ router.post('/document', authMiddleware, upload.single('file'), async (req, res)
   } catch (error) {
     console.error("Upload/Save Error:", error);
     res.status(500).json({ success: false, message: error.message });
+  } finally {
+    // Always clean up temp file
+    if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
 });
 

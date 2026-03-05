@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, RefreshCw, Clock } from "lucide-react"; 
+import { Trash2, RefreshCw, Clock } from "lucide-react";
 import { CentralBinItem } from "@/lib/api/types";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -43,10 +43,10 @@ export function RecycleBinDialog({
   onRestoreAll,
   onDeleteAll,
 }: RecycleBinDialogProps) {
-  const [confirmAction, setConfirmAction] = useState<{ 
-    id: string; 
-    type: CentralBinItem['type']; 
-    mode: 'restore' | 'delete' 
+  const [confirmAction, setConfirmAction] = useState<{
+    id: string;
+    type: CentralBinItem['type'];
+    mode: 'restore' | 'delete'
   } | null>(null);
   const [bulkConfirm, setBulkConfirm] = useState<'restore-all' | 'delete-all' | null>(null);
 
@@ -83,18 +83,18 @@ export function RecycleBinDialog({
 
             {deletedItems.length > 0 && (
               <div className="flex gap-2 py-2 mt-2 border-y border-border/50">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="text-green-600 border-green-200 hover:bg-green-50"
                   onClick={() => setBulkConfirm('restore-all')}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Restore All
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="text-destructive border-destructive/30 hover:bg-destructive/10"
                   onClick={() => setBulkConfirm('delete-all')}
                 >
@@ -169,14 +169,14 @@ export function RecycleBinDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmAction?.mode === 'restore' ? "Restore Item?" : "Delete Permanently?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmAction?.mode === 'restore' 
-                ? "This will move the record back to your active list." 
+              {confirmAction?.mode === 'restore'
+                ? "This will move the record back to your active list."
                 : "This action is final and cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => confirmAction && (confirmAction.mode === 'restore' ? onRestore(confirmAction.id, confirmAction.type) : onPermanentDelete(confirmAction.id, confirmAction.type))}
               className={confirmAction?.mode === 'delete' ? "bg-destructive hover:bg-destructive/90" : "bg-primary"}
             >
@@ -192,8 +192,8 @@ export function RecycleBinDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Bulk Action Confirmation</AlertDialogTitle>
             <AlertDialogDescription>
-              {bulkConfirm === 'restore-all' 
-                ? "Restore all items in the bin?" 
+              {bulkConfirm === 'restore-all'
+                ? "Restore all items in the bin?"
                 : "Permanently purge all items? This cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>

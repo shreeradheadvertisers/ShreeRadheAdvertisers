@@ -40,7 +40,7 @@ const authMiddleware = async (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     
     const user = await AdminUser.findById(decoded.id).select('-passwordHash -salt');
-    if (!user || !user.active) {
+    if (!user || !user.active || user.deleted) {
       return res.status(401).json({ message: 'Invalid token or user deactivated.' });
     }
 

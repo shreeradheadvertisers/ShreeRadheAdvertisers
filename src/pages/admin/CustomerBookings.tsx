@@ -1,9 +1,9 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query"; 
-import { useLocation } from "react-router-dom"; 
-import { 
+import { useQueryClient } from "@tanstack/react-query";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
   Users, Search, Building2, Mail, Phone, MapPin, Calendar, IndianRupee,
   ChevronDown, ChevronUp, Plus, Pencil, Trash2, Eye,
   ChevronLeft, ChevronRight, ListFilter, LayoutDashboard, ShieldCheck
@@ -18,23 +18,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { customerGroups as initialGroups } from "@/lib/data";
-import type { Customer, Booking } from "@/lib/api/types"; 
+import type { Customer, Booking } from "@/lib/api/types";
 import { apiClient } from "@/lib/api/client"; // ✅ Added API Client
 
 import { AddCustomerDialog, EditCustomerDialog, DeleteCustomerDialog } from "@/components/admin/CustomerManagement";
 import { CreateBookingDialog } from "@/components/admin/CreateBookingDialog";
 import { CustomerGroupInsights } from "@/components/admin/CustomerGroupInsights";
-import { ExpiringBookings } from "@/components/admin/ExpiringBookings"; 
-import { 
-  EditBookingDialog, 
-  ViewBookingDialog, 
-  DeleteBookingDialog, 
+import { ExpiringBookings } from "@/components/admin/ExpiringBookings";
+import {
+  EditBookingDialog,
+  ViewBookingDialog,
+  DeleteBookingDialog,
   AllBookingsDialog,
-  getStatusLabel 
+  getStatusLabel
 } from "@/components/admin/BookingManagement";
 
 import { toast } from "@/hooks/use-toast";
-import { useCustomers } from "@/hooks/api/useCustomers"; 
+import { useCustomers } from "@/hooks/api/useCustomers";
 import { useBookings, useUpdateBooking, useDeleteBooking } from "@/hooks/api/useBookings";
 import { useUpdateMedia } from "@/hooks/api/useMedia";
 
@@ -61,7 +61,7 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
 
   const filtered = bookings.filter((b: any) => statusFilter === "all" || b.status === statusFilter);
   const displayBookings = filtered.slice(0, 5);
-  
+
   const totalSpent = bookings.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
   const locationDisplay = (customer as any).city || customer.address || 'N/A';
 
@@ -87,11 +87,11 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
           <CardContent className="pt-0 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-muted/30 rounded-lg text-sm mt-2 font-normal">
               <div className="flex items-center gap-2"><Users className="h-4 w-4 text-muted-foreground" /> {customer.name}</div>
-              <div className="flex items-center gap-2 truncate"><Mail className="h-4 w-4 text-muted-foreground" /> {customer.email}</div>
-              <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> {customer.phone}</div>
+              <a href={`mailto:${customer.email}`} className="flex items-center gap-2 truncate hover:text-primary transition-colors" onClick={(e) => e.stopPropagation()}><Mail className="h-4 w-4 text-muted-foreground" /> {customer.email}</a>
+              <a href={`tel:${customer.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors" onClick={(e) => e.stopPropagation()}><Phone className="h-4 w-4 text-muted-foreground" /> {customer.phone}</a>
               <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-muted-foreground" /> {locationDisplay}</div>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm flex items-center gap-2 font-normal"><Calendar className="h-4 w-4 text-primary" /> Recent History</h4>
@@ -113,7 +113,7 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
                 <Table>
                   <TableBody>
                     {displayBookings.map((b: any) => (
-                      <TableRow key={b._id || b.id}>
+                      <TableRow key={b._id || b.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => onViewBooking(b)}>
                         <TableCell className="text-xs font-medium">{(b.mediaId?.name || b.media?.name || "N/A")}</TableCell>
                         <TableCell className="text-[10px] text-muted-foreground font-normal">{b.startDate?.split('T')[0]}</TableCell>
                         <TableCell>
@@ -138,9 +138,10 @@ function CustomerCard({ customer, bookings, onViewBooking }: { customer: Custome
 }
 
 export default function CustomerBookings() {
-  const queryClient = useQueryClient(); 
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const location = useLocation(); // Hook to access navigation state
-  
+
   const [activeTab, setActiveTab] = useState("bookings");
   const [searchQuery, setSearchQuery] = useState("");
   const [clientPage, setClientPage] = useState(1);
@@ -149,7 +150,7 @@ export default function CustomerBookings() {
 
   const { data: custRes, isLoading: loadingCust } = useCustomers({ search: searchQuery, page: clientPage, limit: 10 });
   const { data: masterBookingsRes } = useBookings({ page: masterPage, limit: 10 });
-  const { data: statsRes } = useBookings({ limit: 1000 }); 
+  const { data: statsRes } = useBookings({ limit: 1000 });
 
   const updateBookingMutation = useUpdateBooking();
   const updateMediaMutation = useUpdateMedia();
@@ -173,7 +174,7 @@ export default function CustomerBookings() {
       if (location.state?.openCreateDialog) {
         setCreateBookingOpen(true);
         if (location.state.prefill) setBookingPrefill(location.state.prefill);
-      } 
+      }
       // 2. View Booking Link (From Logs)
       else if (location.state?.viewBookingId) {
         try {
@@ -183,7 +184,7 @@ export default function CustomerBookings() {
           toast({ title: "Error", description: "Could not find booking record.", variant: "destructive" });
         }
       }
-      
+
       // 3. Fallback: Query Params
       const params = new URLSearchParams(location.search);
       if (params.get('action') === 'create') {
@@ -216,15 +217,15 @@ export default function CustomerBookings() {
 
   const handleTotalClientsClick = () => {
     setActiveTab("manage");
-    setTimeout(() => { 
-      listSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); 
+    setTimeout(() => {
+      listSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 200);
   };
 
   const handleUpdateBooking = async (u: Booking) => {
     try {
       await updateBookingMutation.mutateAsync({ id: u._id || u.id, data: u });
-      
+
       const mediaId = typeof u.mediaId === 'object' ? u.mediaId?._id : u.mediaId;
       if (mediaId) {
         const newMediaStatus = u.status === 'Active' ? 'Booked' : 'Available';
@@ -234,7 +235,7 @@ export default function CustomerBookings() {
       await queryClient.invalidateQueries({ queryKey: ['bookings'] });
       await queryClient.invalidateQueries({ queryKey: ['media'] });
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      
+
       toast({ title: "Updated", description: "Dashboard and Media status refreshed." });
     } catch (error) {
       toast({ title: "Error", description: "Failed to update dashboard.", variant: "destructive" });
@@ -244,9 +245,9 @@ export default function CustomerBookings() {
   const handleDeleteBooking = async (id: string) => {
     try {
       await deleteBookingMutation.mutateAsync(id);
-      await queryClient.invalidateQueries(); 
+      await queryClient.invalidateQueries();
       toast({ title: "Deleted", description: "Statistics recalculated." });
-      setDeleteBooking(null); 
+      setDeleteBooking(null);
     } catch (err: any) {
       toast({ title: "Error", description: "Deletion failed.", variant: "destructive" });
     }
@@ -267,16 +268,16 @@ export default function CustomerBookings() {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="shadow-sm font-normal" onClick={() => setAllBookingsOpen(true)}><ListFilter className="h-4 w-4 mr-2" />All Bookings</Button>
           <Button variant="outline" className="shadow-sm font-normal" onClick={() => setAddCustomerOpen(true)}><Plus className="h-4 w-4 mr-2" />Add Client</Button>
-          
+
           {/* UPDATED: Manual Button + Dialog Component */}
           <Button className="shadow-sm font-medium" onClick={() => setCreateBookingOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Booking
           </Button>
 
-          <CreateBookingDialog 
-            open={createBookingOpen} 
-            onOpenChange={setCreateBookingOpen} 
+          <CreateBookingDialog
+            open={createBookingOpen}
+            onOpenChange={setCreateBookingOpen}
             initialData={bookingPrefill} // Passing the prefill data
           />
         </div>
@@ -292,7 +293,7 @@ export default function CustomerBookings() {
           <div className="flex justify-between items-start"><p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Recent bookings</p><Calendar className="h-5 w-5 text-accent" /></div>
           <div className="mt-3"><h3 className="text-2xl font-medium">{snapshotBookings.length}</h3></div>
         </Card>
-        <Card className="p-6 border-l-4 border-l-success shadow-sm bg-card/50">
+        <Card className="p-6 border-l-4 border-l-success shadow-sm bg-card/50 hover:shadow-md transition-all cursor-pointer" onClick={() => navigate('/admin/payments')}>
           <div className="flex justify-between items-start"><p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Gross Revenue</p><IndianRupee className="h-5 w-5 text-success" /></div>
           <div className="mt-3"><h3 className="text-2xl font-medium">₹{(totalRevenue / 100000).toFixed(2)} L</h3></div>
         </Card>
@@ -303,8 +304,8 @@ export default function CustomerBookings() {
       </div>
 
       <div className="my-10">
-        <ExpiringBookings 
-          onViewBooking={setViewBooking} 
+        <ExpiringBookings
+          onViewBooking={setViewBooking}
           onViewReport={() => setAllBookingsOpen(true)}
         />
       </div>
@@ -315,7 +316,7 @@ export default function CustomerBookings() {
             <TabsTrigger value="bookings" className="font-medium">Client Cards</TabsTrigger>
             <TabsTrigger value="manage" className="font-medium">Customer Registry</TabsTrigger>
           </TabsList>
-          
+
           <div className="mt-6">
             <div className="relative max-w-md mb-6">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -349,15 +350,15 @@ export default function CustomerBookings() {
                     </TableHeader>
                     <TableBody>
                       {processedCustomers.map(c => (
-                        <TableRow key={c.id} className="hover:bg-muted/20 transition-colors font-normal">
+                        <TableRow key={c.id} className="hover:bg-muted/20 transition-colors font-normal cursor-pointer" onClick={() => { setActiveTab('bookings'); setSearchQuery(c.company); }}>
                           <TableCell className="font-medium">{c.company}</TableCell>
                           <TableCell><Badge variant="outline" className="bg-background font-normal">{c.group || 'General'}</Badge></TableCell>
                           <TableCell className="text-center font-normal">
                             <Badge variant="secondary" className="font-mono font-normal">{c.totalBookings}</Badge>
                           </TableCell>
                           <TableCell className="text-right flex justify-end gap-1 font-normal">
-                            <Button variant="ghost" size="icon" onClick={() => setEditCustomer(c)}><Pencil className="h-4 w-4"/></Button>
-                            <Button variant="ghost" size="icon" className="text-destructive font-normal" onClick={() => setDeleteCustomer(c)}><Trash2 className="h-4 w-4"/></Button>
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditCustomer(c); }}><Pencil className="h-4 w-4"/></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive font-normal" onClick={(e) => { e.stopPropagation(); setDeleteCustomer(c); }}><Trash2 className="h-4 w-4"/></Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -378,9 +379,9 @@ export default function CustomerBookings() {
       </div>
 
       {/* MODALS */}
-      <AllBookingsDialog 
-        open={allBookingsOpen} 
-        onOpenChange={setAllBookingsOpen} 
+      <AllBookingsDialog
+        open={allBookingsOpen}
+        onOpenChange={setAllBookingsOpen}
         bookings={masterBookingsRes?.data || []}
         customers={processedCustomers}
         onEdit={setEditBooking}

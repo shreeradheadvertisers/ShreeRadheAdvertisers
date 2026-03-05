@@ -3,21 +3,21 @@ import { useState, useEffect, useCallback } from "react";
 import { apiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription 
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs
 import { toast } from "sonner";
-import { 
-  Plus, Edit, Key, Trash2, Loader2, AlertCircle, Eye, EyeOff, 
+import {
+  Plus, Edit, Key, Trash2, Loader2, AlertCircle, Eye, EyeOff,
   RotateCcw, CheckCircle2 // New Icons
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -29,13 +29,13 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [passwordMode, setPasswordMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Tab State for Soft Delete
-  const [activeTab, setActiveTab] = useState("active"); 
+  const [activeTab, setActiveTab] = useState("active");
 
   // General Form State
   const [formData, setFormData] = useState({ name: '', username: '', email: '', role: 'staff' });
-  
+
   // Password State
   const [passwordData, setPasswordData] = useState({ newPassword: '', confirmPassword: '' });
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -47,9 +47,9 @@ export default function UserManagement() {
     try {
       const statusParam = activeTab === 'deleted' ? 'deleted' : 'active';
       const response = await apiClient.get<any>(`/api/users?status=${statusParam}`);
-      
+
       let userData: any[] = [];
-      
+
       // Data Extraction Logic
       if (Array.isArray(response)) {
         userData = response;
@@ -63,10 +63,10 @@ export default function UserManagement() {
 
       setUsers(userData);
 
-    } catch (err) { 
+    } catch (err) {
       console.error("Fetch Error:", err);
-      toast.error("Failed to fetch users"); 
-      setUsers([]); 
+      toast.error("Failed to fetch users");
+      setUsers([]);
     }
   }, [activeTab]); // Re-run when tab changes
 
@@ -96,11 +96,11 @@ export default function UserManagement() {
 
   const openEditDialog = (user: any) => {
     setEditingUser(user);
-    setFormData({ 
-      name: user.name, 
-      username: user.username, 
-      email: user.email, 
-      role: user.role 
+    setFormData({
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      role: user.role
     });
     setPasswordMode(false);
     setIsOpen(true);
@@ -109,7 +109,7 @@ export default function UserManagement() {
   const openAddDialog = () => {
     setEditingUser(null);
     setFormData({ name: '', username: '', email: '', role: 'staff' });
-    setPasswordData({ newPassword: '', confirmPassword: '' }); 
+    setPasswordData({ newPassword: '', confirmPassword: '' });
     setPasswordMode(false);
     setIsOpen(true);
   };
@@ -223,8 +223,8 @@ export default function UserManagement() {
                       </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
-                    {user.deletedAt 
-                      ? <span className="text-destructive">{format(new Date(user.deletedAt), 'dd MMM yyyy')}</span> 
+                    {user.deletedAt
+                      ? <span className="text-destructive">{format(new Date(user.deletedAt), 'dd MMM yyyy')}</span>
                       : (user.createdAt ? format(new Date(user.createdAt), 'dd MMM yyyy') : 'N/A')
                     }
                   </TableCell>
@@ -243,9 +243,9 @@ export default function UserManagement() {
                       </div>
                     ) : (
                       // Restore Action for Deactivated Users
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="text-primary hover:text-primary border-primary/20 hover:bg-primary/5 gap-2"
                         onClick={() => handleRestore(user._id)}
                       >
@@ -278,7 +278,7 @@ export default function UserManagement() {
                 </DialogDescription>
             )}
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {errorMsg && (
                 <Alert variant="destructive">
@@ -314,17 +314,17 @@ export default function UserManagement() {
                     <Label htmlFor="email">Email</Label>
                     <Input id="email" type="email" placeholder="john@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required disabled={!!editingUser} />
                 </div>
-                
+
                 {!editingUser && (
                    <div className="space-y-2 pt-2 border-t">
                       <Label htmlFor="initPass">Initial Password (Optional)</Label>
                       <div className="relative">
-                        <Input 
-                          id="initPass" 
+                        <Input
+                          id="initPass"
                           type={showNewPass ? "text" : "password"}
-                          placeholder="Default: SRA@staff123" 
-                          value={passwordData.newPassword} 
-                          onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})} 
+                          placeholder="Default: SRA@staff123"
+                          value={passwordData.newPassword}
+                          onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
                           className="pr-10"
                         />
                         <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
@@ -341,12 +341,12 @@ export default function UserManagement() {
                 <div className="space-y-2">
                     <Label htmlFor="newPass">New Password</Label>
                     <div className="relative">
-                      <Input 
-                          id="newPass" 
+                      <Input
+                          id="newPass"
                           type={showNewPass ? "text" : "password"}
-                          placeholder="Min 8 characters" 
-                          value={passwordData.newPassword} 
-                          onChange={e => { setErrorMsg(null); setPasswordData({...passwordData, newPassword: e.target.value}); }} 
+                          placeholder="Min 8 characters"
+                          value={passwordData.newPassword}
+                          onChange={e => { setErrorMsg(null); setPasswordData({...passwordData, newPassword: e.target.value}); }}
                           required minLength={8} className="pr-10"
                       />
                       <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
@@ -357,12 +357,12 @@ export default function UserManagement() {
                 <div className="space-y-2">
                     <Label htmlFor="confPass">Confirm Password</Label>
                     <div className="relative">
-                      <Input 
-                          id="confPass" 
+                      <Input
+                          id="confPass"
                           type={showConfPass ? "text" : "password"}
-                          placeholder="Re-enter new password" 
-                          value={passwordData.confirmPassword} 
-                          onChange={e => { setErrorMsg(null); setPasswordData({...passwordData, confirmPassword: e.target.value}); }} 
+                          placeholder="Re-enter new password"
+                          value={passwordData.confirmPassword}
+                          onChange={e => { setErrorMsg(null); setPasswordData({...passwordData, confirmPassword: e.target.value}); }}
                           required className="pr-10"
                       />
                       <button type="button" onClick={() => setShowConfPass(!showConfPass)} className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">

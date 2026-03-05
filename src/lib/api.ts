@@ -85,7 +85,7 @@ class SRAApi {
     params?: Record<string, string | number | boolean | undefined>
   ): Promise<T> {
     let url = `${this.baseUrl}${endpoint}`;
-    
+
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {

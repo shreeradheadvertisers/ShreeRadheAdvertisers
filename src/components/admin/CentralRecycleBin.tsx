@@ -76,10 +76,10 @@ export function CentralRecycleBin() {
   return (
     <>
       {/* Trigger Button (Place this in your Dashboard Header or Sidebar) */}
-      <Button 
-        variant="destructive" 
-        size="sm" 
-        className="gap-2" 
+      <Button
+        variant="destructive"
+        size="sm"
+        className="gap-2"
         onClick={handleOpen}
       >
         <Trash2 className="h-4 w-4" />

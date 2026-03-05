@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query"; 
+import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  FileText, CheckCircle2, Search, Download, AlertCircle, Upload, Plus, FilterX, Clock, Trash2, Filter, Loader2, Save, MapPin, Pencil, Eye
+import {
+  FileText, CheckCircle2, Search, Download, AlertCircle, Upload, Plus, FilterX, Clock, Trash2, Filter, Loader2, Save, MapPin, Pencil, Eye, RotateCcw
 } from "lucide-react";
 
 // DATA & TYPES
@@ -23,15 +23,15 @@ import { cn } from "@/lib/utils";
 import { RecycleBinDialog } from "@/components/admin/RecycleBinDialog";
 import { LocationManagementDialog } from "@/components/admin/LocationManagement";
 import { toast } from "@/hooks/use-toast";
-import { useUploadDocument } from "@/hooks/api/useMedia"; 
+import { useUploadDocument } from "@/hooks/api/useMedia";
 import { useLocationData } from "@/contexts/LocationDataContext";
-import { 
-  useCompliance, 
-  useDeleteCompliance, 
-  useRestoreCompliance, 
+import {
+  useCompliance,
+  useDeleteCompliance,
+  useRestoreCompliance,
   useUpdateAgreement,
-  usePermanentDeleteCompliance 
-} from "@/hooks/api/useCompliance"; 
+  usePermanentDeleteCompliance
+} from "@/hooks/api/useCompliance";
 
 const Documents = () => {
   // --- HOOKS ---
@@ -39,7 +39,7 @@ const Documents = () => {
   const uploadDoc = useUploadDocument();
   const updateAgreementMutation = useUpdateAgreement();
   const { states, getDistrictsForState, getCitiesForDistrict, activeState } = useLocationData();
-  
+
   const { data: complianceData, isLoading: isLoadingCompliance } = useCompliance();
   const deleteMutation = useDeleteCompliance();
   const restoreMutation = useRestoreCompliance();
@@ -52,12 +52,12 @@ const Documents = () => {
   const [agreements, setAgreements] = useState<TenderAgreement[]>([]);
   const [taxes, setTaxes] = useState<TaxRecord[]>([]);
   const [editingAgreement, setEditingAgreement] = useState<TenderAgreement | null>(null);
-  
+
   // Updated to include upcomingTaxes to fix type error
   const [stats, setStats] = useState<ComplianceStats>({
     expiringTenders: 0,
     pendingTaxes: 0,
-    upcomingTaxes: 0, 
+    upcomingTaxes: 0,
     overdueTaxes: 0,
     totalActiveTenders: 0,
     totalTaxLiability: 0,
@@ -101,7 +101,7 @@ const Documents = () => {
 
     const activeAgreements = agreements.filter(a => !a.deleted);
     const activeTaxes = taxes.filter(t => !t.deleted);
-    
+
     const expiring = activeAgreements.filter(t => {
       if (t.status === 'Expired') return false;
       const diff = new Date(t.endDate).getTime() - today.getTime();
@@ -125,7 +125,7 @@ const Documents = () => {
     setStats({
       expiringTenders: expiring,
       pendingTaxes: activeTaxes.filter(t => t.status === 'Pending').length,
-      upcomingTaxes: upcomingCount, 
+      upcomingTaxes: upcomingCount,
       overdueTaxes: activeTaxes.filter(t => t.status === 'Overdue' || (t.status !== 'Paid' && new Date(t.dueDate) < today)).length,
       totalActiveTenders: activeAgreements.filter(t => t.status === 'Active').length,
       totalTaxLiability: totalUnpaid,
@@ -148,9 +148,9 @@ const Documents = () => {
     setFrequencyFilter("all");
   };
 
-  const initiateDelete = (type: 'agreement' | 'tax', id: string) => { 
-    setItemToDelete({ type, id }); 
-    setDeleteAlertOpen(true); 
+  const initiateDelete = (type: 'agreement' | 'tax', id: string) => {
+    setItemToDelete({ type, id });
+    setDeleteAlertOpen(true);
   };
 
   const handleEditClick = (tender: TenderAgreement) => {
@@ -198,7 +198,7 @@ const Documents = () => {
 
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
-    
+
     const payload = {
       tenderName: formData.get('tenderName') as string,
       tenderNumber: formData.get('tenderNumber') as string,
@@ -212,17 +212,17 @@ const Documents = () => {
 
     try {
       if (editingAgreement) {
-        await updateAgreementMutation.mutateAsync({ 
-          id: editingAgreement.id, 
-          data: { ...payload, file: selectedFile } 
+        await updateAgreementMutation.mutateAsync({
+          id: editingAgreement.id,
+          data: { ...payload, file: selectedFile }
         });
         toast({ title: "Updated", description: "Agreement updated successfully." });
       } else {
-        await uploadDoc.mutateAsync({ 
-          file: selectedFile!, 
-          customId: payload.tenderNumber, 
-          ...payload, 
-          type: 'tender' 
+        await uploadDoc.mutateAsync({
+          file: selectedFile!,
+          customId: payload.tenderNumber,
+          ...payload,
+          type: 'tender'
         });
         toast({ title: "Success", description: "New Agreement generated." });
       }
@@ -242,8 +242,8 @@ const Documents = () => {
     try {
       await restoreMutation.mutateAsync({ id, type: type as any });
       toast({ title: "Restored", description: "Item moved back to active records." });
-    } catch (err) { 
-      toast({ variant: "destructive", title: "Restore Failed" }); 
+    } catch (err) {
+      toast({ variant: "destructive", title: "Restore Failed" });
     }
   };
 
@@ -251,8 +251,8 @@ const Documents = () => {
     try {
       await permanentDeleteMutation.mutateAsync({ id, type: type as any });
       toast({ title: "Purged", description: "Item removed permanently.", variant: "destructive" });
-    } catch (err) { 
-      toast({ variant: "destructive", title: "Purge Failed" }); 
+    } catch (err) {
+      toast({ variant: "destructive", title: "Purge Failed" });
     }
   };
 
@@ -261,8 +261,8 @@ const Documents = () => {
     try {
       await Promise.all(deletedItems.map(item => restoreMutation.mutateAsync({ id: item.id, type: item.type as any })));
       toast({ title: "Success", description: "All items restored." });
-    } catch (err) { 
-      toast({ variant: "destructive", title: "Bulk Restore Failed" }); 
+    } catch (err) {
+      toast({ variant: "destructive", title: "Bulk Restore Failed" });
     }
   };
 
@@ -271,8 +271,8 @@ const Documents = () => {
     try {
       await Promise.all(deletedItems.map(item => permanentDeleteMutation.mutateAsync({ id: item.id, type: item.type as any })));
       toast({ title: "Purged", description: "Recycle bin emptied.", variant: "destructive" });
-    } catch (err) { 
-      toast({ variant: "destructive", title: "Bulk Purge Failed" }); 
+    } catch (err) {
+      toast({ variant: "destructive", title: "Bulk Purge Failed" });
     }
   };
 
@@ -292,13 +292,13 @@ const Documents = () => {
         licenseFee: targetTax.amount.toString()
       });
       queryClient.invalidateQueries({ queryKey: ['compliance'] });
-      setIsPayDialogOpen(false); 
+      setIsPayDialogOpen(false);
       setSelectedFile(null);
       toast({ title: "Paid", description: "Tax registry updated." });
-    } catch (err: any) { 
-        toast({ variant: "destructive", title: "Update Failed" }); 
-    } finally { 
-        setIsSubmitting(false); 
+    } catch (err: any) {
+        toast({ variant: "destructive", title: "Update Failed" });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -306,19 +306,19 @@ const Documents = () => {
     if (!itemToDelete) return;
     try {
       await deleteMutation.mutateAsync({ id: itemToDelete.id, type: itemToDelete.type as any });
-      setDeleteAlertOpen(false); 
+      setDeleteAlertOpen(false);
       setItemToDelete(null);
       toast({ title: "Moved to Recycle Bin" });
-    } catch (err) { 
-      toast({ variant: "destructive", title: "Delete Failed" }); 
+    } catch (err) {
+      toast({ variant: "destructive", title: "Delete Failed" });
     }
   };
 
   // --- DATA FILTERING ---
   const filteredTenders = agreements.filter(a => !a.deleted).filter(t => {
-    const matchesSearch = t.district.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          t.area.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          t.tenderNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = t.district.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          t.area.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          t.tenderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           t.tenderName?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = agreementStatusFilter === "All" || t.status === agreementStatusFilter;
     const matchesDistrict = districtFilter === "all" || t.district === districtFilter;
@@ -350,6 +350,10 @@ const Documents = () => {
           <p className="text-muted-foreground">Manage tender agreements and track tax liabilities from MongoDB</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" className="relative" onClick={() => setRecycleBinOpen(true)} title="Recycle Bin">
+            <RotateCcw className="h-4 w-4" />
+            {allDeletedItems.length > 0 && <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-white flex items-center justify-center">{allDeletedItems.length}</span>}
+          </Button>
           <Button variant="outline" onClick={() => setLocationDialogOpen(true)}><MapPin className="h-4 w-4 mr-2" /> Locations</Button>
           <Button onClick={() => { setEditingAgreement(null); setSelectedFile(null); setDialogLocation({state: activeState, district: '', area: ''}); setIsAgreementDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> New Agreement
@@ -424,7 +428,7 @@ const Documents = () => {
               <TableHeader><TableRow><TableHead>Agreement Name</TableHead><TableHead>Ref Number</TableHead><TableHead>Location</TableHead><TableHead>Valid Until</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
               <TableBody>
                 {filteredTenders.map((tender) => (
-                  <TableRow key={tender.id}>
+                  <TableRow key={tender.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => window.open(tender.documentUrl, '_blank')}>
                     <TableCell className="font-medium">{tender.tenderName}</TableCell>
                     <TableCell className="text-sm font-mono text-muted-foreground">{tender.tenderNumber}</TableCell>
                     <TableCell>{tender.district}, {tender.area}</TableCell>
@@ -432,14 +436,14 @@ const Documents = () => {
                     <TableCell><Badge variant={tender.status === 'Active' ? 'success' : 'warning'}>{tender.status}</Badge></TableCell>
                     <TableCell className="text-right">
                        <div className="flex justify-end gap-2">
-                         <Button variant="outline" size="sm" onClick={() => window.open(tender.documentUrl, '_blank')}>
+                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); window.open(tender.documentUrl, '_blank'); }}>
                            <Eye className="h-3 w-3 mr-1" /> View
                          </Button>
-                         <Button variant="outline" size="sm" onClick={() => handleDownload(tender.documentUrl, `${tender.tenderNumber}_agreement.pdf`)}>
+                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleDownload(tender.documentUrl, `${tender.tenderNumber}_agreement.pdf`); }}>
                            <Download className="h-3 w-3 mr-1" /> Download
                          </Button>
-                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(tender)}><Pencil className="h-4 w-4" /></Button>
-                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => initiateDelete('agreement', tender.id)}><Trash2 className="h-4 w-4" /></Button>
+                         <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEditClick(tender); }}><Pencil className="h-4 w-4" /></Button>
+                         <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); initiateDelete('agreement', tender.id); }}><Trash2 className="h-4 w-4" /></Button>
                        </div>
                     </TableCell>
                   </TableRow>
@@ -465,7 +469,7 @@ const Documents = () => {
                 <TableHeader><TableRow><TableHead>Receipt / Ref</TableHead><TableHead>Location</TableHead><TableHead>Amount</TableHead><TableHead>Due Date</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                     {filteredTaxes.map((tax) => (
-                        <TableRow key={tax.id}>
+                        <TableRow key={tax.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => { if (tax.status === 'Paid' && tax.receiptUrl) window.open(tax.receiptUrl, '_blank'); else { setPayTaxId(tax.id); setSelectedFile(null); setIsPayDialogOpen(true); } }}>
                             <TableCell className="font-medium">{tax.tenderNumber}</TableCell>
                             <TableCell>{tax.district} - {tax.area}</TableCell>
                             <TableCell>₹{tax.amount.toLocaleString()}</TableCell>
@@ -474,18 +478,18 @@ const Documents = () => {
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
                                     {tax.status !== 'Paid' ? (
-                                        <Button size="sm" onClick={() => { setPayTaxId(tax.id); setSelectedFile(null); setIsPayDialogOpen(true); }}>Mark Paid</Button>
+                                        <Button size="sm" onClick={(e) => { e.stopPropagation(); setPayTaxId(tax.id); setSelectedFile(null); setIsPayDialogOpen(true); }}>Mark Paid</Button>
                                     ) : (
                                       <>
-                                        <Button variant="outline" size="sm" onClick={() => window.open(tax.receiptUrl, '_blank')}>
+                                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); window.open(tax.receiptUrl, '_blank'); }}>
                                           <Eye className="h-3 w-3 mr-1" /> View
                                         </Button>
-                                        <Button variant="outline" size="sm" onClick={() => handleDownload(tax.receiptUrl, `${tax.tenderNumber}_receipt.pdf`)}>
+                                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleDownload(tax.receiptUrl, `${tax.tenderNumber}_receipt.pdf`); }}>
                                           <Download className="h-3 w-3 mr-1" /> Download
                                         </Button>
                                       </>
                                     )}
-                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => initiateDelete('tax', tax.id)}><Trash2 className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => { e.stopPropagation(); initiateDelete('tax', tax.id); }}><Trash2 className="h-4 w-4" /></Button>
                                 </div>
                             </TableCell>
                         </TableRow>
@@ -545,7 +549,7 @@ const Documents = () => {
                     </Select>
                 </div>
              </div>
-             
+
              <div className="space-y-2">
                 <Label>Agreement PDF {editingAgreement && "(Optional - upload to replace)"}</Label>
                 <div className="border-2 border-dashed rounded-lg p-6 text-center relative hover:bg-muted/50 cursor-pointer">
@@ -560,7 +564,7 @@ const Documents = () => {
 
              <DialogFooter>
                 <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4 mr-2" />} 
+                    {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4 mr-2" />}
                     {editingAgreement ? 'Update Agreement' : 'Save to Database'}
                 </Button>
              </DialogFooter>
@@ -569,11 +573,11 @@ const Documents = () => {
       </Dialog>
 
       <LocationManagementDialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen} />
-      <RecycleBinDialog 
-        open={recycleBinOpen} 
-        onOpenChange={setRecycleBinOpen} 
-        deletedItems={allDeletedItems} 
-        onRestore={handleRestore} 
+      <RecycleBinDialog
+        open={recycleBinOpen}
+        onOpenChange={setRecycleBinOpen}
+        deletedItems={allDeletedItems}
+        onRestore={handleRestore}
         onPermanentDelete={handlePermanentDelete}
         onRestoreAll={handleRestoreAll}
         onDeleteAll={handleDeleteAllPermanently}
@@ -589,7 +593,7 @@ const Documents = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
          <DialogContent>
            <DialogHeader>

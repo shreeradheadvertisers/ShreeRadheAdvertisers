@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
@@ -15,9 +16,9 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
         // UPDATED VARIANTS
-        success: 
+        success:
           "border-transparent bg-green-600 text-white hover:bg-green-700 shadow-sm",
-        warning: 
+        warning:
           "border-transparent bg-yellow-500 text-black hover:bg-yellow-600 shadow-sm", // Changed text to black for readability
       },
     },

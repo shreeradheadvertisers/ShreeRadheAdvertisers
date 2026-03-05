@@ -1,7 +1,7 @@
-import { 
-  TenderAgreement, 
-  TaxRecord, 
-  ComplianceStats, 
+import {
+  TenderAgreement,
+  TaxRecord,
+  ComplianceStats,
 } from './api/types';
 import { type BookingStatus } from './api/types';
 
@@ -13,7 +13,7 @@ export type PaymentMode = 'Cash' | 'Cheque' | 'Online' | 'Bank Transfer';
 export interface MediaLocation {
   _id: string
   id: string;
-  createdAt: string; 
+  createdAt: string;
   updatedAt: string;
   name: string;
   type: MediaType;
@@ -38,7 +38,7 @@ export interface MediaLocation {
 export interface Booking {
   _id: string;
   id: string;
-  createdAt: string; 
+  createdAt: string;
   updatedAt: string;
   mediaId: string;
   customerId: string;
@@ -78,7 +78,7 @@ export const getDistrictStats = (): DistrictStats[] => {
 
   mediaLocations.forEach(location => {
     const key = `${location.state}-${location.district}`;
-    
+
     if (!statsMap.has(key)) {
       const byType = mediaTypes.reduce((acc, type) => {
         acc[type] = { total: 0, available: 0, booked: 0, comingSoon: 0 };
@@ -98,10 +98,10 @@ export const getDistrictStats = (): DistrictStats[] => {
 
     const stats = statsMap.get(key)!;
     stats.totalMedia++;
-    
+
     if (location.status === 'Available') stats.available++;
     else if (location.status === 'Booked') stats.booked++;
-    else stats.comingSoon++; 
+    else stats.comingSoon++;
 
     stats.byType[location.type].total++;
     if (location.status === 'Available') stats.byType[location.type].available++;
@@ -218,7 +218,7 @@ export const getComplianceStats = (): ComplianceStats => {
   const today = new Date();
   const next10Days = new Date();
   next10Days.setDate(today.getDate() + 10);
-  
+
   const expiringTenders = tenders.filter(t => {
     if (t.status === 'Expired') return false;
     const endDate = new Date(t.endDate);

@@ -24,38 +24,38 @@ export function DistrictBreakdown() {
 
     mediaLocations.forEach((m: any) => {
       if (m.state) statesSet.add(m.state);
-      
+
       const stateName = m.state || 'Unknown';
       const districtName = m.district || 'Unknown';
       const key = `${stateName}-${districtName}`;
-      
+
       if (!statsMap.has(key)) {
-        statsMap.set(key, { 
-          district: districtName, 
-          state: stateName, 
-          total: 0, 
-          available: 0, 
-          booked: 0, 
-          locations: [] 
+        statsMap.set(key, {
+          district: districtName,
+          state: stateName,
+          total: 0,
+          available: 0,
+          booked: 0,
+          locations: []
         });
       }
-      
+
       const s = statsMap.get(key);
       s.total++;
       if (m.status === 'Available') s.available++;
       else if (m.status === 'Booked') s.booked++;
-      
+
       s.locations.push(m);
     });
 
     const allStats = Array.from(statsMap.values()).sort((a, b) => a.district.localeCompare(b.district));
-    const filtered = selectedState === 'all' 
-      ? allStats 
+    const filtered = selectedState === 'all'
+      ? allStats
       : allStats.filter(s => s.state === selectedState);
 
-    return { 
-      statesList: Array.from(statesSet).sort(), 
-      filteredStats: filtered 
+    return {
+      statesList: Array.from(statesSet).sort(),
+      filteredStats: filtered
     };
   }, [mediaLocations, selectedState]);
 
@@ -116,7 +116,7 @@ export function DistrictBreakdown() {
 
                 return (
                   <Fragment key={districtKey}>
-                    <TableRow 
+                    <TableRow
                       className={cn(
                         "cursor-pointer hover:bg-muted/30 transition-colors",
                         isExpanded && "bg-muted/30 font-semibold"
@@ -136,7 +136,7 @@ export function DistrictBreakdown() {
                         <Badge variant="destructive" className="min-w-[2rem] justify-center">{stat.booked}</Badge>
                       </TableCell>
                     </TableRow>
-                    
+
                     {isExpanded && (
                       <TableRow>
                         <TableCell colSpan={6} className="bg-muted/5 p-0">
@@ -146,25 +146,25 @@ export function DistrictBreakdown() {
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-2">
                               {stat.locations.map((loc: any) => (
-                                <div 
-                                  key={loc._id || loc.id} 
+                                <div
+                                  key={loc._id || loc.id}
                                   className="flex items-start justify-between p-3 rounded-lg bg-background border border-border/50 hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-all shadow-sm group"
                                   onClick={(e) => {
-                                    e.stopPropagation(); 
-                                    navigate(`/admin/media/${loc._id || loc.id}`); 
+                                    e.stopPropagation();
+                                    navigate(`/admin/media/${loc._id || loc.id}`);
                                   }}
                                 >
                                   <div className="min-w-0 flex-1 pr-3">
                                     <div className="text-sm font-medium leading-snug mb-1.5 group-hover:text-primary transition-colors">
                                       {loc.name} <ExternalLink className="inline h-3 w-3 ml-1 opacity-0 group-hover:opacity-50 -mt-0.5" />
                                     </div>
-                                    
+
                                     <div className="flex flex-wrap items-center gap-2 text-[10px]">
                                         {/* Added Media ID */}
                                         <span className="font-mono text-xs font-medium text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10 whitespace-nowrap">
                                             {loc.id}
                                         </span>
-                                        
+
                                         <span className="font-semibold text-foreground/80 bg-muted px-1.5 py-0.5 rounded border border-border/50 whitespace-nowrap">
                                             {loc.type}
                                         </span>
@@ -174,7 +174,7 @@ export function DistrictBreakdown() {
                                     </div>
                                   </div>
 
-                                  <Badge 
+                                  <Badge
                                     variant={loc.status === 'Available' ? 'success' : 'destructive'}
                                     className="text-[9px] uppercase font-bold tracking-tighter px-1.5 h-5 flex-shrink-0 mt-0.5"
                                   >

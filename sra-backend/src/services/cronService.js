@@ -10,7 +10,7 @@ const { Tender, TaxRecord } = require('../models');
  * complex hourly polling.
  */
 const clearTempFolder = () => {
-  const tempPath = path.join(__dirname, '../temp_uploads');
+  const tempPath = path.join(__dirname, '../../temp-uploads');
   
   if (fs.existsSync(tempPath)) {
     try {

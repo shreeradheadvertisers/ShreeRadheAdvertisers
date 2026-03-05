@@ -16,7 +16,7 @@ const Contact = () => {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitContact = useSubmitContact();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -28,7 +28,7 @@ const Contact = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.email || !formData.message || !formData.phone) {
       toast({
         title: "Missing Fields",
@@ -52,7 +52,7 @@ const Contact = () => {
           message: formData.message,
         });
       }
-      
+
       setSubmitted(true);
       toast({
         title: "Inquiry Submitted!",
@@ -148,9 +148,9 @@ const Contact = () => {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold mb-1">Visit Us</h3>
-                    <a 
-                      href="https://www.google.com/maps/search/?api=1&query=Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump,+Durg,+Chhattisgarh+491001" 
-                      target="_blank" 
+                    <a
+                      href="https://www.google.com/maps/search/?api=1&query=Shree+Radhe+Advertisers,+Station+Road,+Near+Petrol+Pump,+Durg,+Chhattisgarh+491001"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-muted-foreground hover:text-warning block transition-colors"
                     >
@@ -169,7 +169,7 @@ const Contact = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name *</Label>
-                    <Input 
+                    <Input
                       id="name"
                       placeholder="John Doe"
                       value={formData.name}
@@ -179,7 +179,7 @@ const Contact = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address *</Label>
-                    <Input 
+                    <Input
                       id="email"
                       type="email"
                       placeholder="john@company.com"
@@ -193,7 +193,7 @@ const Contact = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input 
+                    <Input
                       id="phone"
                       type="tel"
                       placeholder="+91 99999 99999"
@@ -203,7 +203,7 @@ const Contact = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="company">Business Name</Label>
-                    <Input 
+                    <Input
                       id="company"
                       placeholder="ABC Corporation"
                       value={formData.company}
@@ -214,7 +214,7 @@ const Contact = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="mediaType">Interested Media Type</Label>
-                  <Select 
+                  <Select
                     value={formData.mediaType}
                     onValueChange={(v) => setFormData({ ...formData, mediaType: v })}
                   >
@@ -233,7 +233,7 @@ const Contact = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="message">Your Message *</Label>
-                  <Textarea 
+                  <Textarea
                     id="message"
                     placeholder="Tell us about your advertising requirements..."
                     rows={5}

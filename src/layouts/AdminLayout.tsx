@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { RecycleBinDialog } from "@/components/admin/RecycleBinDialog";
-import { useRecycleBinItems, useRestoreFromBin, useRestoreAllFromBin } from "@/hooks/api/useRecycleBin";
+import { useRecycleBinItems, useRestoreFromBin, useRestoreAllFromBin, usePermanentDelete, recycleBinKeys } from "@/hooks/api/useRecycleBin";
 import { toast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { apiClient } from "@/lib/api/client";
@@ -14,27 +14,28 @@ import type { CentralBinItem } from "@/lib/api/types";
 function AdminLayoutContent() {
   const [recycleBinOpen, setRecycleBinOpen] = useState(false);
   const queryClient = useQueryClient();
-  
+
   // Use API hook for recycle bin items
   const { data: deletedItems = [], refetch } = useRecycleBinItems();
   const restoreFromBin = useRestoreFromBin();
   const restoreAllFromBin = useRestoreAllFromBin();
+  const permanentDelete = usePermanentDelete();
 
   const handleRestore = async (id: string, type: CentralBinItem['type']) => {
     if (!isBackendConfigured()) {
       toast({ variant: "destructive", title: "Backend not configured" });
       return;
     }
-    
+
     try {
       await restoreFromBin.mutateAsync({ id, type });
       toast({ title: "Restored", description: "Item has been restored successfully." });
       refetch();
     } catch (error) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: error instanceof Error ? error.message : "Failed to restore item" 
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to restore item"
       });
     }
   };
@@ -44,57 +45,56 @@ function AdminLayoutContent() {
       toast({ variant: "destructive", title: "Backend not configured" });
       return;
     }
-    
+
     try {
-      // Backend uses DELETE with body via custom endpoint
-      await apiClient.post('/api/recycle-bin/permanent-delete', { id, type });
+      // Backend expects DELETE /api/recycle-bin/permanent-delete?id=...&type=...
+      await permanentDelete.mutateAsync({ id, type });
       toast({ variant: "destructive", title: "Deleted Forever", description: "Item permanently removed." });
       refetch();
     } catch (error) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: error instanceof Error ? error.message : "Failed to delete item" 
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete item"
       });
     }
   };
 
   const handleRestoreAll = async () => {
     if (!isBackendConfigured() || deletedItems.length === 0) return;
-    
+
     try {
       const items = deletedItems.map(item => ({ id: item.id, type: item.type }));
       await restoreAllFromBin.mutateAsync(items);
       toast({ title: "All Restored", description: `${deletedItems.length} items have been restored.` });
       refetch();
     } catch (error) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: error instanceof Error ? error.message : "Failed to restore items" 
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to restore items"
       });
     }
   };
 
   const handleDeleteAll = async () => {
     if (!isBackendConfigured() || deletedItems.length === 0) return;
-    
+
     try {
-      // Delete all items one by one
-      for (const item of deletedItems) {
-        await apiClient.post('/api/recycle-bin/permanent-delete', { id: item.id, type: item.type });
-      }
+      // Use dedicated wipe endpoint to delete all at once
+      await apiClient.delete('/api/recycle-bin/wipe');
       toast({ variant: "destructive", title: "All Deleted", description: `${deletedItems.length} items permanently removed.` });
-      refetch();
       // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: recycleBinKeys.list() });
       queryClient.invalidateQueries({ queryKey: ['media'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
     } catch (error) {
-      toast({ 
-        variant: "destructive", 
-        title: "Error", 
-        description: error instanceof Error ? error.message : "Failed to delete items" 
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete items"
       });
     }
   };
@@ -107,27 +107,27 @@ function AdminLayoutContent() {
         3. print:overflow-visible -> Ensures content isn't clipped
       */}
       <div className="flex min-h-screen w-full bg-background print:h-auto print:block print:overflow-visible">
-        
+
         {/* Hide Sidebar on print */}
         <div className="print:hidden">
           <AdminSidebar />
         </div>
-        
+
         <SidebarInset className="flex flex-col flex-1 transition-all duration-300 print:h-auto print:overflow-visible print:block">
-          
+
           {/* Hide Header on print */}
           <div className="print:hidden">
             <AdminHeader onOpenBin={() => setRecycleBinOpen(true)} binCount={deletedItems.length} />
           </div>
-          
+
           {/* Remove padding/margins on print */}
           <main className="p-6 print:p-0 print:m-0 print:h-auto print:overflow-visible">
             <Outlet />
           </main>
         </SidebarInset>
 
-        <RecycleBinDialog 
-          open={recycleBinOpen} 
+        <RecycleBinDialog
+          open={recycleBinOpen}
           onOpenChange={setRecycleBinOpen}
           deletedItems={deletedItems}
           onRestore={handleRestore}

@@ -1,17 +1,17 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter 
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  FileText, MapPin, Pencil, Trash2, Eye, Search, 
-  ChevronLeft, ChevronRight, ListFilter, 
-  Calendar as CalendarIcon 
+import {
+  FileText, MapPin, Pencil, Trash2, Eye, Search,
+  ChevronLeft, ChevronRight, ListFilter,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -25,7 +25,7 @@ import { generateBookingId } from "@/lib/utils";
 // Helper: Technical 'Active' shows as 'Booked' in the UI
 export const getStatusLabel = (status: string) => {
   if (status === 'Active') return 'Booked';
-  return status; 
+  return status;
 };
 
 // Helper: Format ISO/String date to DD/MM/YYYY for UI display
@@ -74,7 +74,7 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
                 <p className="text-xs text-muted-foreground">{media?.city}</p>
               </div>
             </div>
-            
+
             <Separator />
 
             {/* Booking Schedule with DD/MM/YYYY formatting */}
@@ -89,7 +89,7 @@ export function ViewBookingDialog({ booking, open, onOpenChange }: any) {
             </div>
 
             <Separator />
-            
+
             <div className="bg-muted/30 p-3 rounded-md space-y-2">
               <div className="flex justify-between text-sm font-medium italic">
                 <span>Balance Due:</span>
@@ -111,10 +111,10 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
 
   if (!formData) return null;
 
-  const handleSubmit = (e: any) => { 
-    e.preventDefault(); 
-    onSave(formData); 
-    onOpenChange(false); 
+  const handleSubmit = (e: any) => {
+    e.preventDefault();
+    onSave(formData);
+    onOpenChange(false);
   };
 
   return (
@@ -124,8 +124,8 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase">Manual Status Override</label>
-            <Select 
-              value={formData.status} 
+            <Select
+              value={formData.status}
               onValueChange={(val) => setFormData({...formData, status: val})}
             >
               <SelectTrigger>
@@ -139,7 +139,7 @@ export function EditBookingDialog({ booking, open, onOpenChange, onSave }: any) 
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             {/* Start Date Picker */}
             <div className="space-y-2">
@@ -238,7 +238,7 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
   const [statusFilter, setStatusFilter] = useState("all");
 
   // Sort by date to make IDs consistent
-  const sortedBookings = [...(bookings || [])].sort((a: any, b: any) => 
+  const sortedBookings = [...(bookings || [])].sort((a: any, b: any) =>
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
 
@@ -246,11 +246,11 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
     const s = search.toLowerCase();
     const media = b.mediaId || b.media;
     const customer = customers.find((c: any) => c.id === b.customerId || c._id === b.customerId) || (typeof b.customerId === 'object' ? b.customerId : null);
-    
-    const matchesSearch = (media?.name || "").toLowerCase().includes(s) || 
+
+    const matchesSearch = (media?.name || "").toLowerCase().includes(s) ||
                           (customer?.company || "").toLowerCase().includes(s);
     const matchesStatus = statusFilter === "all" || b.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -265,11 +265,11 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
         <div className="flex flex-col md:flex-row gap-4 my-4">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search by company or media..." 
-              className="pl-9 font-normal" 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
+            <Input
+              placeholder="Search by company or media..."
+              className="pl-9 font-normal"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -306,7 +306,7 @@ export function AllBookingsDialog({ open, onOpenChange, bookings, customers, onE
                 const customId = generateBookingId(b, index);
 
                 return (
-                  <TableRow 
+                  <TableRow
                     key={b._id || b.id}
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => onEdit(b)}

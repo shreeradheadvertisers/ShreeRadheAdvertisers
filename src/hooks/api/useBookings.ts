@@ -13,7 +13,7 @@ import type {
 export interface CreateBookingRequest {
   customerId: string;
   mediaId: string;
-  startDate: string; 
+  startDate: string;
   endDate: string;
   amount: number;
   status: 'Active' | 'Upcoming' | 'Completed' | 'Cancelled';
@@ -38,20 +38,20 @@ export function useBookings(filters: BookingFilters = {}) {
     queryFn: async (): Promise<PaginatedResponse<Booking>> => {
       // Standardize Fallback
       if (!isBackendConfigured()) {
-        return { 
-          success: true, 
-          data: [], 
-          pagination: { page: 1, limit: filters.limit || 20, total: 0, totalPages: 0 } 
+        return {
+          success: true,
+          data: [],
+          pagination: { page: 1, limit: filters.limit || 20, total: 0, totalPages: 0 }
         };
       }
 
       // Ensure sensible limits for performance
-      const params = { 
+      const params = {
         ...filters,
         limit: filters.limit || 20,
         page: filters.page || 1
-      } as any; 
-      
+      } as any;
+
       return await apiClient.get<PaginatedResponse<Booking>>(API_ENDPOINTS.BOOKINGS.LIST, params);
     },
   });
@@ -73,10 +73,10 @@ export function useBookingsByCustomer(customerId: string) {
     queryKey: bookingKeys.byCustomer(customerId),
     queryFn: async (): Promise<PaginatedResponse<Booking>> => {
       if (!isBackendConfigured()) {
-        return { 
-          success: true, 
-          data: [], 
-          pagination: { page: 1, limit: 100, total: 0, totalPages: 0 } 
+        return {
+          success: true,
+          data: [],
+          pagination: { page: 1, limit: 100, total: 0, totalPages: 0 }
         };
       }
       return await apiClient.get<PaginatedResponse<Booking>>(API_ENDPOINTS.BOOKINGS.BY_CUSTOMER(customerId));
@@ -119,7 +119,7 @@ export function useUpdateBooking() {
       return (await apiClient.put<ApiResponse<Booking>>(API_ENDPOINTS.BOOKINGS.UPDATE(id), data)).data;
     },
     onSuccess: () => {
-      // FIX: Invalidate 'analytics' instead of 'dashboard' to trigger live updates 
+      // FIX: Invalidate 'analytics' instead of 'dashboard' to trigger live updates
       // for stats, revenue trends, and inventory overview.
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['media'] });

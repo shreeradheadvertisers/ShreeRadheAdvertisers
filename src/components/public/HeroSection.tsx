@@ -24,10 +24,10 @@ const Counter = ({ end, duration = 4000 }: { end: number; duration?: number }) =
     const animate = (currentTime: number) => {
       if (!startTime) startTime = currentTime;
       const progress = Math.min((currentTime - startTime) / duration, 1);
-      
+
       // Easing function for smooth effect (easeOutExpo)
       const easeOut = 1 - Math.pow(2, -10 * progress);
-      
+
       setCount(Math.floor(easeOut * end));
 
       if (progress < 1) {
@@ -119,7 +119,7 @@ export function HeroSection() {
 
       <div className="container mx-auto px-4 relative z-10 mt-12">
         <div className="max-w-5xl mx-auto text-center">
-          
+
           {/* Heading */}
           <h1 className="flex flex-col items-center justify-center mb-8 animate-slide-up delay-100 font-display tracking-tight">
             <span className="block text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-foreground mb-2 sm:mb-4">
@@ -132,7 +132,7 @@ export function HeroSection() {
 
           {/* Subheading */}
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up delay-200">
-            Access premium billboard, unipole, and digital LED locations across major cities. 
+            Access premium billboard, unipole, and digital LED locations across major cities.
             Data-driven outdoor advertising that delivers measurable results.
           </p>
 

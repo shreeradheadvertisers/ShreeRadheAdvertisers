@@ -22,29 +22,29 @@ const EditMedia = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
+
   // FIX: Initialization guard to prevent cascading resets
   const isPopulated = useRef(false);
-  
+
   const { data: media, isLoading } = useMediaById(id || "");
   const updateMedia = useUpdateMedia();
   const uploadImage = useUploadMediaImage();
-  
+
   const { states, getCitiesForDistrict, getDistrictsForState } = useLocationData();
-  
+
   const [formData, setFormData] = useState({
-    customId: '', 
+    customId: '',
     name: '',
     type: '',
     state: '',
     district: '',
-    city: '', 
+    city: '',
     address: '',
     size: '',
     lighting: '',
     facing: '',
     pricePerMonth: '',
-    imageUrl: '', 
+    imageUrl: '',
   });
 
   useEffect(() => {
@@ -62,7 +62,7 @@ const EditMedia = () => {
         lighting: media.lighting || '',
         facing: (media.facing || '').trim(),
         pricePerMonth: String(media.pricePerMonth || ''),
-        imageUrl: media.imageUrl || '', 
+        imageUrl: media.imageUrl || '',
       });
       setPreviewUrl(media.imageUrl || null);
       isPopulated.current = true;
@@ -115,12 +115,12 @@ const EditMedia = () => {
       let finalImageUrl = formData.imageUrl || media?.imageUrl;
 
       if (selectedFile && isBackendConfigured()) {
-        const uploadResponse: any = await uploadImage.mutateAsync({ 
-          file: selectedFile, 
+        const uploadResponse: any = await uploadImage.mutateAsync({
+          file: selectedFile,
           customId: cleanCustomId,
           district: cleanDistrict
         });
-        finalImageUrl = uploadResponse.url; 
+        finalImageUrl = uploadResponse.url;
       }
 
       if (isBackendConfigured() && media) {
@@ -151,7 +151,7 @@ const EditMedia = () => {
       console.error("Update Error:", error);
       toast({
         title: "Update Failed",
-        description: error.response?.data?.message || error.message, 
+        description: error.response?.data?.message || error.message,
         variant: "destructive"
       });
     } finally {
@@ -187,7 +187,7 @@ const EditMedia = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="customId">Media ID *</Label>
-                  <Input 
+                  <Input
                     id="customId"
                     value={formData.customId}
                     onChange={(e) => setFormData({ ...formData, customId: e.target.value })}
@@ -205,7 +205,7 @@ const EditMedia = () => {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="type">Media Type *</Label>
-                  <Select 
+                  <Select
                     value={formData.type}
                     onValueChange={(v) => setFormData({ ...formData, type: v })}
                   >
@@ -226,9 +226,9 @@ const EditMedia = () => {
                 <div className="space-y-2">
                   <Label>State *</Label>
                   {/* FIX: Added key to force re-render when data loads */}
-                  <Select 
+                  <Select
                     key={`state-${formData.state}`}
-                    value={formData.state} 
+                    value={formData.state}
                     onValueChange={handleStateChange}
                   >
                     <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
@@ -263,9 +263,9 @@ const EditMedia = () => {
                 <div className="space-y-2">
                   <Label>Town / Tehsil *</Label>
                   {/* CRITICAL FIX: The key prop forces this component to re-initialize when data loads */}
-                  <Select 
+                  <Select
                     key={`city-${formData.district}-${formData.city}`}
-                    value={formData.city} 
+                    value={formData.city}
                     onValueChange={(v) => setFormData({ ...formData, city: v })}
                     disabled={!formData.district}
                   >
@@ -284,7 +284,7 @@ const EditMedia = () => {
               </div>
               <div className="mt-5 space-y-2">
                 <Label htmlFor="address">Full Address</Label>
-                <Textarea 
+                <Textarea
                   id="address"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}

@@ -12,12 +12,12 @@ const ActivityLogSchema = new mongoose.Schema({
   action: { 
     type: String, 
     required: true,
-    enum: ['LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'FAILED_LOGIN'] 
+    enum: ['LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'FAILED_LOGIN', 'RESTORE', 'SOFT_DELETE', 'UPLOAD'] 
   },
   module: { 
     type: String, 
     required: true,
-    enum: ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM', 'REPORTS'] 
+    enum: ['AUTH', 'USER', 'BOOKING', 'MEDIA', 'PAYMENT', 'CUSTOMER', 'SYSTEM', 'REPORTS', 'MAINTENANCE', 'CONTACT', 'TENDER', 'COMPLIANCE', 'TAX'] 
   },
   description: { type: String, required: true },
   details: { type: Object }, 

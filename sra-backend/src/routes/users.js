@@ -86,6 +86,11 @@ router.put('/:id', async (req, res) => {
 router.put('/:id/password', async (req, res) => {
   try {
     const { password } = req.body;
+    
+    if (!password || password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+    
     const user = await AdminUser.findById(req.params.id);
     
     if (!user) return res.status(404).json({ message: 'User not found' });

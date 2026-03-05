@@ -47,8 +47,8 @@ export interface TaxRecord {
   paymentDate?: string;
   amount: number;
   status: TaxStatus;
-  documentUrl?: string; 
-  receiptUrl?: string; 
+  documentUrl?: string;
+  receiptUrl?: string;
   deleted?: boolean;
   deletedAt?: string;
 }
@@ -72,7 +72,8 @@ export interface BookedDateRange {
 
 export interface MediaLocation {
   _id: string;
-  id: string; 
+  id: string;
+  mediaId?: string;
   name: string;
   type: MediaType;
   state: string;
@@ -90,10 +91,11 @@ export interface MediaLocation {
   latitude?: number;
   longitude?: number;
   landmark?: string;
-  
+  isPublic?: boolean;
+
   // This field is critical for the public calendar
   bookedDates?: BookedDateRange[];
-  
+
   occupancyRate: number;
   totalDaysBooked: number;
   deleted?: boolean;
@@ -105,7 +107,7 @@ export interface MediaLocation {
 // ============= BOOKING =============
 export interface Booking {
   _id: string;
-  id: string; 
+  id: string;
   mediaId: string | any;
   media?: MediaLocation;
   customerId: string | any;
@@ -127,7 +129,7 @@ export interface Booking {
 // ============= CUSTOMER =============
 export interface Customer {
   _id: string;
-  id: string; 
+  id: string;
   name: string;
   company: string;
   email: string;
@@ -203,10 +205,10 @@ export interface AdminUser {
   _id: string;
   username: string;
   email: string;
-  role: 'admin' | 'superadmin' | 'viewer'; // Added roles
+  role: 'admin' | 'superadmin' | 'viewer' | 'staff';
   name: string;
   lastLogin?: string;
-  
+
   // Updated for Soft Delete
   active?: boolean;
   deleted?: boolean;
@@ -270,7 +272,7 @@ export interface OccupancyData {
 
 // ============= REQUEST TYPES =============
 export interface CreateMediaRequest {
-  id: string; 
+  id: string;
   name: string;
   type: MediaType;
   state: string;
@@ -371,7 +373,7 @@ export interface BookingFilters {
 // ============= RECYCLE BIN =============
 export interface CentralBinItem {
   id: string;
-  type: BinItemType; 
+  type: BinItemType;
   displayName: string;
   subText: string;
   deletedAt: string;

@@ -40,17 +40,17 @@ export function useMedia(filters: MediaFilters = {}) {
           page: filters.page || 1,
           limit: filters.limit || 12,
         };
-        
+
         return await apiClient.get<PaginatedResponse<MediaLocation>>(
           API_ENDPOINTS.MEDIA.LIST,
           params
         );
       }
 
-      return { 
-        success: true, 
-        data: [], 
-        pagination: { page: 1, limit: 12, total: 0, totalPages: 1 } 
+      return {
+        success: true,
+        data: [],
+        pagination: { page: 1, limit: 12, total: 0, totalPages: 1 }
       };
     },
     // PERFORMANCE: Prevent UI flickering by keeping old data while fetching new results
@@ -58,7 +58,7 @@ export function useMedia(filters: MediaFilters = {}) {
     // CACHING: Keep data fresh for 5 mins to reduce redundant database hits
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false, 
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -76,10 +76,10 @@ export function usePublicMedia(filters: MediaFilters = {}) {
           status: filters.status,
           search: filters.search,
           // Optimization: High limit for public exploration but paginated for speed
-          limit: filters.limit || 20, 
+          limit: filters.limit || 20,
           page: filters.page || 1
         };
-        
+
         return await apiClient.get<PaginatedResponse<MediaLocation>>(
           API_ENDPOINTS.MEDIA.PUBLIC,
           params
@@ -87,10 +87,10 @@ export function usePublicMedia(filters: MediaFilters = {}) {
       }
 
       // Offline fallback from static data
-      return { 
-        success: true, 
-        data: staticMedia.filter(m => m.status !== 'Coming Soon') as unknown as MediaLocation[], 
-        pagination: { page: 1, limit: 20, total: 0, totalPages: 1 } 
+      return {
+        success: true,
+        data: staticMedia.filter(m => m.status !== 'Coming Soon') as unknown as MediaLocation[],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 1 }
       };
     },
     placeholderData: keepPreviousData,
@@ -127,7 +127,7 @@ export function useCreateMedia() {
     mutationFn: async (data: CreateMediaRequest) => {
       if (!isBackendConfigured()) throw new Error('Backend not configured.');
       const response = await apiClient.post<ApiResponse<MediaLocation>>(API_ENDPOINTS.MEDIA.CREATE, data);
-      return response.data || response; 
+      return response.data || response;
     },
     onSuccess: () => {
       // Refresh all media caches to show the new billboard immediately
@@ -166,17 +166,17 @@ export function useDeleteMedia() {
   });
 }
 
-// Restore media from recycle bin
+// Restore media from recycle bin (uses central recycle bin API)
 export function useRestoreMedia() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       if (!isBackendConfigured()) throw new Error('Backend not configured.');
-      const response = await apiClient.post<ApiResponse<MediaLocation>>(API_ENDPOINTS.MEDIA.RESTORE(id));
-      return response.data;
+      await apiClient.post('/api/recycle-bin/restore', { id, type: 'media' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mediaKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['recycleBin'] });
     },
   });
 }
@@ -198,12 +198,12 @@ export function useUploadMediaImage() {
  */
 export function useUploadDocument() {
   return useMutation({
-    mutationFn: async (payload: { 
-      file: File; 
-      customId: string; 
-      district: string; 
+    mutationFn: async (payload: {
+      file: File;
+      customId: string;
+      district: string;
       type: 'tender' | 'tax' | 'general';
-      [key: string]: any; 
+      [key: string]: any;
     }) => {
       if (!isBackendConfigured()) throw new Error('Backend not configured.');
       const { file, ...metadata } = payload;

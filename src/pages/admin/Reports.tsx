@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ export default function Reports() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("inventory");
-  
+
   // Pagination & Print State
   const [currentPage, setCurrentPage] = useState(1);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -86,7 +86,7 @@ export default function Reports() {
       const timer = setTimeout(() => {
         window.print();
         setIsPrinting(false);
-      }, 500); 
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [isPrinting]);
@@ -102,7 +102,7 @@ export default function Reports() {
 
   // --- DATA ENRICHMENT ---
   const bookings = useMemo(() => {
-    const sortedBookings = [...rawBookings].sort((a, b) => 
+    const sortedBookings = [...rawBookings].sort((a, b) =>
         new Date(a.createdAt || a.startDate).getTime() - new Date(b.createdAt || b.startDate).getTime()
     );
 
@@ -110,24 +110,24 @@ export default function Reports() {
       const mediaIdStr = typeof booking.mediaId === 'object' ? booking.mediaId?._id : booking.mediaId;
       const customerIdStr = typeof booking.customerId === 'object' ? booking.customerId?._id : booking.customerId;
 
-      const media = mediaLocations.find((m) => m._id === mediaIdStr || m.id === mediaIdStr) 
+      const media = mediaLocations.find((m) => m._id === mediaIdStr || m.id === mediaIdStr)
                     || (typeof booking.mediaId === 'object' ? booking.mediaId : null)
-                    || booking.media 
+                    || booking.media
                     || { name: "", type: "", district: "", city: "", state: "" };
 
-      const customer = customers.find((c) => c._id === customerIdStr || c.id === customerIdStr) 
+      const customer = customers.find((c) => c._id === customerIdStr || c.id === customerIdStr)
                        || (typeof booking.customerId === 'object' ? booking.customerId : null)
-                       || booking.customer 
+                       || booking.customer
                        || { company: "", group: "" };
 
       let displayId = "N/A";
       const dateSource = booking.startDate || booking.createdAt;
-      
+
       if (dateSource) {
           const d = new Date(dateSource);
           if (!isNaN(d.getTime())) {
               const year = d.getFullYear();
-              const month = d.getMonth(); 
+              const month = d.getMonth();
               let startYear, endYear;
               if (month < 3) {
                  startYear = year - 1;
@@ -142,9 +142,9 @@ export default function Reports() {
           }
       }
 
-      return { 
-        ...booking, 
-        displayId, 
+      return {
+        ...booking,
+        displayId,
         media: {
            ...media,
            name: media.name || "Unknown Media",
@@ -152,7 +152,7 @@ export default function Reports() {
            district: media.district || "",
            city: media.city || "",
            state: media.state || ""
-        }, 
+        },
         customer: {
            ...customer,
            company: customer.company || "Unknown Client",
@@ -201,7 +201,7 @@ export default function Reports() {
   });
 
   const getCustomerReportData = () => bookings.filter(item => {
-    if (customerFilter !== "all" && (item.customerId === customerFilter || item.customer?._id === customerFilter)) return false;
+    if (customerFilter !== "all" && item.customerId !== customerFilter && item.customer?._id !== customerFilter) return false;
     if (typeFilter !== "all" && item.media?.type !== typeFilter) return false;
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
     if (paymentStatusFilter !== "all" && item.paymentStatus !== paymentStatusFilter) return false;
@@ -216,11 +216,11 @@ export default function Reports() {
       return true;
     });
     const targetCustomerIds = new Set(targetCustomers.flatMap(c => [c._id, c.id]));
-    
+
     return bookings.filter(item => {
       const cId = typeof item.customerId === 'object' ? item.customerId?._id : item.customerId;
       if (!targetCustomerIds.has(cId)) return false;
-      
+
       if (typeFilter !== "all" && item.media?.type !== typeFilter) return false;
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
       if (paymentStatusFilter !== "all" && item.paymentStatus !== paymentStatusFilter) return false;
@@ -237,7 +237,7 @@ export default function Reports() {
 
   // --- HELPERS ---
   const getCurrentPageData = (data: any[]) => {
-    if (isPrinting) return data; 
+    if (isPrinting) return data;
     return data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   };
 
@@ -287,7 +287,7 @@ export default function Reports() {
         data: updatedData
       });
       toast({ title: "Booking Updated", description: "The booking details have been saved." });
-      refetchBookings(); 
+      refetchBookings();
       setIsEditOpen(false);
     } catch (error) {
       console.error(error);
@@ -311,47 +311,47 @@ export default function Reports() {
   // --- EXPORT FUNCTIONS ---
   const handleDownloadCSV = () => {
     const getData = () => {
-       if (activeTab === "inventory") return inventoryData.map((m, i) => ({ 
-         "S.No": i + 1, 
-         ID: m.id, 
-         Location: m.name, 
-         Type: m.type, 
-         District: m.district, 
-         Status: m.status, 
+       if (activeTab === "inventory") return inventoryData.map((m, i) => ({
+         "S.No": i + 1,
+         ID: m.id,
+         Location: m.name,
+         Type: m.type,
+         District: m.district,
+         Status: m.status,
          Price: m.pricePerMonth,
          "View Link": `${window.location.origin}/media/${m.id}`
        }));
-       
-       if (activeTab === "bookings") return bookingData.map(b => ({ 
-         ID: b.displayId, 
-         Media: b.media?.name || "Unknown", 
-         Start: formatDate(b.startDate), 
-         End: formatDate(b.endDate), 
-         Status: b.status, 
-         Payment: b.paymentStatus, 
-         Amount: b.amount, 
-         Paid: b.amountPaid 
+
+       if (activeTab === "bookings") return bookingData.map(b => ({
+         ID: b.displayId,
+         Media: b.media?.name || "Unknown",
+         Start: formatDate(b.startDate),
+         End: formatDate(b.endDate),
+         Status: b.status,
+         Payment: b.paymentStatus,
+         Amount: b.amount,
+         Paid: b.amountPaid
        }));
-       if (activeTab === "customers") return customerData.map(b => ({ 
-         ID: b.displayId, 
-         Client: b.customer?.company || "Unknown", 
-         Media: `${b.media?.name || ''} (${b.media?.type || ''})`, 
-         Location: `${b.media?.city}, ${b.media?.district}`, 
-         Status: b.status, 
-         Payment: b.paymentStatus, 
-         Total: b.amount 
+       if (activeTab === "customers") return customerData.map(b => ({
+         ID: b.displayId,
+         Client: b.customer?.company || "Unknown",
+         Media: `${b.media?.name || ''} (${b.media?.type || ''})`,
+         Location: `${b.media?.city}, ${b.media?.district}`,
+         Status: b.status,
+         Payment: b.paymentStatus,
+         Total: b.amount
        }));
-       return groupData.map(b => ({ 
-         ID: b.displayId, 
-         Company: b.customer?.company || "Unknown", 
-         Group: b.customer?.group, 
-         Media: `${b.media?.name} - ${b.media?.type}`, 
-         Status: b.status, 
-         Payment: b.paymentStatus, 
-         Balance: b.amount - b.amountPaid 
+       return groupData.map(b => ({
+         ID: b.displayId,
+         Company: b.customer?.company || "Unknown",
+         Group: b.customer?.group,
+         Media: `${b.media?.name} - ${b.media?.type}`,
+         Status: b.status,
+         Payment: b.paymentStatus,
+         Balance: b.amount - b.amountPaid
        }));
     };
-    
+
     const data = getData();
     if(data.length === 0) return;
 
@@ -360,7 +360,7 @@ export default function Reports() {
       [`Generated On: ${new Date().toLocaleString()}`],
       [`Generated By: ${user?.name || "System Admin"}`],
       [`Active Filters: ${getFilterContext()}`],
-      [], 
+      [],
     ];
 
     const keys = Object.keys(data[0]);
@@ -385,47 +385,47 @@ export default function Reports() {
 
   const handleDownloadExcel = () => {
     const getData = () => {
-       if (activeTab === "inventory") return inventoryData.map((m, i) => ({ 
-         "S.No": i + 1, 
-         ID: m.id, 
-         Location: m.name, 
-         Type: m.type, 
-         District: m.district, 
-         Status: m.status, 
+       if (activeTab === "inventory") return inventoryData.map((m, i) => ({
+         "S.No": i + 1,
+         ID: m.id,
+         Location: m.name,
+         Type: m.type,
+         District: m.district,
+         Status: m.status,
          Price: m.pricePerMonth,
          View: `=HYPERLINK("${window.location.origin}/media/${m.id}", "View")`
        }));
 
-       if (activeTab === "bookings") return bookingData.map(b => ({ 
-         ID: b.displayId, 
-         Media: b.media?.name || "Unknown", 
-         Start: formatDate(b.startDate), 
-         End: formatDate(b.endDate), 
-         Status: b.status, 
-         Payment: b.paymentStatus, 
-         Amount: b.amount, 
-         Paid: b.amountPaid 
+       if (activeTab === "bookings") return bookingData.map(b => ({
+         ID: b.displayId,
+         Media: b.media?.name || "Unknown",
+         Start: formatDate(b.startDate),
+         End: formatDate(b.endDate),
+         Status: b.status,
+         Payment: b.paymentStatus,
+         Amount: b.amount,
+         Paid: b.amountPaid
        }));
-       if (activeTab === "customers") return customerData.map(b => ({ 
-         ID: b.displayId, 
-         Client: b.customer?.company || "Unknown", 
-         Media: `${b.media?.name} (${b.media?.type})`, 
-         Location: `${b.media?.city}, ${b.media?.district}`, 
-         Status: b.status, 
-         Payment: b.paymentStatus, 
-         Total: b.amount 
+       if (activeTab === "customers") return customerData.map(b => ({
+         ID: b.displayId,
+         Client: b.customer?.company || "Unknown",
+         Media: `${b.media?.name} (${b.media?.type})`,
+         Location: `${b.media?.city}, ${b.media?.district}`,
+         Status: b.status,
+         Payment: b.paymentStatus,
+         Total: b.amount
        }));
-       return groupData.map(b => ({ 
-         ID: b.displayId, 
-         Company: b.customer?.company || "Unknown", 
-         Group: b.customer?.group, 
-         Media: `${b.media?.name} - ${b.media?.type}`, 
-         Status: b.status, 
-         Payment: b.paymentStatus, 
-         Balance: b.amount - b.amountPaid 
+       return groupData.map(b => ({
+         ID: b.displayId,
+         Company: b.customer?.company || "Unknown",
+         Group: b.customer?.group,
+         Media: `${b.media?.name} - ${b.media?.type}`,
+         Status: b.status,
+         Payment: b.paymentStatus,
+         Balance: b.amount - b.amountPaid
        }));
     };
-    
+
     const data = getData();
     if(data.length === 0) return;
     const keys = Object.keys(data[0]);
@@ -435,7 +435,7 @@ export default function Reports() {
       [`Generated On: ${new Date().toLocaleString()}`],
       [`Generated By: ${user?.name || "System Admin"}`],
       [`Active Filters: ${getFilterContext()}`],
-      [], 
+      [],
     ];
 
     const csvContent = [
@@ -480,8 +480,8 @@ export default function Reports() {
   };
 
   return (
-    <div className="space-y-6 print:space-y-0 print:pb-32 relative"> 
-      
+    <div className="space-y-6 print:space-y-0 print:pb-32 relative">
+
       {/* GLOBAL STYLES FOR PRINT */}
       <style>
         {`
@@ -507,7 +507,7 @@ export default function Reports() {
               border: none !important;
             }
             tr {
-              border-bottom: 1px solid #e5e7eb !important; 
+              border-bottom: 1px solid #e5e7eb !important;
               break-inside: avoid;
             }
             thead tr {
@@ -533,7 +533,7 @@ export default function Reports() {
               <p className="text-gray-600 font-medium mt-1">Official System Report</p>
             </div>
            </div>
-           
+
            <div className="text-right">
              <div className="mb-2">
                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Generated On</p>
@@ -641,7 +641,7 @@ export default function Reports() {
         </Card>
 
         {/* --- TABLES --- */}
-        
+
         <TabsContent value="inventory" className="space-y-4">
           <Card className="border-none shadow-none print:border-none print:shadow-none">
             <CardContent className="p-0 print:p-0">
@@ -661,8 +661,8 @@ export default function Reports() {
                   </TableHeader>
                   <TableBody>
                     {getCurrentPageData(inventoryData).map((media, index) => (
-                      <TableRow 
-                        key={media.id} 
+                      <TableRow
+                        key={media.id}
                         className="print:border-b print:border-gray-200 cursor-pointer hover:bg-muted/50 print:p-0"
                         onClick={() => navigate(`/admin/media/${media.id}`)}
                       >
@@ -673,11 +673,11 @@ export default function Reports() {
                         <TableCell className="print:text-[10px] print:p-1 print:whitespace-normal">{media.city}, {media.district}</TableCell>
                         {/* FIX: Use helper function for corrected colors */}
                         <TableCell className="print:p-1">{getStatusBadge(media.status)}</TableCell>
-                        <TableCell className="text-right print:text-[10px] print:p-1">₹{media.pricePerMonth.toLocaleString()}</TableCell>
+                        <TableCell className="text-right print:text-[10px] print:p-1">₹{(media.pricePerMonth ?? 0).toLocaleString()}</TableCell>
                         <TableCell className="text-center print:p-1">
-                          
+
                           {/* 1. EYE ICON (Screen Only) */}
-                          <a 
+                          <a
                             href={`/media/${media.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -689,7 +689,7 @@ export default function Reports() {
                           </a>
 
                           {/* 2. TEXT LINK (Print Only) */}
-                          <a 
+                          <a
                             href={`${window.location.origin}/media/${media.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -729,8 +729,8 @@ export default function Reports() {
                     {getCurrentPageData(bookingData).map((booking) => {
                       const balance = booking.amount - booking.amountPaid;
                       return (
-                        <TableRow 
-                          key={booking.id} 
+                        <TableRow
+                          key={booking.id}
                           className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
                           onClick={() => handleEditClick(booking)}
                         >
@@ -738,19 +738,19 @@ export default function Reports() {
                           <TableCell className="font-mono text-xs print:text-[10px] print:p-1 text-primary font-medium">
                             {booking.displayId}
                           </TableCell>
-                          
+
                           {/* UPDATED: Uses enriched booking.media object */}
                           <TableCell className="print:p-1">
                             <div className="font-medium print:text-[10px] print:whitespace-normal">{booking.media?.name || "Unknown"}</div>
                             <div className="text-xs text-muted-foreground print:text-[9px] print:whitespace-normal">{booking.media?.district || "Unknown"}</div>
                           </TableCell>
-                          
+
                           {/* FIX: Use helper to format dates cleanly */}
                           <TableCell className="print:p-1 whitespace-nowrap">
                             <div className="text-xs print:text-[10px]">{formatDate(booking.startDate)}</div>
                             <div className="text-xs text-muted-foreground print:text-[9px]">{formatDate(booking.endDate)}</div>
                           </TableCell>
-                          
+
                           <TableCell className="print:p-1">{getStatusBadge(booking.status)}</TableCell><TableCell className="print:p-1">{getStatusBadge(booking.paymentStatus)}</TableCell>
                           <TableCell className="text-right print:p-1"><div className="text-xs font-medium text-success print:text-[10px]">₹{booking.amountPaid.toLocaleString()}</div>{balance > 0 && <div className="text-xs text-destructive print:text-[10px]">Due: ₹{balance.toLocaleString()}</div>}</TableCell>
                         </TableRow>
@@ -785,8 +785,8 @@ export default function Reports() {
                       </TableRow>
                     ) : (
                       getCurrentPageData(customerData).map((booking) => (
-                          <TableRow 
-                            key={booking.id} 
+                          <TableRow
+                            key={booking.id}
                             className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
                             onClick={() => handleEditClick(booking)}
                           >
@@ -795,7 +795,7 @@ export default function Reports() {
                               <div className="flex items-center gap-2"><Building2 className="h-3 w-3 text-muted-foreground print:hidden" />{booking.customer?.company || "Unknown"}</div>
                               <div className="text-xs text-muted-foreground ml-5 print:ml-0 print:text-[9px] font-mono">{booking.displayId}</div>
                             </TableCell>
-                            
+
                             {/* UPDATED: Detailed Media Cell */}
                             <TableCell className="print:p-1 align-top">
                               <div className="font-medium text-sm print:text-[10px] whitespace-normal leading-snug mb-1">
@@ -823,7 +823,7 @@ export default function Reports() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="groups" className="space-y-4">
           <Card className="border-none shadow-none print:border-none print:shadow-none">
             <CardContent className="p-0 print:p-0">
@@ -848,8 +848,8 @@ export default function Reports() {
                       getCurrentPageData(groupData).map((booking) => {
                          const balance = booking.amount - booking.amountPaid;
                          return (
-                          <TableRow 
-                            key={booking.id} 
+                          <TableRow
+                            key={booking.id}
                             className="print:border-b print:border-gray-200 print:p-0 cursor-pointer hover:bg-muted/50"
                             onClick={() => handleEditClick(booking)}
                           >
@@ -858,7 +858,7 @@ export default function Reports() {
                             <TableCell className="print:p-1 align-top">
                                 <Badge variant="outline" className="font-normal print:text-[9px]">{booking.customer?.group || "N/A"}</Badge>
                             </TableCell>
-                            
+
                             {/* UPDATED: Detailed Media Cell */}
                             <TableCell className="print:p-1 align-top">
                               <div className="font-medium text-sm print:text-[10px] whitespace-normal leading-snug mb-1">
@@ -890,10 +890,10 @@ export default function Reports() {
 
       {/* --- EDIT DIALOG RENDERER --- */}
       {selectedBooking && (
-        <EditBookingDialog 
-          open={isEditOpen} 
-          onOpenChange={setIsEditOpen} 
-          booking={selectedBooking} 
+        <EditBookingDialog
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
+          booking={selectedBooking}
           onSave={handleBookingSave}
         />
       )}

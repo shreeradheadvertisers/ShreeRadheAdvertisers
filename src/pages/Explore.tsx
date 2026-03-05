@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom"; 
+import { useLocation } from "react-router-dom";
 import { MediaCard } from "@/components/public/MediaCard";
 import { FilterPanel } from "@/components/public/FilterPanel";
 import { mediaLocations } from "@/lib/data";
@@ -18,7 +18,7 @@ const Explore = () => {
   const location = useLocation();
 
   // --- 1. Persisted & State Initialization ---
-  
+
   const [filters, setFilters] = useState(() => {
     // Priority 1: Check for navigation state (passed from Home page categories or Footer)
     const navState = location.state as any;
@@ -123,8 +123,8 @@ const Explore = () => {
           ...adapted,
           image: m.imageUrl || (m as any).image || adapted.image,
           imageUrl: m.imageUrl || (m as any).image,
-          _id: (m as any)._id, 
-          id: adapted.id || (m as any).id 
+          _id: (m as any)._id,
+          id: adapted.id || (m as any).id
         };
       });
     }
@@ -197,18 +197,18 @@ const Explore = () => {
                 </Sheet>
 
                 <div className="flex items-center border border-border rounded-lg p-1 bg-muted/30">
-                  <Button 
-                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
-                    size="icon" 
-                    className="h-8 w-8" 
+                  <Button
+                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
                     onClick={() => setViewMode('grid')}
                   >
                     <Grid className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
-                    size="icon" 
-                    className="h-8 w-8" 
+                  <Button
+                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                    size="icon"
+                    className="h-8 w-8"
                     onClick={() => setViewMode('list')}
                   >
                     <List className="h-4 w-4" />
@@ -226,9 +226,9 @@ const Explore = () => {
               <>
                 <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
                   {filteredMedia.map((media, i) => (
-                    <div 
-                      key={(media as any)._id || media.id} 
-                      className="animate-fade-in" 
+                    <div
+                      key={(media as any)._id || media.id}
+                      className="animate-fade-in"
                       style={{ animationDelay: `${i * 50}ms` }}
                     >
                       <MediaCard media={media as any} />
@@ -250,7 +250,7 @@ const Explore = () => {
                           <ChevronLeft className="h-4 w-4 mr-2" />
                           Previous
                         </Button>
-                        
+
                         <div className="flex items-center justify-center min-w-[100px]">
                           <span className="text-sm font-medium">
                             {currentPage} / {totalPages}
@@ -293,8 +293,8 @@ const Explore = () => {
                 </div>
                 <h3 className="text-xl font-semibold mb-2">No results found</h3>
                 <p className="text-muted-foreground mb-6 max-w-xs mx-auto">Try adjusting your filters or search terms</p>
-                <Button 
-                  variant="default" 
+                <Button
+                  variant="default"
                   onClick={() => setFilters({ search: '', state: '', district: '', type: '', status: '' })}
                 >
                   Clear all filters

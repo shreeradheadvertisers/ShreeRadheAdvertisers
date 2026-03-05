@@ -3,8 +3,8 @@
 // Uses API when backend is configured, falls back to static data otherwise
 
 import { API_BASE_URL } from '@/lib/api/config';
-import type { 
-  MediaLocation as ApiMediaLocation, 
+import type {
+  MediaLocation as ApiMediaLocation,
   Booking as ApiBooking,
   Customer as ApiCustomer,
   MediaFilters,
@@ -39,18 +39,18 @@ export const adaptMediaLocation = (apiMedia: any): MediaLocation => {
     city: apiMedia.city || 'N/A',
     address: apiMedia.address || '',
     status: apiMedia.status || 'Available',
-    
+
     // Primary field for Hostinger SSD URLs
     imageUrl: finalImageUrl,
-    
+
     // Compatibility field for legacy components
     image: finalImageUrl,
-    
+
     // Ensure technical specifications flow correctly from DB
     size: apiMedia.size || 'Standard',
     lighting: apiMedia.lighting || 'Non-Lit',
     facing: apiMedia.facing || 'N/A',
-    
+
     pricePerMonth: Number(apiMedia.pricePerMonth) || 0,
     landmark: apiMedia.landmark || '',
     occupancyRate: apiMedia.occupancyRate || 0,

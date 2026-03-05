@@ -15,12 +15,12 @@ export default function Login() {
   const location = useLocation();
   const { toast } = useToast();
   const { login, isLoading } = useAuth(); // Keeping your existing auth hook logic
-  
+
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [isForgotOpen, setIsForgotOpen] = useState(false); // State for the dialog
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +30,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.username || !formData.password) {
       toast({
         title: 'Validation Error',
@@ -41,16 +41,16 @@ export default function Login() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       // Use the login function from your AuthContext
       await login(formData);
-      
+
       toast({
         title: 'Login Successful',
         description: 'Welcome back to Shree Radhe Advertisers Admin.',
       });
-      
+
       navigate(from, { replace: true });
     } catch (error) {
       toast({
@@ -141,9 +141,9 @@ export default function Login() {
             </div>
 
             {/* Submit Button */}
-            <Button 
-              type="submit" 
-              className="w-full h-10 text-base font-medium shadow-md transition-all hover:shadow-lg" 
+            <Button
+              type="submit"
+              className="w-full h-10 text-base font-medium shadow-md transition-all hover:shadow-lg"
               disabled={isSubmitting || isLoading}
             >
               {isSubmitting || isLoading ? (
@@ -177,7 +177,7 @@ export default function Login() {
               For security reasons, automated password resets are disabled.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4 text-sm text-center text-muted-foreground bg-muted/30 rounded-lg p-4 border border-border/50">
             <p className="mb-2 font-medium text-foreground">Please contact the System Administrator.</p>
             <p>They can verify your identity and reset your credentials.</p>

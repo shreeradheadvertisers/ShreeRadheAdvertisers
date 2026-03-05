@@ -1,24 +1,24 @@
 import { useState } from "react";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  Plus, 
-  Pencil, 
-  Trash2, 
-  X, 
-  Save, 
-  Users, 
-  ArrowLeft, 
-  UserPlus, 
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Save,
+  Users,
+  ArrowLeft,
+  UserPlus,
   ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
@@ -57,11 +57,11 @@ interface ManageGroupsDialogProps {
   onUpdateCustomers: (updatedCustomers: Customer[]) => void;
 }
 
-export function ManageGroupsDialog({ 
-  open, 
-  onOpenChange, 
-  groups, 
-  customers, 
+export function ManageGroupsDialog({
+  open,
+  onOpenChange,
+  groups,
+  customers,
   onUpdateGroups,
   onUpdateCustomers
 }: ManageGroupsDialogProps) {
@@ -69,7 +69,7 @@ export function ManageGroupsDialog({
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [deleteCandidate, setDeleteCandidate] = useState<string | null>(null);
-  
+
   // State for Member Management View
   const [managingGroup, setManagingGroup] = useState<string | null>(null);
 
@@ -102,7 +102,7 @@ export function ManageGroupsDialog({
     const updatedGroups = groups.map(g => g === editingGroup ? editValue.trim() : g);
     onUpdateGroups(updatedGroups);
 
-    const updatedCustomers = customers.map(c => 
+    const updatedCustomers = customers.map(c =>
       c.group === editingGroup ? { ...c, group: editValue.trim() } : c
     );
     onUpdateCustomers(updatedCustomers);
@@ -115,10 +115,10 @@ export function ManageGroupsDialog({
     if (!deleteCandidate) return;
     const count = getGroupCount(deleteCandidate);
     if (count > 0) {
-      toast({ 
-        variant: "destructive", 
-        title: "Cannot Delete Group", 
-        description: `There are ${count} customers in this group. Move them first.` 
+      toast({
+        variant: "destructive",
+        title: "Cannot Delete Group",
+        description: `There are ${count} customers in this group. Move them first.`
       });
       setDeleteCandidate(null);
       return;
@@ -153,10 +153,10 @@ export function ManageGroupsDialog({
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
-          
+
           {managingGroup ? (
             // ================= VIEW 2: MANAGE MEMBERS =================
-            <GroupMembersView 
+            <GroupMembersView
               groupName={managingGroup}
               customers={customers}
               onBack={() => setManagingGroup(null)}
@@ -174,8 +174,8 @@ export function ManageGroupsDialog({
               <div className="space-y-4 py-2">
                 {/* Add New Input */}
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="New group name (e.g. Retail)" 
+                  <Input
+                    placeholder="New group name (e.g. Retail)"
                     value={newGroup}
                     onChange={(e) => setNewGroup(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddGroup()}
@@ -190,11 +190,11 @@ export function ManageGroupsDialog({
                   <div className="space-y-2">
                     {groups.map((group) => (
                       <div key={group} className="flex items-center justify-between p-2 rounded-md border bg-card hover:bg-accent/50 transition-colors group/item">
-                        
+
                         {editingGroup === group ? (
                           <div className="flex items-center gap-2 flex-1">
-                            <Input 
-                              value={editValue} 
+                            <Input
+                              value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               className="h-8"
                               autoFocus
@@ -215,19 +215,19 @@ export function ManageGroupsDialog({
                                 {getGroupCount(group)}
                               </Badge>
                             </div>
-                            
+
                             <div className="flex items-center gap-1">
                               {/* Manage Members Button */}
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                className="h-7 w-7 text-primary opacity-70 hover:opacity-100" 
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-primary opacity-70 hover:opacity-100"
                                 onClick={() => setManagingGroup(group)}
                                 title="Manage Members"
                               >
                                 <Users className="h-3.5 w-3.5" />
                               </Button>
-                              
+
                               {/* Separator */}
                               <div className="w-px h-4 bg-border mx-1" />
 
@@ -235,7 +235,7 @@ export function ManageGroupsDialog({
                               <Button size="icon" variant="ghost" className="h-7 w-7 opacity-70 hover:opacity-100" onClick={() => startEdit(group)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              
+
                               {/* Delete Button */}
                               <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive opacity-70 hover:opacity-100 hover:text-destructive" onClick={() => setDeleteCandidate(group)}>
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -325,8 +325,8 @@ function GroupMembersView({ groupName, customers, onBack, onAddMember, onRemoveM
             </PopoverTrigger>
             <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
               <Command>
-                <CommandInput 
-                  placeholder="Search customers..." 
+                <CommandInput
+                  placeholder="Search customers..."
                   value={searchValue}
                   onValueChange={setSearchValue}
                 />
@@ -362,7 +362,7 @@ function GroupMembersView({ groupName, customers, onBack, onAddMember, onRemoveM
           <h4 className="text-sm font-medium mb-2 text-muted-foreground flex items-center gap-2">
             <Users className="h-3.5 w-3.5" /> Current Members
           </h4>
-          
+
           <ScrollArea className="flex-1 pr-4 -mr-4">
             <div className="space-y-2">
               {members.length === 0 ? (
@@ -376,9 +376,9 @@ function GroupMembersView({ groupName, customers, onBack, onAddMember, onRemoveM
                       <span className="font-medium text-sm">{member.company}</span>
                       <span className="text-xs text-muted-foreground">{member.name}</span>
                     </div>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
+                    <Button
+                      size="icon"
+                      variant="ghost"
                       className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => onRemoveMember(member.id)}
                       title="Remove from group"

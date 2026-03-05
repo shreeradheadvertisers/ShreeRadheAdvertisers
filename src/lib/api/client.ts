@@ -20,7 +20,7 @@ class ApiClient {
 
   private buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
     const url = new URL(`${this.baseUrl}${endpoint}`);
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
@@ -28,14 +28,14 @@ class ApiClient {
         }
       });
     }
-    
+
     return url.toString();
   }
 
   private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { params, ...fetchOptions } = options;
     const url = this.buildUrl(endpoint, params);
-    
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -111,15 +111,15 @@ class ApiClient {
   }
 
   // DELETE request
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+  async delete<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE', params });
   }
 
   // File upload (multipart/form-data) - Uses FTP Bridge on Render
   async uploadFile(endpoint: string, file: File, additionalData?: Record<string, string>): Promise<{ url: string; filename: string }> {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     if (additionalData) {
       Object.entries(additionalData).forEach(([key, value]) => {
         formData.append(key, value);
@@ -128,24 +128,38 @@ class ApiClient {
 
     const token = this.getAuthToken();
     const headers: HeadersInit = {};
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
     // Note: Don't set Content-Type for FormData - browser will set it with boundary
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'File upload failed');
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        throw new Error('Session expired. Please login again.');
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'File upload failed');
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error('Unable to connect to server. Please check your internet connection.');
+      }
+      throw error;
     }
-
-    return response.json();
   }
 }
 

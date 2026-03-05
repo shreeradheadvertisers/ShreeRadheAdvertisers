@@ -30,7 +30,7 @@ export function useRecycleBinItems() {
       }
 
       const response = await apiClient.get<RecycleBinApiItem[]>('/api/recycle-bin');
-      
+
       // Map backend format to frontend format
       return response.map(item => ({
         id: item.id,
@@ -76,12 +76,15 @@ export function usePermanentDelete() {
         throw new Error('Backend not configured');
       }
 
-      await apiClient.delete('/api/recycle-bin/delete');
-      // Note: Backend expects body in DELETE, we need to use POST with different endpoint
-      // Or update backend to accept query params
+      // Backend expects DELETE /api/recycle-bin/permanent-delete?id=...&type=...
+      await apiClient.delete('/api/recycle-bin/permanent-delete', { id, type });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: recycleBinKeys.list() });
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['compliance'] });
     },
   });
 }
@@ -96,9 +99,13 @@ export function useRestoreAllFromBin() {
         throw new Error('Backend not configured');
       }
 
-      // Restore all items sequentially
-      for (const item of items) {
-        await apiClient.post('/api/recycle-bin/restore', { id: item.id, type: item.type });
+      // Restore all items using Promise.allSettled for resilience
+      const results = await Promise.allSettled(
+        items.map(item => apiClient.post('/api/recycle-bin/restore', { id: item.id, type: item.type }))
+      );
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        throw new Error(`${failures.length} of ${items.length} items failed to restore`);
       }
     },
     onSuccess: () => {

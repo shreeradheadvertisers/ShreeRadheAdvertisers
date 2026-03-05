@@ -21,7 +21,7 @@ const Index = () => {
       {/* Why Choose Us Section */}
       <section className="py-24 bg-muted/30 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMxLjIgMCAyIC44IDIgMnMtLjggMi0yIDItMi0uOC0yLTIgLjgtMiAyLTJ6IiBmaWxsPSJjdXJyZW50Q29sb3IiIGZpbGwtb3BhY2l0eT0iLjA1Ii8+PC9nPjwvc3ZnPg==')] opacity-30" />
-        
+
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-16 animate-slide-up">
             <span className="text-accent font-semibold text-sm uppercase tracking-wider mb-2 block">
@@ -46,8 +46,8 @@ const Index = () => {
               { icon: Clock, title: '24/7 Support', desc: 'Round-the-clock assistance for all your needs', color: 'accent' },
               { icon: TrendingUp, title: 'ROI Focused', desc: 'Maximize returns on your advertising investment', color: 'success' },
             ].map((feature, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className="glass-card rounded-xl p-6 hover-lift animate-slide-up group"
                 style={{ animationDelay: `${i * 50}ms` }}
               >
@@ -95,7 +95,7 @@ const Index = () => {
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-hero-gradient" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-3xl" />
-        
+
         <div className="container mx-auto px-4 relative z-10 text-center">
           <h2 className="text-3xl md:text-5xl font-bold mb-6 font-display">
             Ready to Amplify Your Brand?

@@ -110,15 +110,15 @@ export function LocationDataProvider({ children }: { children: React.ReactNode }
   // --- DATABASE SYNC LOGIC ---
   const syncWithDatabase = useCallback(async () => {
     if (isSyncing) return;
-    
+
     try {
       setIsSyncing(true);
       const response = await apiClient.get<any>(API_ENDPOINTS.MEDIA.LOCATIONS);
-      
+
       if (response && response.success && response.data) {
         setData(prev => {
           const updatedCities = { ...prev.cities };
-          
+
           response.data.forEach((loc: any) => {
             const district = loc._id.district;
             const towns = loc.towns;

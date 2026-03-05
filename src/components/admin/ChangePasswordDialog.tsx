@@ -18,12 +18,12 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  
+
   // Visibility States
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -51,7 +51,7 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    
+
     if (formData.newPassword !== formData.confirmPassword) {
       setErrorMsg("New passwords do not match.");
       return;
@@ -70,27 +70,27 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
         newPassword: formData.newPassword
       });
 
-      toast({ 
-        title: "Success", 
+      toast({
+        title: "Success",
         description: "Password has been updated successfully.",
         className: "bg-green-600 text-white border-none"
       });
-      
+
       handleOpenChangeInternal(false);
-      
+
     } catch (error: any) {
       console.error("Change Password Error:", error);
 
       const serverMessage = error.response?.data?.message;
       const fallbackMessage = error.message || "Failed to change password.";
       const finalMessage = serverMessage || fallbackMessage;
-      
+
       setErrorMsg(finalMessage);
-      
-      toast({ 
-        title: "Update Failed", 
-        description: finalMessage, 
-        variant: "destructive" 
+
+      toast({
+        title: "Update Failed",
+        description: finalMessage,
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
@@ -117,13 +117,13 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Current Password</Label>
             <div className="relative">
-              <Input 
-                id="currentPassword" 
-                name="currentPassword" 
-                type={showCurrent ? "text" : "password"} 
-                value={formData.currentPassword} 
-                onChange={handleChange} 
-                required 
+              <Input
+                id="currentPassword"
+                name="currentPassword"
+                type={showCurrent ? "text" : "password"}
+                value={formData.currentPassword}
+                onChange={handleChange}
+                required
                 placeholder="Enter current password"
                 className="pr-10" // Add padding so text doesn't go under icon
               />
@@ -142,13 +142,13 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
           <div className="space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
             <div className="relative">
-              <Input 
-                id="newPassword" 
-                name="newPassword" 
-                type={showNew ? "text" : "password"} 
-                value={formData.newPassword} 
-                onChange={handleChange} 
-                required 
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type={showNew ? "text" : "password"}
+                value={formData.newPassword}
+                onChange={handleChange}
+                required
                 minLength={8}
                 placeholder="Min 8 characters"
                 className="pr-10"
@@ -168,13 +168,13 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm New Password</Label>
             <div className="relative">
-              <Input 
-                id="confirmPassword" 
-                name="confirmPassword" 
-                type={showConfirm ? "text" : "password"} 
-                value={formData.confirmPassword} 
-                onChange={handleChange} 
-                required 
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirm ? "text" : "password"}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
                 placeholder="Re-enter new password"
                 className="pr-10"
               />

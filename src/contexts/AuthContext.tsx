@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Authentication Context for Shree Radhe Advertisers Admin
 // Handles JWT authentication with the backend on Render
 
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     apiClient.post(API_ENDPOINTS.AUTH.LOGOUT).catch(() => {
       // Ignore errors on logout
     });
-    
+
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
     setUser(null);

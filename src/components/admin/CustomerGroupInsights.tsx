@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 // FIXED: Import from API types to ensure compatibility with live data
-import { type Customer, type Booking } from "@/lib/api/types"; 
+import { type Customer, type Booking } from "@/lib/api/types";
 import { Users, Briefcase, TrendingUp, Wallet, ArrowRight, ArrowLeft, Calendar, MapPin } from "lucide-react";
 import {
   Dialog,
@@ -41,7 +41,7 @@ export function CustomerGroupInsights({ customers, allBookings }: CustomerGroupI
       if (!stats[groupName]) {
         stats[groupName] = { count: 0, bookings: 0, revenue: 0 };
       }
-      
+
       const cBookings = typeof c.totalBookings === 'number' ? c.totalBookings : 0;
       const cSpent = typeof c.totalSpent === 'number' ? c.totalSpent : 0;
 
@@ -99,8 +99,8 @@ export function CustomerGroupInsights({ customers, allBookings }: CustomerGroupI
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {groupStats.map((group) => (
-          <Card 
-            key={group.name} 
+          <Card
+            key={group.name}
             // RESTORED: Added enhanced hover effects (shadow and slight lift)
             className="overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer border-l-4 border-l-transparent hover:border-l-primary group relative bg-card/50 backdrop-blur-sm"
             onClick={() => setSelectedGroup(group.name)}
@@ -113,7 +113,7 @@ export function CustomerGroupInsights({ customers, allBookings }: CustomerGroupI
                         {group.percent.toFixed(1)}% Share
                     </span>
                 </div>
-                
+
                 <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                         <span className="flex items-center text-muted-foreground">

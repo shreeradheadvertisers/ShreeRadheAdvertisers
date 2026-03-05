@@ -135,9 +135,9 @@ export function LocationManagementDialog({ open, onOpenChange }: LocationManagem
                 <Label className="text-xs text-muted-foreground">Quick Add (Pre-configured with districts)</Label>
                 <div className="flex flex-wrap gap-2">
                   {availableQuickStates.map(state => (
-                    <Button 
-                      key={state} 
-                      variant="outline" 
+                    <Button
+                      key={state}
+                      variant="outline"
                       size="sm"
                       onClick={() => handleQuickAddState(state)}
                       className="text-xs"
@@ -161,7 +161,7 @@ export function LocationManagementDialog({ open, onOpenChange }: LocationManagem
                 <Plus className="h-4 w-4 mr-1" /> Add
               </Button>
             </div>
-            
+
             <ScrollArea className="h-[250px] border rounded-md p-4">
               <div className="flex flex-wrap gap-2">
                 {states.map(state => (
@@ -206,7 +206,7 @@ export function LocationManagementDialog({ open, onOpenChange }: LocationManagem
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="flex gap-2">
                 <Input
                   placeholder="Enter district name..."
@@ -219,7 +219,7 @@ export function LocationManagementDialog({ open, onOpenChange }: LocationManagem
                 </Button>
               </div>
             </div>
-            
+
             <ScrollArea className="h-[220px] border rounded-md p-4">
               {currentDistricts.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
@@ -252,7 +252,7 @@ export function LocationManagementDialog({ open, onOpenChange }: LocationManagem
               )}
             </ScrollArea>
             <p className="text-xs text-muted-foreground">
-              {selectedStateForDistrict === DEFAULT_STATE 
+              {selectedStateForDistrict === DEFAULT_STATE
                 ? `Default ${DEFAULT_STATE} districts cannot be removed.`
                 : "Custom districts can be added and removed."}
             </p>
@@ -283,7 +283,7 @@ export function LocationManagementDialog({ open, onOpenChange }: LocationManagem
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="flex gap-2">
                 <Input
                   placeholder="Enter city/town name..."
@@ -297,7 +297,7 @@ export function LocationManagementDialog({ open, onOpenChange }: LocationManagem
                 </Button>
               </div>
             </div>
-            
+
             <ScrollArea className="h-[220px] border rounded-md p-4">
               {selectedDistrictForCity ? (
                 (cities[selectedDistrictForCity] || []).length === 0 ? (

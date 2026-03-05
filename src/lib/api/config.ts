@@ -21,7 +21,7 @@ export const API_ENDPOINTS = {
     VERIFY: '/api/auth/verify',
     CHANGE_PASSWORD: '/api/auth/change-password',
   },
-  
+
   // Media Management
   MEDIA: {
     LIST: '/api/media',
@@ -29,18 +29,17 @@ export const API_ENDPOINTS = {
     CREATE: '/api/media',
     UPDATE: (id: string) => `/api/media/${id}`,
     DELETE: (id: string) => `/api/media/${id}`,
-    RESTORE: (id: string) => `/api/media/${id}/restore`,
     PUBLIC: '/api/media/public',
     LOCATIONS: '/api/media/locations/sync',
   },
-  
+
   // File Upload (FTP Bridge to Hostinger & Cloudinary Integration)
   UPLOAD: {
-    FILE: '/api/upload',
+    FILE: '/api/media/upload',            // Image upload endpoint
     IMAGE: '/api/media/upload',           // Aligned for billboard photography
-    DOCUMENT: '/api/media/upload/document' // NEW: Targets specialized PDF route
+    DOCUMENT: '/api/media/upload/document' // Targets specialized PDF route
   },
-  
+
   // Bookings
   BOOKINGS: {
     LIST: '/api/bookings',
@@ -50,7 +49,7 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/api/bookings/${id}`,
     BY_CUSTOMER: (customerId: string) => `/api/bookings/customer/${customerId}`,
   },
-  
+
   // Customers
   CUSTOMERS: {
     LIST: '/api/customers',
@@ -59,7 +58,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/customers/${id}`,
     DELETE: (id: string) => `/api/customers/${id}`,
   },
-  
+
   // Contact Form Submissions
   CONTACT: {
     SUBMIT: '/api/contact',
@@ -67,11 +66,10 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/api/contact/${id}`,
     UPDATE_STATUS: (id: string) => `/api/contact/${id}/status`,
   },
-  
+
   // Analytics & Reports
   ANALYTICS: {
     DASHBOARD: '/api/analytics/dashboard',
-    REVENUE: '/api/analytics/revenue',
     OCCUPANCY: '/api/analytics/occupancy',
     TRENDS: '/api/analytics/revenue-trend',
     CITY_LOSS: '/api/analytics/city-loss',
@@ -79,7 +77,7 @@ export const API_ENDPOINTS = {
     REVENUE_TREND: '/api/analytics/revenue-trend',
     STATE_REVENUE: '/api/analytics/state-revenue',
   },
-  
+
   // Payments
   PAYMENTS: {
     LIST: '/api/payments',
@@ -89,7 +87,7 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/api/payments/${id}`,
     STATS: '/api/payments/stats/summary',
   },
-  
+
   // Maintenance
   MAINTENANCE: {
     LIST: '/api/maintenance',
@@ -98,7 +96,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/api/maintenance/${id}`,
     COMPLETE: (id: string) => `/api/maintenance/${id}/complete`,
   },
-  
+
   // Compliance (Tenders & Taxes)
   COMPLIANCE: {
     LIST: '/api/compliance', // Fetch both tenders and taxes in one call
@@ -108,12 +106,13 @@ export const API_ENDPOINTS = {
     TAX: (id: string) => `/api/compliance/taxes/${id}`,
     STATS: '/api/compliance/stats',
   },
-  
+
   // Recycle Bin
   RECYCLE_BIN: {
     LIST: '/api/recycle-bin',
-    RESTORE: (type: string, id: string) => `/api/recycle-bin/${type}/${id}/restore`,
-    PERMANENT_DELETE: (type: string, id: string) => `/api/recycle-bin/${type}/${id}`,
+    RESTORE: '/api/recycle-bin/restore',
+    PERMANENT_DELETE: '/api/recycle-bin/permanent-delete',
+    WIPE: '/api/recycle-bin/wipe',
   },
 } as const;
 

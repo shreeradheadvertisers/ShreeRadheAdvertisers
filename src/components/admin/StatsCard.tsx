@@ -34,9 +34,9 @@ const iconStyles = {
 
 export function StatsCard({ title, value, icon: Icon, trend, variant = 'default', onClick, className }: StatsCardProps) {
   return (
-    <Card 
+    <Card
       className={cn(
-        "p-6 bg-card border-border/50 transition-all duration-200", 
+        "p-6 bg-card border-border/50 transition-all duration-200",
         onClick ? "cursor-pointer hover:border-primary/50 hover:shadow-md" : "hover:border-border",
         className
       )}

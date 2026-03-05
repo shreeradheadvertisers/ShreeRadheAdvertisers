@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { Bell, Trash2, KeyRound, LogOut } from "lucide-react"; 
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import { Bell, Trash2, KeyRound, LogOut } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +25,7 @@ interface AdminHeaderProps {
 export function AdminHeader({ onOpenBin, binCount }: AdminHeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  
+
   // State for the Password Dialog
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
@@ -35,8 +35,8 @@ export function AdminHeader({ onOpenBin, binCount }: AdminHeaderProps) {
   };
 
   // Get user initials safely
-  const initials = user?.name 
-    ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() 
+  const initials = user?.name
+    ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
     : 'U';
 
   return (
@@ -51,10 +51,10 @@ export function AdminHeader({ onOpenBin, binCount }: AdminHeaderProps) {
 
         <div className="flex items-center gap-2 sm:gap-4">
           {/* Recycle Bin Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="relative" 
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative"
             onClick={onOpenBin}
             title="Recycle Bin"
           >
@@ -69,7 +69,7 @@ export function AdminHeader({ onOpenBin, binCount }: AdminHeaderProps) {
           <Button variant="ghost" size="icon">
             <Bell className="h-5 w-5" />
           </Button>
-          
+
           <ThemeToggle />
 
           {/* User Dropdown */}
@@ -95,15 +95,15 @@ export function AdminHeader({ onOpenBin, binCount }: AdminHeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              
+
               {/* Change Password Item */}
               <DropdownMenuItem onClick={() => setShowPasswordDialog(true)} className="cursor-pointer">
                 <KeyRound className="mr-2 h-4 w-4" />
                 Change Password
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator />
-              
+
               {/* Logout Item */}
               <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />

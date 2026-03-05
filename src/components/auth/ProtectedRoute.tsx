@@ -1,18 +1,19 @@
 // Protected Route Component for Admin Pages
 // Redirects to login if user is not authenticated
 
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'admin' | 'superadmin' | 'viewer';
+  requiredRole?: 'viewer' | 'staff' | 'admin' | 'superadmin';
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Show loading spinner while checking auth
   if (isLoading) {
@@ -33,7 +34,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   // Check for required role
   if (requiredRole && user) {
-    const roleHierarchy = { viewer: 1, admin: 2, superadmin: 3 };
+    const roleHierarchy: Record<string, number> = { viewer: 1, staff: 1, admin: 2, superadmin: 3 };
     const userRoleLevel = roleHierarchy[user.role] || 0;
     const requiredRoleLevel = roleHierarchy[requiredRole] || 0;
 
@@ -43,11 +44,11 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
           <div className="text-center max-w-md p-8">
             <h1 className="text-2xl font-bold text-destructive mb-4">Access Denied</h1>
             <p className="text-muted-foreground mb-6">
-              You don't have permission to access this page. 
+              You don't have permission to access this page.
               Required role: {requiredRole}
             </p>
-            <button 
-              onClick={() => window.history.back()}
+            <button
+              onClick={() => navigate(-1)}
               className="text-primary hover:underline"
             >
               Go Back

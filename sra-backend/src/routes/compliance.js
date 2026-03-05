@@ -138,6 +138,10 @@ router.post('/restore/:id', authMiddleware, async (req, res) => {
     const { type } = req.body;
     const { id } = req.params;
     
+    if (!type) {
+      return res.status(400).json({ message: 'Type is required (agreement or tax)' });
+    }
+    
     const isTender = ['agreement', 'tenders', 'tender'].includes(type.toLowerCase());
     const Model = isTender ? Tender : TaxRecord;
     

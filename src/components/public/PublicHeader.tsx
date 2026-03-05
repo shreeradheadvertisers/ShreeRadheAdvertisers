@@ -14,10 +14,10 @@ export function PublicHeader() {
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             {/* Added cursor-pointer to ensure the hand icon appears on hover */}
-            <img 
-              src={logo} 
-              alt="Shree Radhe Advertisers" 
-              className="h-12 w-auto mix-blend-multiply cursor-pointer" 
+            <img
+              src={logo}
+              alt="Shree Radhe Advertisers"
+              className="h-12 w-auto mix-blend-multiply cursor-pointer"
             />
           </Link>
 

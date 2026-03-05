@@ -67,11 +67,11 @@ export function MediaShowcase() {
       type: type,
       status: '',
     };
-    
+
     // 2. Explicitly SAVE to sessionStorage so Explore.tsx picks it up on mount
     sessionStorage.setItem('explore-filters', JSON.stringify(newFilters));
     sessionStorage.setItem('explore-page', '1');
-    
+
     // 3. Navigate with state as a backup trigger
     navigate('/explore', { state: { filterType: type } });
   };
@@ -80,7 +80,7 @@ export function MediaShowcase() {
     <section className="py-24 bg-background relative overflow-hidden">
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-peacock/5 rounded-full blur-3xl" />
-      
+
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-16 animate-slide-up">
           <span className="text-accent font-semibold text-sm uppercase tracking-wider mb-2 block">
@@ -119,7 +119,7 @@ export function MediaShowcase() {
                 <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
                   {media.description}
                 </p>
-                
+
                 <div className="flex flex-wrap gap-2 mb-4">
                   {media.features.map((feature) => (
                     <span
@@ -131,7 +131,7 @@ export function MediaShowcase() {
                   ))}
                 </div>
 
-                <Button 
+                <Button
                   className="w-full justify-between group/btn shadow-sm hover:shadow-md transition-all active:scale-95"
                   onClick={() => handleTypeClick(media.filterValue)}
                 >
@@ -144,9 +144,9 @@ export function MediaShowcase() {
         </div>
 
         <div className="text-center mt-12 animate-slide-up delay-500">
-          <Button 
-            size="lg" 
-            variant="hero" 
+          <Button
+            size="lg"
+            variant="hero"
             onClick={() => {
               sessionStorage.removeItem('explore-filters');
               navigate('/explore', { state: null });

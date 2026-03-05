@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { type Customer, customerGroups as defaultGroups } from "@/lib/data";
 // Import the specific CustomerGroup type from your API definitions
-import { type CustomerGroup } from "@/lib/api/types"; 
+import { type CustomerGroup } from "@/lib/api/types";
 import { useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from "@/hooks/api/useCustomers";
 import {
   Command,
@@ -47,7 +47,7 @@ function CustomerForm({ customer, onSave, onCancel, availableGroups = defaultGro
   const [address, setAddress] = useState(customer?.address || "");
   // Initialize group state with the CustomerGroup type
   const [group, setGroup] = useState<CustomerGroup>((customer?.group as CustomerGroup) || "" as CustomerGroup);
-  
+
   const [openGroup, setOpenGroup] = useState(false);
   const [groupSearch, setGroupSearch] = useState("");
 
@@ -93,10 +93,10 @@ function CustomerForm({ customer, onSave, onCancel, availableGroups = defaultGro
         <Label>Customer Group *</Label>
         <Popover open={openGroup} onOpenChange={setOpenGroup}>
           <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
-              role="combobox" 
-              aria-expanded={openGroup} 
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={openGroup}
               className="w-full justify-between font-normal"
               disabled={isLoading}
             >
@@ -118,13 +118,13 @@ function CustomerForm({ customer, onSave, onCancel, availableGroups = defaultGro
                 </CommandEmpty>
                 <CommandGroup heading="Groups">
                   {availableGroups.map((g) => (
-                    <CommandItem 
-                      key={g} 
-                      value={g} 
-                      onSelect={(val) => { 
+                    <CommandItem
+                      key={g}
+                      value={g}
+                      onSelect={(val) => {
                         // Cast the selection as CustomerGroup
-                        setGroup(val as CustomerGroup); 
-                        setOpenGroup(false); 
+                        setGroup(val as CustomerGroup);
+                        setOpenGroup(false);
                       }}
                     >
                       <Check className={cn("mr-2 h-4 w-4", group === g ? "opacity-100" : "opacity-0")} />
@@ -184,10 +184,10 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded, availab
       onCustomerAdded?.(result as any);
       onOpenChange(false);
     } catch (error) {
-      toast({ 
-        title: "Error", 
-        description: "Failed to add customer. Check if API is running.", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: "Failed to add customer. Check if API is running.",
+        variant: "destructive"
       });
     }
   };
@@ -196,11 +196,11 @@ export function AddCustomerDialog({ open, onOpenChange, onCustomerAdded, availab
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Add Customer</DialogTitle></DialogHeader>
-        <CustomerForm 
-          onSave={handleSave} 
-          onCancel={() => onOpenChange(false)} 
-          availableGroups={availableGroups} 
-          onAddGroup={onAddGroup} 
+        <CustomerForm
+          onSave={handleSave}
+          onCancel={() => onOpenChange(false)}
+          availableGroups={availableGroups}
+          onAddGroup={onAddGroup}
           isLoading={createMutation.isPending}
         />
       </DialogContent>
@@ -227,10 +227,10 @@ export function EditCustomerDialog({ customer, open, onOpenChange, onCustomerUpd
       onCustomerUpdated?.(result as any);
       onOpenChange(false);
     } catch (error) {
-      toast({ 
-        title: "Update Failed", 
-        description: "Could not save changes to backend.", 
-        variant: "destructive" 
+      toast({
+        title: "Update Failed",
+        description: "Could not save changes to backend.",
+        variant: "destructive"
       });
     }
   };
@@ -239,12 +239,12 @@ export function EditCustomerDialog({ customer, open, onOpenChange, onCustomerUpd
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Edit Customer</DialogTitle></DialogHeader>
-        <CustomerForm 
-          customer={customer} 
-          onSave={handleSave} 
-          onCancel={() => onOpenChange(false)} 
-          availableGroups={availableGroups} 
-          onAddGroup={onAddGroup} 
+        <CustomerForm
+          customer={customer}
+          onSave={handleSave}
+          onCancel={() => onOpenChange(false)}
+          availableGroups={availableGroups}
+          onAddGroup={onAddGroup}
           isLoading={updateMutation.isPending}
         />
       </DialogContent>
@@ -279,9 +279,9 @@ export function DeleteCustomerDialog({ customer, open, onOpenChange, onCustomerD
         <div className="py-4"><p>Are you sure you want to delete <strong>{customer.company}</strong>?</p></div>
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deleteMutation.isPending}>Cancel</Button>
-          <Button 
-            variant="destructive" 
-            onClick={handleDelete} 
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

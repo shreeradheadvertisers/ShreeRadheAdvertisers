@@ -18,9 +18,10 @@ export default function Inquiries() {
   const markAsAttended = useMarkAsAttended();
   const unmarkAsAttended = useUnmarkAsAttended();
   const location = useLocation(); // Location hook
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
+  const [showAllResolved, setShowAllResolved] = useState(false);
 
   // --- DEEP LINK LOGIC ---
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function Inquiries() {
         try {
           // Fetch the specific inquiry directly by ID
           const res = await apiClient.get<any>(`/api/contact/${location.state.viewInquiryId}`);
-          
+
           if (res) {
             setSelectedInquiry(res); // Open the dialog automatically
             // Clear state so it doesn't reopen on refresh
@@ -45,8 +46,8 @@ export default function Inquiries() {
   }, [location]);
 
   const allInquiries = response?.data || [];
-  
-  const filteredInquiries = allInquiries.filter(inq => 
+
+  const filteredInquiries = allInquiries.filter(inq =>
     inq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inq.phone.includes(searchTerm) ||
     inq.inquiryId?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -85,19 +86,19 @@ export default function Inquiries() {
 
       {/* QUICK STATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-primary/5 border-none shadow-sm ring-1 ring-primary/10">
+        <Card className="bg-primary/5 border-none shadow-sm ring-1 ring-primary/10 cursor-pointer hover:ring-primary/30 transition-all" onClick={() => setShowAllResolved(false)}>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-2 bg-primary/10 rounded-lg text-primary"><Inbox className="h-5 w-5" /></div>
             <div><p className="text-xs text-muted-foreground font-bold uppercase tracking-tight">Total Leads</p><p className="text-2xl font-black">{allInquiries.length}</p></div>
           </CardContent>
         </Card>
-        <Card className="bg-destructive/5 border-none shadow-sm ring-1 ring-destructive/10">
+        <Card className="bg-destructive/5 border-none shadow-sm ring-1 ring-destructive/10 cursor-pointer hover:ring-destructive/30 transition-all" onClick={() => { setShowAllResolved(false); document.getElementById('urgent-section')?.scrollIntoView({ behavior: 'smooth' }); }}>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-2 bg-destructive/10 rounded-lg text-destructive animate-pulse"><Clock className="h-5 w-5" /></div>
             <div><p className="text-xs text-muted-foreground font-bold uppercase tracking-tight">Active leads</p><p className="text-2xl font-black text-destructive">{pendingInquiries.length}</p></div>
           </CardContent>
         </Card>
-        <Card className="bg-success/5 border-none shadow-sm ring-1 ring-success/10">
+        <Card className="bg-success/5 border-none shadow-sm ring-1 ring-success/10 cursor-pointer hover:ring-success/30 transition-all" onClick={() => { setShowAllResolved(true); document.getElementById('resolved-section')?.scrollIntoView({ behavior: 'smooth' }); }}>
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-2 bg-success/10 rounded-lg text-success"><TrendingUp className="h-5 w-5" /></div>
             <div><p className="text-xs text-muted-foreground font-bold uppercase tracking-tight">Resolution</p><p className="text-2xl font-black">{allInquiries.length > 0 ? Math.round((recentAttended.length / allInquiries.length) * 100) : 0}%</p></div>
@@ -106,7 +107,7 @@ export default function Inquiries() {
       </div>
 
       {/* ACTIVE LEADS TABLE */}
-      <Card className="shadow-lg border-t-4 border-t-destructive overflow-hidden">
+      <Card className="shadow-lg border-t-4 border-t-destructive overflow-hidden" id="urgent-section">
         <CardHeader className="bg-destructive/5 py-4 border-b">
           <div className="flex justify-between items-center">
             <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 text-destructive">
@@ -146,12 +147,12 @@ export default function Inquiries() {
                     <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      size="sm" 
-                      className="bg-success hover:bg-success/90 text-white h-8" 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        markAsAttended.mutate(item._id); 
+                    <Button
+                      size="sm"
+                      className="bg-success hover:bg-success/90 text-white h-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsAttended.mutate(item._id);
                       }}
                       disabled={markAsAttended.isPending}
                     >
@@ -166,13 +167,20 @@ export default function Inquiries() {
       </Card>
 
       {/* RESOLVED HISTORY GRID */}
-      <div className="space-y-3">
-        <h3 className="text-[10px] font-black text-muted-foreground flex items-center gap-2 uppercase tracking-widest px-1">
-          <CheckCircle2 className="h-4 w-4 text-success" /> Resolved History
-        </h3>
+      <div className="space-y-3" id="resolved-section">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-black text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
+            <CheckCircle2 className="h-4 w-4 text-success" /> Resolved History ({recentAttended.length})
+          </h3>
+          {recentAttended.length > 6 && (
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setShowAllResolved(!showAllResolved)}>
+              {showAllResolved ? 'Show Less' : `View All (${recentAttended.length})`}
+            </Button>
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {recentAttended.length === 0 && <p className="text-xs text-muted-foreground italic col-span-full pl-1">No history yet.</p>}
-          {recentAttended.slice(0, 6).map((item) => (
+          {(showAllResolved ? recentAttended : recentAttended.slice(0, 6)).map((item) => (
             <Card key={item._id} className="group bg-card border-none shadow-sm transition-all hover:shadow-md hover:ring-1 ring-primary/20 cursor-pointer overflow-hidden" onClick={() => setSelectedInquiry(item)}>
               <CardContent className="p-4 flex justify-between items-start">
                 <div className="space-y-1 flex-1">
@@ -185,14 +193,14 @@ export default function Inquiries() {
                     <CheckCircle2 className="h-3 w-3" /> Attended {format(new Date(item.attendedAt!), "MMM d, yyyy")}
                   </p>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  title="Revert to Active" 
-                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all active:scale-90" 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    unmarkAsAttended.mutate(item._id); 
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Revert to Active"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100 transition-all active:scale-90"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    unmarkAsAttended.mutate(item._id);
                   }}
                   disabled={unmarkAsAttended.isPending}
                 >
@@ -210,12 +218,12 @@ export default function Inquiries() {
           <DialogHeader className="border-b pb-4">
             <div className="flex justify-between items-center pr-6">
               <DialogTitle className="flex items-center gap-2 text-xl font-bold">
-                Inquiry Details 
+                Inquiry Details
                 <Badge variant="outline" className="font-mono text-[10px] bg-muted">ID: {selectedInquiry?.inquiryId}</Badge>
               </DialogTitle>
             </div>
             <DialogDescription className="font-medium text-muted-foreground italic flex items-center gap-1">
-              <CalendarClock className="h-3.5 w-3.5" /> 
+              <CalendarClock className="h-3.5 w-3.5" />
               Submitted on {selectedInquiry?.createdAt ? format(new Date(selectedInquiry.createdAt), "PPP p") : "Unknown Date"}
             </DialogDescription>
           </DialogHeader>
@@ -255,12 +263,12 @@ export default function Inquiries() {
                   <MessageSquare className="h-3.5 w-3.5" /> Client Message
                 </p>
                 <p className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                  "{getDisplayMessage(selectedInquiry.message, 150)}"
+                  "{selectedInquiry.message}"
                 </p>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" 
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => copyToClipboard(selectedInquiry.message, "Message")}
                 >
                   <Copy className="h-3 w-3" />
@@ -281,18 +289,18 @@ export default function Inquiries() {
               Close
             </Button>
             {selectedInquiry?.attended ? (
-              <Button 
-                variant="destructive" 
-                className="gap-2 font-bold shadow-sm" 
+              <Button
+                variant="destructive"
+                className="gap-2 font-bold shadow-sm"
                 onClick={() => { unmarkAsAttended.mutate(selectedInquiry._id); setSelectedInquiry(null); }}
                 disabled={unmarkAsAttended.isPending}
               >
                 <RotateCcw className="h-4 w-4" /> Move to Active
               </Button>
             ) : (
-              <Button 
-                className="bg-success hover:bg-success/90 font-bold shadow-sm gap-2" 
-                onClick={() => { markAsAttended.mutate(selectedInquiry?._id); setSelectedInquiry(null); }}
+              <Button
+                className="bg-success hover:bg-success/90 font-bold shadow-sm gap-2"
+                onClick={() => { if (selectedInquiry?._id) { markAsAttended.mutate(selectedInquiry._id); setSelectedInquiry(null); } }}
                 disabled={markAsAttended.isPending}
               >
                 <CheckCircle2 className="h-4 w-4" /> Mark Attended

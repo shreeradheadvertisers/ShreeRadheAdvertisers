@@ -68,7 +68,8 @@ export function useUpdateAgreement() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return await apiClient.put(`/api/upload/agreement/${id}`, data);
+      // Backend route: PUT /api/media/upload/agreement/:id
+      return await apiClient.put(`/api/media/upload/agreement/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: complianceKeys.all });

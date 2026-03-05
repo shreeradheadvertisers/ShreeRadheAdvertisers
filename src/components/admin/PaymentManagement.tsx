@@ -55,7 +55,7 @@ interface RecordPaymentDialogProps {
 export function RecordPaymentDialog({ booking, customId, open, onOpenChange, onPaymentRecorded }: RecordPaymentDialogProps) {
   const [amountToPay, setAmountToPay] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
-  
+
   const currentPaid = booking?.amountPaid || 0;
   const totalAmount = booking?.amount || 0;
   const balance = totalAmount - currentPaid;
@@ -129,9 +129,9 @@ export function RecordPaymentDialog({ booking, customId, open, onOpenChange, onP
             <Label>Payment Amount (₹)</Label>
             <div className="relative">
               <IndianRupee className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                type="number" 
-                className="pl-9" 
+              <Input
+                type="number"
+                className="pl-9"
                 placeholder="0.00"
                 value={amountToPay}
                 onChange={(e) => setAmountToPay(e.target.value)}
@@ -183,7 +183,7 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("Online");
 
   // 1. Sort bookings to ensure correct IDs
-  const sortedBookings = [...bookings].sort((a, b) => 
+  const sortedBookings = [...bookings].sort((a, b) =>
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
 
@@ -223,7 +223,7 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
 
     const newTotalPaid = selectedBooking.amountPaid + payAmount;
     const remaining = selectedBooking.amount - newTotalPaid;
-    
+
     let newStatus: PaymentStatus = 'Pending';
     if (remaining <= 0) newStatus = 'Paid';
     else newStatus = 'Partially Paid';
@@ -321,8 +321,8 @@ export function NewPaymentDialog({ open, onOpenChange, bookings, onPaymentRecord
 
               <div className="space-y-2">
                 <Label>Payment Amount (₹)</Label>
-                <Input 
-                  type="number" 
+                <Input
+                  type="number"
                   placeholder="0.00"
                   value={amountToPay}
                   onChange={(e) => setAmountToPay(e.target.value)}
@@ -455,9 +455,9 @@ export function EditPaymentDialog({ booking, customId, open, onOpenChange, onSav
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <IndianRupee className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    type="number" 
-                    className="pl-9" 
+                  <Input
+                    type="number"
+                    className="pl-9"
                     value={formData.amountPaid}
                     onChange={(e) => setFormData({ ...formData, amountPaid: Number(e.target.value) })}
                   />
@@ -471,8 +471,8 @@ export function EditPaymentDialog({ booking, customId, open, onOpenChange, onSav
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Payment Status</Label>
-                <Select 
-                  value={formData.status} 
+                <Select
+                  value={formData.status}
                   onValueChange={(val) => setFormData({ ...formData, status: val as PaymentStatus })}
                 >
                   <SelectTrigger>
@@ -489,8 +489,8 @@ export function EditPaymentDialog({ booking, customId, open, onOpenChange, onSav
 
               <div className="space-y-2">
                 <Label>Payment Mode</Label>
-                <Select 
-                  value={formData.mode} 
+                <Select
+                  value={formData.mode}
                   onValueChange={(val) => setFormData({ ...formData, mode: val as PaymentMode })}
                 >
                   <SelectTrigger>
@@ -524,7 +524,7 @@ interface PaymentListDialogProps {
   bookings: Booking[];
   initialFilter?: PaymentStatus | 'All' | 'Cancelled';
   onUpdateBooking: (updatedBooking: Booking) => void;
-  onDeleteBooking: (id: string) => void; 
+  onDeleteBooking: (id: string) => void;
 }
 
 export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter = 'All', onUpdateBooking, onDeleteBooking }: PaymentListDialogProps) {
@@ -541,7 +541,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
   }, [open, initialFilter]);
 
   // 1. Sort bookings globally to ensure ID consistency
-  const sortedBookings = [...(bookings || [])].sort((a, b) => 
+  const sortedBookings = [...(bookings || [])].sort((a, b) =>
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
 
@@ -562,17 +562,17 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
     } else {
       matchesFilter = !isCancelled && b.paymentStatus === filter;
     }
-    
+
     const searchLower = (search || "").toLowerCase();
-    
+
     // Search using the Custom ID now
     const bookingIdStr = b.customId.toLowerCase();
     const mediaName = (b.mediaId?.name || b.media?.name || "").toLowerCase();
     const customerCompany = (b.customerId?.company || "").toLowerCase();
     const customerName = (b.customerId?.name || "").toLowerCase();
 
-    const matchesSearch = 
-      bookingIdStr.includes(searchLower) || 
+    const matchesSearch =
+      bookingIdStr.includes(searchLower) ||
       mediaName.includes(searchLower) ||
       customerCompany.includes(searchLower) ||
       customerName.includes(searchLower);
@@ -613,7 +613,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
                {(['All', 'Pending', 'Partially Paid', 'Paid', 'Cancelled'] as const).map(f => (
                  <Button
@@ -691,9 +691,9 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
+                            <Button
+                              size="sm"
+                              variant="outline"
                               className="h-8"
                               disabled={isFullyPaid || isCancelled}
                               onClick={() => {
@@ -704,9 +704,9 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                             >
                               {isCancelled ? <Ban className="h-3 w-3 mr-1" /> : null} Record Pay
                             </Button>
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-8 w-8 text-primary"
                               disabled={isCancelled}
                               onClick={() => {
@@ -717,9 +717,9 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              size="icon" 
-                              variant="ghost" 
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-8 w-8 text-destructive"
                               onClick={() => setDeleteConfirm(booking._id || booking.id)}
                             >
@@ -734,7 +734,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
               </TableBody>
             </Table>
           </ScrollArea>
-          
+
           <DialogFooter className="mt-2">
              <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           </DialogFooter>
@@ -755,7 +755,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => {
                 if (deleteConfirm) {
                   onDeleteBooking(deleteConfirm);
@@ -770,7 +770,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
         </AlertDialogContent>
       </AlertDialog>
 
-      <RecordPaymentDialog 
+      <RecordPaymentDialog
         booking={selectedBooking}
         customId={selectedBookingCustomId} // Pass Custom ID
         open={isRecordOpen}
@@ -778,7 +778,7 @@ export function PaymentListDialog({ open, onOpenChange, bookings, initialFilter 
         onPaymentRecorded={handleUpdate}
       />
 
-      <EditPaymentDialog 
+      <EditPaymentDialog
         booking={selectedBooking}
         customId={selectedBookingCustomId} // Pass Custom ID
         open={isEditOpen}

@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Search, AlertCircle, Wallet, Plus, IndianRupee, Pencil, Upload, 
-  FileSpreadsheet, FileText, FileBox, Loader2, Trash2, ArrowUpRight, Clock, Banknote, Filter, X 
+import {
+  Search, AlertCircle, Wallet, Plus, IndianRupee, Pencil, Upload,
+  FileSpreadsheet, FileText, FileBox, Loader2, Trash2, ArrowUpRight, Clock, Banknote, Filter, X
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { cn, formatIndianRupee } from "@/lib/utils";
 import { toast } from "sonner";
-import logo from "@/assets/logo.png"; 
+import logo from "@/assets/logo.png";
 import { apiClient } from "@/lib/api/client"; // ✅ Added API Client
 
 // --- 1. IMPORT LIVE API HOOKS & CONTEXT ---
@@ -40,16 +40,16 @@ import { customerGroups } from "@/lib/data";
 import { useAuth } from "@/contexts/AuthContext";
 
 // --- 2. IMPORT HELPERS & DIALOGS ---
-import { 
-  EditBookingDialog, 
-  DeleteBookingDialog 
+import {
+  EditBookingDialog,
+  DeleteBookingDialog
 } from "@/components/admin/BookingManagement";
 import { generateBookingId } from "@/lib/utils";
 
 const Payments = () => {
   const { user } = useAuth();
   const location = useLocation(); // ✅ Hook to catch the redirect state
-  
+
   // Filters State
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'All'>('All');
@@ -60,16 +60,16 @@ const Payments = () => {
   // Dialog States
   const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<any>(null); // Full Edit
   const [isBookingEditOpen, setIsBookingEditOpen] = useState(false);
-  
+
   const [selectedPaymentForEdit, setSelectedPaymentForEdit] = useState<Booking | null>(null); // Quick Payment Edit
   const [isPaymentEditOpen, setIsPaymentEditOpen] = useState(false);
-  
+
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
-  
+
   const [isNewPaymentOpen, setIsNewPaymentOpen] = useState(false);
-  const [detailView, setDetailView] = useState<{ open: boolean; filter: PaymentStatus | 'All' }>({ 
-    open: false, 
-    filter: 'All' 
+  const [detailView, setDetailView] = useState<{ open: boolean; filter: PaymentStatus | 'All' }>({
+    open: false,
+    filter: 'All'
   });
 
   // --- 3. FETCH LIVE DATA ---
@@ -88,10 +88,10 @@ const Payments = () => {
       if (location.state?.highlightBookingId) {
         try {
           const id = location.state.highlightBookingId;
-          
+
           // 1. Try finding it in the already loaded list
           const found = bookings.find((b: any) => b._id === id || b.id === id);
-          
+
           if (found) {
             setSelectedPaymentForEdit(found);
             setIsPaymentEditOpen(true); // Open the Payment Dialog
@@ -110,7 +110,7 @@ const Payments = () => {
         }
       }
     };
-    
+
     // Run only after bookings have attempted to load
     if (!bookingsLoading) {
       handleDeepLink();
@@ -132,38 +132,38 @@ const Payments = () => {
   const overdueCount = bookings.filter(b => b.paymentStatus === 'Pending' && b.status !== 'Cancelled').length;
 
   const summaryCards = [
-    { 
-      title: "Total Revenue Collected", 
-      value: `₹${formatIndianRupee(totalRevenueNum)}`, 
-      icon: IndianRupee, 
-      color: "text-blue-600", 
+    {
+      title: "Total Revenue Collected",
+      value: `₹${formatIndianRupee(totalRevenueNum)}`,
+      icon: IndianRupee,
+      color: "text-blue-600",
       bg: "bg-blue-50",
       filter: 'Paid' as const,
       description: "Total payments received"
     },
-    { 
-      title: "Outstanding Dues", 
-      value: `₹${formatIndianRupee(pendingDuesNum)}`, 
-      icon: AlertCircle, 
-      color: "text-destructive", 
+    {
+      title: "Outstanding Dues",
+      value: `₹${formatIndianRupee(pendingDuesNum)}`,
+      icon: AlertCircle,
+      color: "text-destructive",
       bg: "bg-red-50",
       filter: 'Pending' as const,
       description: "Payments yet to be collected"
     },
-    { 
-      title: "Partial Payments", 
-      value: partialCount, 
-      icon: Clock, 
-      color: "text-warning", 
+    {
+      title: "Partial Payments",
+      value: partialCount,
+      icon: Clock,
+      color: "text-warning",
       bg: "bg-orange-50",
       filter: 'Partially Paid' as const,
       description: "Active installment plans"
     },
-    { 
-      title: "Pending Bookings", 
-      value: overdueCount, 
-      icon: Banknote, 
-      color: "text-purple-600", 
+    {
+      title: "Pending Bookings",
+      value: overdueCount,
+      icon: Banknote,
+      color: "text-purple-600",
       bg: "bg-purple-50",
       filter: 'Pending' as const,
       description: "Zero payment recorded"
@@ -171,18 +171,18 @@ const Payments = () => {
   ];
 
   // --- 5. PREPARE DATA ---
-  const sortedBookings = [...bookings].sort((a, b) => 
+  const sortedBookings = [...bookings].sort((a, b) =>
     new Date(a.startDate || a.createdAt).getTime() - new Date(b.startDate || b.createdAt).getTime()
   );
 
   const filteredBookings = sortedBookings.filter((b, index) => {
     const customer = typeof b.customerId === 'object' ? b.customerId : customers.find(c => (c._id || c.id) === b.customerId);
-    
+
     // Filters
     const matchesStatus = statusFilter === 'All' ? true : b.paymentStatus === statusFilter;
     const matchesMode = modeFilter === 'All' ? true : b.paymentMode === modeFilter;
     const matchesGroup = groupFilter === 'All' ? true : customer?.group === groupFilter;
-    
+
     // Search Logic
     const customId = generateBookingId(b, index);
     const matchesSearch =
@@ -200,7 +200,7 @@ const Payments = () => {
       if (end && bookingDate > end) return false;
       return true;
     })();
-      
+
     return matchesStatus && matchesMode && matchesSearch && matchesGroup && matchesDate;
   });
 
@@ -288,7 +288,7 @@ const Payments = () => {
       toast.error("No records found to export.");
       return;
     }
-    
+
     if (format === 'pdf') {
       window.print();
       return;
@@ -355,7 +355,7 @@ const Payments = () => {
               <p className="text-gray-600 font-medium mt-1">Payment & Invoice Report</p>
             </div>
            </div>
-           
+
            <div className="text-right">
              <div className="mb-2">
                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Generated On</p>
@@ -402,7 +402,7 @@ const Payments = () => {
            <Button onClick={() => setIsNewPaymentOpen(true)}>
              <Plus className="mr-2 h-4 w-4" /> Record Payment
            </Button>
-           
+
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
@@ -427,8 +427,8 @@ const Payments = () => {
       {/* Summary Cards - Hidden in Print */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
         {summaryCards.map((card) => (
-          <Card 
-            key={card.title} 
+          <Card
+            key={card.title}
             className="hover:shadow-md transition-all cursor-pointer group border-border/50"
             onClick={() => setDetailView({ open: true, filter: card.filter })}
           >
@@ -461,7 +461,7 @@ const Payments = () => {
                  onChange={(e) => setSearch(e.target.value)}
                />
              </div>
-             
+
              <Select value={modeFilter} onValueChange={(val) => setModeFilter(val as PaymentMode | 'All')}>
                 <SelectTrigger className="w-full sm:w-[160px]">
                   <SelectValue placeholder="Mode" />
@@ -518,7 +518,7 @@ const Payments = () => {
                </SheetContent>
              </Sheet>
           </div>
-          
+
           <div className="flex gap-2 overflow-x-auto pb-2 xl:pb-0">
              {(['All', 'Pending', 'Partially Paid', 'Paid'] as const).map(f => (
                <Button
@@ -555,15 +555,14 @@ const Payments = () => {
               ) : (
                 filteredBookings.map((booking) => {
                   const customer = typeof booking.customerId === 'object' ? booking.customerId : customers.find(c => (c._id || c.id) === booking.customerId);
-                  
+
                   const originalIndex = sortedBookings.findIndex(sb => (sb._id || sb.id) === (booking._id || booking.id));
                   const customId = generateBookingId(booking, originalIndex);
 
                   return (
-                    <TableRow key={booking._id || booking.id} className="group transition-colors print:border-b print:border-gray-200">
-                      <TableCell 
-                        className="font-mono font-medium text-primary cursor-pointer hover:underline print:text-xs print:no-underline print:text-black"
-                        onClick={() => handleBookingClick(booking)}
+                    <TableRow key={booking._id || booking.id} className="group transition-colors print:border-b print:border-gray-200 cursor-pointer hover:bg-muted/40" onClick={() => handleBookingClick(booking)}>
+                      <TableCell
+                        className="font-mono font-medium text-primary print:text-xs print:no-underline print:text-black"
                       >
                         <div>{customId}</div>
                         <div className="text-xs text-muted-foreground print:text-[10px]">
@@ -583,7 +582,7 @@ const Payments = () => {
                         </div>
                       </TableCell>
                       <TableCell className="print:text-xs">
-                        <Badge 
+                        <Badge
                           variant={booking.paymentStatus === 'Paid' ? 'success' : booking.paymentStatus === 'Partially Paid' ? 'warning' : 'destructive'}
                           className="print:bg-transparent print:text-black print:border print:border-black print:px-1"
                         >
@@ -592,19 +591,19 @@ const Payments = () => {
                       </TableCell>
                       <TableCell className="text-right print:hidden">
                         <div className="flex justify-end gap-1">
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={() => { setSelectedPaymentForEdit(booking); setIsPaymentEditOpen(true); }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedPaymentForEdit(booking); setIsPaymentEditOpen(true); }}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDeleteClick(booking._id || booking.id)}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(booking._id || booking.id); }}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -620,7 +619,7 @@ const Payments = () => {
       </Card>
 
       {/* QUICK PAYMENT EDIT */}
-      <EditPaymentDialog 
+      <EditPaymentDialog
         booking={selectedPaymentForEdit}
         open={isPaymentEditOpen}
         onOpenChange={setIsPaymentEditOpen}
@@ -628,7 +627,7 @@ const Payments = () => {
       />
 
       {/* NEW PAYMENT */}
-      <NewPaymentDialog 
+      <NewPaymentDialog
         bookings={bookings}
         open={isNewPaymentOpen}
         onOpenChange={setIsNewPaymentOpen}
@@ -636,7 +635,7 @@ const Payments = () => {
       />
 
       {/* PAYMENT LIST (DETAILS) */}
-      <PaymentListDialog 
+      <PaymentListDialog
         open={detailView.open}
         onOpenChange={(open) => setDetailView(prev => ({ ...prev, open }))}
         initialFilter={detailView.filter}
@@ -647,21 +646,21 @@ const Payments = () => {
 
       {/* FULL EDIT DIALOG */}
       {selectedBookingForEdit && (
-        <EditBookingDialog 
-          open={isBookingEditOpen} 
-          onOpenChange={setIsBookingEditOpen} 
-          booking={selectedBookingForEdit} 
+        <EditBookingDialog
+          open={isBookingEditOpen}
+          onOpenChange={setIsBookingEditOpen}
+          booking={selectedBookingForEdit}
           onSave={handleBookingSave}
         />
       )}
 
       {/* DELETE CONFIRMATION DIALOG */}
       {deleteBookingId && (
-        <DeleteBookingDialog 
-          booking={bookings.find(b => (b._id || b.id) === deleteBookingId)} 
-          open={!!deleteBookingId} 
-          onOpenChange={() => setDeleteBookingId(null)} 
-          onConfirm={handleDeleteConfirm} 
+        <DeleteBookingDialog
+          booking={bookings.find(b => (b._id || b.id) === deleteBookingId)}
+          open={!!deleteBookingId}
+          onOpenChange={() => setDeleteBookingId(null)}
+          onConfirm={handleDeleteConfirm}
         />
       )}
 
