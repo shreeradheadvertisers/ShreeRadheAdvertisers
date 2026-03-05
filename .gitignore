@@ -11,3 +11,9 @@ node_modules/
 dist/
 build/
 .next/
+
+# Deployment documentation (sensitive)
+DEPLOYMENT_GUIDE.md
+
+# Server configuration (sensitive - contains IP whitelists and security rules)
+public/.htaccess
